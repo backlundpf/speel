@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "heft clean && npm run tailwind:build && heft test --production && heft package-solution --production",
-    "build:check": "heft build",
+    "build:check": "npm run tailwind:build && heft build",
     "start": "heft start --clean --nobrowser",
     "dev": "npm run tailwind:build && concurrently -k -n css,spfx -c cyan,green \"npm:tailwind:watch\" \"heft start --nobrowser\"",
     "clean": "heft clean",

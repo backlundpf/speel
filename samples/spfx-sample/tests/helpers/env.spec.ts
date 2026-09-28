@@ -16,7 +16,8 @@ test("loadEnv returns shared config when all vars are present", () => {
   const env = loadEnv(SHARED);
   expect(env.baseURL).toContain("sharepoint.com");
   expect(env.pages).toEqual({
-    admin: "https://example.sharepoint.com/sites/x/SitePages/AdminDashboard.aspx",
+    admin:
+      "https://example.sharepoint.com/sites/x/SitePages/AdminDashboard.aspx",
     project:
       "https://example.sharepoint.com/sites/x/SitePages/ProjectDashboard.aspx",
   });

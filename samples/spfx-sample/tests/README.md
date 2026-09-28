@@ -9,7 +9,7 @@ Two layers:
   deployed to them), scripts the Microsoft login (password + TOTP), and drives the web part
   against the live tenant. A spec picks its page with `dashboard.open("admin" | "project")`;
   the project dashboard renders in either skin, and `dashboard.open("project", { skin:
-  "shadcn" })` deep-links the shadcn one (`?skin=shadcn`). Only the **admin** page publishes
+"shadcn" })` deep-links the shadcn one (`?skin=shadcn`). Only the **admin** page publishes
   `window.pd` (the live DbContext, actions and `pd.conformance`), so any spec that reaches for
   `pd` opens `admin`. Run: `npm run test:e2e` (headed: `npm run test:e2e:ui`).
   - `providerConformance.spec.ts` — the `@speel/core` provider conformance suite against the
