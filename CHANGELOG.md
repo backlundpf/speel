@@ -3,7 +3,7 @@
 All `@speel/*` packages are versioned in lockstep. Prereleases publish under the npm
 `beta` dist-tag (`npm install @speel/core@beta`).
 
-## Unreleased
+## 0.1.0-beta.1 — 2026-09-28
 
 ### Fixed
 
@@ -11,6 +11,12 @@ All `@speel/*` packages are versioned in lockstep. Prereleases publish under the
   (a navigation to a principal) no longer fails its sync read. The cache path now tells the
   provider the expand is a person column, as queries always did, so SharePoint is asked only
   for what an inline person expand can answer (#23).
+
+### Security
+
+- **@speel/react** — the `@tiptap/*` dependencies now require `^3.30.5`, which carries the
+  fixes for GHSA-cp6q-959q-f8rh (`mergeAttributes()` prototype pollution) and
+  GHSA-j95f-988m-3j2f (quadratic ReDoS in Markdown attribute parsing).
 
 ## 0.1.0-beta.0 — 2026-09-28
 

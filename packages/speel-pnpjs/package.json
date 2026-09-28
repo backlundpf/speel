@@ -1,6 +1,6 @@
 {
   "name": "@speel/pnpjs",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0-beta.1",
   "description": "PnPjs v4 SharePoint provider for @speel/core, @speel/migrations, and @speel/identity.",
   "keywords": [
     "sharepoint",
