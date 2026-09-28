@@ -50,7 +50,9 @@ test("field demo (v8): renders cleanly on the live page across reloads", async (
     const textFields = await modal.locator(".ms-TextField").count();
     const comboboxes = await modal.getByRole("combobox").count();
     const style = await modal.evaluate((root) => {
-      const el = root.querySelector(".ms-TextField input") as HTMLElement | null;
+      const el = root.querySelector(
+        ".ms-TextField input",
+      ) as HTMLElement | null;
       if (!el) return "no ms-TextField";
       const cs = getComputedStyle(el);
       return `borderBottom=${cs.borderBottomWidth}/${cs.borderBottomStyle} color=${cs.color}`;
