@@ -13,10 +13,18 @@ function stub(opts: { changesXml: string; items: Record<string, unknown>[] }) {
   const calls = {
     filter: undefined as string | undefined,
     changeQuery: undefined as Record<string, unknown> | undefined,
+    select: [] as string[],
+    expand: [] as string[],
   };
   const builder: any = {
-    select: () => builder,
-    expand: () => builder,
+    select: (...s: string[]) => {
+      calls.select.push(...s);
+      return builder;
+    },
+    expand: (...e: string[]) => {
+      calls.expand.push(...e);
+      return builder;
+    },
     filter: (s: string) => {
       calls.filter = s;
       return builder;
@@ -105,5 +113,52 @@ describe("SharePointProvider.getListItemChangesSinceToken", () => {
       (calls.changeQuery as Record<string, unknown>).ChangeToken,
     ).toBeUndefined();
     expect((calls.changeQuery as Record<string, unknown>).RowLimit).toBe("1");
+  });
+
+  it("a provider-sourced (person) expand selects the UIL's spelling and reads back in the model's", async () => {
+    // The cache path syncs through here; the clause's source is what routes a
+    // person column away from a literal list-lookup $select.
+    const xml = `<listitems><Changes LastChangeToken="1;3;g;638400000000000000;9"></Changes></listitems>`;
+    const { sp, calls } = stub({
+      changesXml: xml,
+      items: [
+        {
+          ID: 1,
+          Title: "T",
+          ClosedBy: {
+            Id: 7,
+            Title: "Ada",
+            Name: "i:0#.f|m|ada",
+            EMail: "ada@x",
+          },
+        },
+      ],
+    });
+    const provider = new SharePointProvider(sp as never);
+    const res = await provider.getListItemChangesSinceToken(
+      LIST,
+      "",
+      ["Title"],
+      [
+        {
+          navColumn: "ClosedBy",
+          selectFields: ["Id", "Title", "LoginName", "Email", "PrincipalType"],
+          source: { kind: "provider", key: "principals" },
+        },
+      ],
+    );
+    expect(calls.expand).toEqual(["ClosedBy"]);
+    expect(calls.select.filter((s) => s.startsWith("ClosedBy/"))).toEqual([
+      "ClosedBy/Id",
+      "ClosedBy/Title",
+      "ClosedBy/Name",
+      "ClosedBy/EMail",
+    ]);
+    expect(res.changed[0]!.ClosedBy).toEqual({
+      Id: 7,
+      Title: "Ada",
+      LoginName: "i:0#.f|m|ada",
+      Email: "ada@x",
+    });
   });
 });
