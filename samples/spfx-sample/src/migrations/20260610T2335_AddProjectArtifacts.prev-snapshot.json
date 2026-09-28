@@ -1,0 +1,199 @@
+{
+  "version": 1,
+  "entities": [
+    {
+      "list": {
+        "title": "Customers",
+        "template": "genericList"
+      },
+      "fields": [
+        {
+          "internalName": "ContactName",
+          "displayName": "Contact Name",
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 255
+        },
+        {
+          "internalName": "Title",
+          "displayName": "Title",
+          "required": true,
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 255
+        }
+      ]
+    },
+    {
+      "list": {
+        "title": "Programs",
+        "template": "genericList"
+      },
+      "fields": [
+        {
+          "internalName": "Customer",
+          "displayName": "Customer",
+          "kind": "Lookup",
+          "list": "Customers",
+          "showField": "Title",
+          "multi": false
+        },
+        {
+          "internalName": "Title",
+          "displayName": "Title",
+          "required": true,
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 255
+        }
+      ]
+    },
+    {
+      "list": {
+        "title": "Projects",
+        "template": "genericList"
+      },
+      "fields": [
+        {
+          "internalName": "Budget",
+          "displayName": "Budget",
+          "kind": "Currency",
+          "decimalPlaces": 2,
+          "currencyCode": "USD",
+          "min": 0
+        },
+        {
+          "internalName": "Category",
+          "displayName": "Category",
+          "kind": "Choice",
+          "choices": [
+            "eng",
+            "ops",
+            "mkt"
+          ],
+          "fillIn": false,
+          "displayAs": "Dropdown"
+        },
+        {
+          "internalName": "Description",
+          "displayName": "Description",
+          "kind": "Text",
+          "multiline": true,
+          "richText": false,
+          "appendOnly": false,
+          "numberOfLines": 6
+        },
+        {
+          "internalName": "DueDate",
+          "displayName": "Due Date",
+          "required": true,
+          "kind": "DateTime",
+          "displayFormat": "DateOnly",
+          "friendlyFormat": "Disabled"
+        },
+        {
+          "internalName": "IsPublic",
+          "displayName": "Public",
+          "kind": "Boolean"
+        },
+        {
+          "internalName": "Owner",
+          "displayName": "Owner",
+          "kind": "User",
+          "showField": "Title",
+          "multi": false
+        },
+        {
+          "internalName": "Priority",
+          "displayName": "Priority",
+          "required": true,
+          "kind": "Choice",
+          "choices": [
+            "Low",
+            "Medium",
+            "High",
+            "Critical"
+          ],
+          "fillIn": false,
+          "displayAs": "Dropdown"
+        },
+        {
+          "internalName": "Program",
+          "displayName": "Program",
+          "required": true,
+          "kind": "Lookup",
+          "list": "Programs",
+          "showField": "Title",
+          "multi": false
+        },
+        {
+          "internalName": "RepoUrl",
+          "displayName": "Repository URL",
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 255
+        },
+        {
+          "internalName": "Reviewers",
+          "displayName": "Reviewers",
+          "kind": "User",
+          "showField": "Title",
+          "multi": true
+        },
+        {
+          "internalName": "StartDate",
+          "displayName": "Start Date",
+          "kind": "DateTime",
+          "displayFormat": "DateOnly",
+          "friendlyFormat": "Disabled"
+        },
+        {
+          "internalName": "Status",
+          "displayName": "Status",
+          "required": true,
+          "kind": "Choice",
+          "choices": [
+            "Planning",
+            "Active",
+            "On Hold",
+            "Complete"
+          ],
+          "fillIn": false,
+          "displayAs": "Dropdown"
+        },
+        {
+          "internalName": "Tags",
+          "displayName": "Tags",
+          "kind": "Lookup",
+          "list": "Tags",
+          "showField": "Title",
+          "multi": true
+        },
+        {
+          "internalName": "Title",
+          "displayName": "Title",
+          "required": true,
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 80
+        }
+      ]
+    },
+    {
+      "list": {
+        "title": "Tags",
+        "template": "genericList"
+      },
+      "fields": [
+        {
+          "internalName": "Title",
+          "displayName": "Title",
+          "required": true,
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 255
+        }
+      ]
+    }
+  ]
+}

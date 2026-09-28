@@ -1,0 +1,26 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "project-dashboard-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/projectDashboard/ProjectDashboardWebPart.js",
+          "manifest": "./src/webparts/projectDashboard/ProjectDashboardWebPart.manifest.json"
+        }
+      ]
+    },
+    "admin-dashboard-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/adminDashboard/AdminDashboardWebPart.js",
+          "manifest": "./src/webparts/adminDashboard/AdminDashboardWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "ProjectDashboardWebPartStrings": "lib/webparts/projectDashboard/loc/{locale}.js"
+  }
+}

@@ -1,0 +1,23 @@
+node_modules/
+dist/
+coverage/
+.claude/
+.superpowers/
+.tsbuildinfo
+*.tsbuildinfo
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+scratch/
+# Empty mount-point placeholders the Claude Code sandbox creates at the repo root
+/.bash_profile
+/.bashrc
+/.gitconfig
+/.gitmodules
+/.idea
+/.vscode
+/.mcp.json
+/.profile
+/.ripgreprc
+/.zprofile
+/.zshrc

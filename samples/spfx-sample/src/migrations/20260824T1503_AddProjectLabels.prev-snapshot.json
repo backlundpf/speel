@@ -1,0 +1,359 @@
+{
+  "version": 1,
+  "entities": [
+    {
+      "list": {
+        "title": "Customers",
+        "template": "genericList"
+      },
+      "fields": [
+        {
+          "internalName": "ContactName",
+          "displayName": "Contact Name",
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 255
+        },
+        {
+          "internalName": "Title",
+          "displayName": "Title",
+          "required": true,
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 255
+        }
+      ]
+    },
+    {
+      "list": {
+        "title": "Programs",
+        "template": "genericList"
+      },
+      "fields": [
+        {
+          "internalName": "Customer",
+          "displayName": "Customer",
+          "kind": "Lookup",
+          "list": "Customers",
+          "showField": "Title",
+          "multi": false
+        },
+        {
+          "internalName": "Title",
+          "displayName": "Title",
+          "required": true,
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 255
+        }
+      ]
+    },
+    {
+      "list": {
+        "title": "ProjectArtifacts",
+        "template": "documentLibrary"
+      },
+      "fields": [
+        {
+          "internalName": "Notes0",
+          "displayName": "Notes",
+          "kind": "Text",
+          "multiline": true,
+          "richText": false,
+          "appendOnly": false,
+          "numberOfLines": 6
+        },
+        {
+          "internalName": "Project",
+          "displayName": "Project",
+          "kind": "Lookup",
+          "list": "Projects",
+          "showField": "Title",
+          "multi": false
+        },
+        {
+          "internalName": "Title",
+          "displayName": "Title",
+          "required": true,
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 255
+        }
+      ]
+    },
+    {
+      "list": {
+        "title": "Projects",
+        "template": "genericList"
+      },
+      "fields": [
+        {
+          "internalName": "Budget",
+          "displayName": "Budget",
+          "kind": "Currency",
+          "decimalPlaces": 2,
+          "currencyCode": "USD",
+          "min": 0
+        },
+        {
+          "internalName": "Category",
+          "displayName": "Category",
+          "kind": "Choice",
+          "multi": false,
+          "choices": [
+            "eng",
+            "ops",
+            "mkt"
+          ],
+          "fillIn": false,
+          "displayAs": "Dropdown"
+        },
+        {
+          "internalName": "Description",
+          "displayName": "Description",
+          "kind": "Text",
+          "multiline": true,
+          "richText": false,
+          "appendOnly": false,
+          "numberOfLines": 6
+        },
+        {
+          "internalName": "DueDate",
+          "displayName": "Due Date",
+          "required": true,
+          "kind": "DateTime",
+          "displayFormat": "DateOnly",
+          "friendlyFormat": "Disabled"
+        },
+        {
+          "internalName": "IsPublic",
+          "displayName": "Public",
+          "kind": "Boolean"
+        },
+        {
+          "internalName": "Owner",
+          "displayName": "Owner",
+          "kind": "User",
+          "showField": "Title",
+          "multi": false
+        },
+        {
+          "internalName": "Priority",
+          "displayName": "Priority",
+          "required": true,
+          "kind": "Choice",
+          "multi": false,
+          "choices": [
+            "Low",
+            "Medium",
+            "High",
+            "Critical"
+          ],
+          "fillIn": false,
+          "displayAs": "Dropdown"
+        },
+        {
+          "internalName": "Program",
+          "displayName": "Program",
+          "required": true,
+          "kind": "Lookup",
+          "list": "Programs",
+          "showField": "Title",
+          "multi": false
+        },
+        {
+          "internalName": "RepoUrl",
+          "displayName": "Repository URL",
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 255
+        },
+        {
+          "internalName": "Reviewers",
+          "displayName": "Reviewers",
+          "kind": "User",
+          "showField": "Title",
+          "multi": true
+        },
+        {
+          "internalName": "StartDate",
+          "displayName": "Start Date",
+          "kind": "DateTime",
+          "displayFormat": "DateOnly",
+          "friendlyFormat": "Disabled"
+        },
+        {
+          "internalName": "Status",
+          "displayName": "Status",
+          "required": true,
+          "kind": "Choice",
+          "multi": false,
+          "choices": [
+            "Planning",
+            "Active",
+            "On Hold",
+            "Complete"
+          ],
+          "fillIn": false,
+          "displayAs": "Dropdown"
+        },
+        {
+          "internalName": "Tags",
+          "displayName": "Tags",
+          "kind": "Lookup",
+          "list": "Tags",
+          "showField": "Title",
+          "multi": true
+        },
+        {
+          "internalName": "Title",
+          "displayName": "Title",
+          "required": true,
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 80
+        }
+      ]
+    },
+    {
+      "list": {
+        "title": "Tags",
+        "template": "genericList"
+      },
+      "fields": [
+        {
+          "internalName": "Title",
+          "displayName": "Title",
+          "required": true,
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 255,
+          "minLength": 3
+        }
+      ]
+    },
+    {
+      "list": {
+        "title": "TaskComments",
+        "template": "genericList"
+      },
+      "fields": [
+        {
+          "internalName": "Body",
+          "displayName": "Comment",
+          "required": true,
+          "kind": "Text",
+          "multiline": true,
+          "richText": false,
+          "appendOnly": false,
+          "numberOfLines": 6
+        },
+        {
+          "internalName": "Task",
+          "displayName": "Task",
+          "kind": "Lookup",
+          "list": "Tasks",
+          "showField": "Title",
+          "multi": false
+        }
+      ]
+    },
+    {
+      "list": {
+        "title": "Tasks",
+        "template": "genericList"
+      },
+      "fields": [
+        {
+          "internalName": "Cost",
+          "displayName": "Cost",
+          "kind": "Currency",
+          "decimalPlaces": 2,
+          "currencyCode": "USD",
+          "min": 0
+        },
+        {
+          "internalName": "Details",
+          "displayName": "Details",
+          "kind": "Text",
+          "multiline": true,
+          "richText": true,
+          "appendOnly": false,
+          "numberOfLines": 6
+        },
+        {
+          "internalName": "DueDate",
+          "displayName": "Due Date",
+          "kind": "DateTime",
+          "displayFormat": "DateTime",
+          "friendlyFormat": "Disabled"
+        },
+        {
+          "internalName": "EstimateHours",
+          "displayName": "Estimate (h)",
+          "kind": "Number",
+          "min": 0,
+          "decimalPlaces": 1
+        },
+        {
+          "internalName": "IsBillable",
+          "displayName": "Billable",
+          "kind": "Boolean"
+        },
+        {
+          "internalName": "Labels",
+          "displayName": "Labels",
+          "kind": "Choice",
+          "multi": true,
+          "choices": [
+            "frontend",
+            "backend",
+            "design",
+            "ops"
+          ],
+          "fillIn": false,
+          "displayAs": "Dropdown"
+        },
+        {
+          "internalName": "Project",
+          "displayName": "Project",
+          "kind": "Lookup",
+          "list": "Projects",
+          "showField": "Title",
+          "multi": false
+        },
+        {
+          "internalName": "Status",
+          "displayName": "Status",
+          "required": true,
+          "kind": "Choice",
+          "multi": false,
+          "choices": [
+            "To Do",
+            "In Progress",
+            "Blocked",
+            "Done"
+          ],
+          "fillIn": false,
+          "displayAs": "RadioButtons"
+        },
+        {
+          "internalName": "Tags",
+          "displayName": "Tags",
+          "kind": "Lookup",
+          "list": "Tags",
+          "showField": "Title",
+          "multi": true
+        },
+        {
+          "internalName": "Title",
+          "displayName": "Title",
+          "required": true,
+          "kind": "Text",
+          "multiline": false,
+          "maxLength": 120
+        }
+      ]
+    }
+  ]
+}

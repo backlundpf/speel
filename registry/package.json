@@ -1,0 +1,42 @@
+{
+  "name": "@speel/shadcn-registry",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "registry:build": "shadcn build",
+    "build:check": "shadcn build && git diff --exit-code public/r"
+  },
+  "dependencies": {
+    "@speel/core": "file:../packages/speel-core",
+    "@speel/react": "file:../packages/speel-react",
+    "@tiptap/core": "^3.30.2",
+    "@tiptap/pm": "^3.30.2",
+    "@tiptap/react": "^3.30.2",
+    "@tiptap/starter-kit": "^3.30.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "lucide-react": "^1.17.0",
+    "radix-ui": "^1.5.0",
+    "react": "17.0.1",
+    "react-day-picker": "^10.0.1",
+    "react-dom": "17.0.1",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^12.1.5",
+    "@types/react": "17.0.45",
+    "@types/react-dom": "17.0.17",
+    "@vitejs/plugin-react": "^4.4.1",
+    "jsdom": "^26.1.0",
+    "shadcn": "^2.5.0",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^5.4.0",
+    "vite": "^6.3.5",
+    "vitest": "^3.1.2"
+  }
+}

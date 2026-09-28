@@ -1,0 +1,21 @@
+{
+  "extends": "@microsoft/spfx-web-build-rig/profiles/default/tsconfig-base.json",
+  "compilerOptions": {
+    "target": "es2022",
+    "moduleResolution": "bundler",
+    "ignoreDeprecations": "5.0",
+    "experimentalDecorators": false,
+    "useDefineForClassFields": true,
+    "jsx": "react-jsx",
+    "noUncheckedSideEffectImports": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "react": ["node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["node_modules/@types/react/jsx-runtime.d.ts"],
+      "react/jsx-dev-runtime": [
+        "node_modules/@types/react/jsx-dev-runtime.d.ts"
+      ]
+    }
+  }
+}

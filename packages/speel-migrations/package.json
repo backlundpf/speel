@@ -1,0 +1,59 @@
+{
+  "name": "@speel/migrations",
+  "version": "0.1.0-beta.0",
+  "description": "EF-Core-style schema migrations for SharePoint lists and fields, applied at runtime by a Migrator.",
+  "keywords": [
+    "sharepoint",
+    "spfx",
+    "migrations",
+    "schema"
+  ],
+  "license": "MIT",
+  "author": "Peter Backlund",
+  "homepage": "https://github.com/backlundpf/speel/tree/main/packages/speel-migrations#readme",
+  "bugs": {
+    "url": "https://github.com/backlundpf/speel/issues"
+  },
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/backlundpf/speel.git",
+    "directory": "packages/speel-migrations"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "test": "vitest run && tsc -p tsconfig.test.json",
+    "test:types": "tsc -p tsconfig.test.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@speel/core": "^0.1.0-beta.0"
+  },
+  "devDependencies": {
+    "@speel/core": "*",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "beta"
+  }
+}

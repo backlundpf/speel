@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  // Stays on the base's Bundler resolution: @pnp/sp's typings augment SPFI/IList via
+  // extensionless `declare module "../fi"`, which NodeNext can't resolve, so `sp.web`,
+  // `list.items` etc. vanish. Runtime specifiers are still Node-ESM (./x.js,
+  // @pnp/sp/webs/index.js); scripts/check-node-esm.mjs enforces that on the built dist.
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules", "test"]
+}

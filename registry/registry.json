@@ -1,0 +1,141 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "speel",
+  "homepage": "https://github.com/backlundpf/speel",
+  "items": [
+    {
+      "name": "speel-shadcn",
+      "type": "registry:component",
+      "title": "Speel shadcn skin",
+      "description": "shadcn/ui implementation of the Speel UI adapter (SpeelUIAdapter). Pass shadcnAdapter to SpeelProvider.",
+      "dependencies": [
+        "@speel/react",
+        "lucide-react",
+        "@tiptap/react",
+        "@tiptap/core",
+        "@tiptap/pm",
+        "@tiptap/starter-kit"
+      ],
+      "registryDependencies": [
+        "alert",
+        "badge",
+        "button",
+        "calendar",
+        "checkbox",
+        "dialog",
+        "dropdown-menu",
+        "input",
+        "label",
+        "popover",
+        "progress",
+        "radio-group",
+        "select",
+        "sheet",
+        "table",
+        "textarea",
+        "tooltip"
+      ],
+      "css": {
+        "@keyframes speel-indeterminate": {
+          "from": { "transform": "translateX(-100%)" },
+          "to": { "transform": "translateX(400%)" }
+        }
+      },
+      "cssVars": {
+        "theme": {
+          "spacing": "0.2rem",
+          "text-sm": "0.8125rem",
+          "font-sans": "'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif"
+        },
+        "light": {
+          "radius": "0.3rem",
+          "background": "oklch(0.985 0.002 250)",
+          "foreground": "oklch(0.21 0.012 255)",
+          "card": "oklch(1 0 0)",
+          "card-foreground": "oklch(0.21 0.012 255)",
+          "popover": "oklch(1 0 0)",
+          "popover-foreground": "oklch(0.21 0.012 255)",
+          "primary": "oklch(0.46 0.13 252)",
+          "primary-foreground": "oklch(0.985 0.002 250)",
+          "secondary": "oklch(0.955 0.005 250)",
+          "secondary-foreground": "oklch(0.3 0.02 252)",
+          "muted": "oklch(0.955 0.005 250)",
+          "muted-foreground": "oklch(0.5 0.015 252)",
+          "accent": "oklch(0.94 0.01 252)",
+          "accent-foreground": "oklch(0.3 0.02 252)",
+          "destructive": "oklch(0.55 0.2 25)",
+          "border": "oklch(0.9 0.006 252)",
+          "input": "oklch(0.9 0.006 252)",
+          "ring": "oklch(0.55 0.1 252)"
+        },
+        "dark": {
+          "background": "oklch(0.17 0.008 255)",
+          "foreground": "oklch(0.93 0.005 250)",
+          "card": "oklch(0.21 0.01 255)",
+          "card-foreground": "oklch(0.93 0.005 250)",
+          "popover": "oklch(0.21 0.01 255)",
+          "popover-foreground": "oklch(0.93 0.005 250)",
+          "primary": "oklch(0.68 0.12 252)",
+          "primary-foreground": "oklch(0.17 0.008 255)",
+          "secondary": "oklch(0.26 0.012 255)",
+          "secondary-foreground": "oklch(0.93 0.005 250)",
+          "muted": "oklch(0.26 0.012 255)",
+          "muted-foreground": "oklch(0.65 0.012 252)",
+          "accent": "oklch(0.3 0.015 255)",
+          "accent-foreground": "oklch(0.93 0.005 250)",
+          "destructive": "oklch(0.65 0.18 25)",
+          "border": "oklch(1 0 0 / 12%)",
+          "input": "oklch(1 0 0 / 16%)",
+          "ring": "oklch(0.55 0.08 252)"
+        }
+      },
+      "files": [
+        {
+          "path": "src/speel-shadcn/adapter.tsx",
+          "type": "registry:component",
+          "target": "components/speel/adapter.tsx"
+        },
+        {
+          "path": "src/speel-shadcn/chrome.tsx",
+          "type": "registry:component",
+          "target": "components/speel/chrome.tsx"
+        },
+        {
+          "path": "src/speel-shadcn/compat.ts",
+          "type": "registry:component",
+          "target": "components/speel/compat.ts"
+        },
+        {
+          "path": "src/speel-shadcn/icons.tsx",
+          "type": "registry:component",
+          "target": "components/speel/icons.tsx"
+        },
+        {
+          "path": "src/speel-shadcn/fields.tsx",
+          "type": "registry:component",
+          "target": "components/speel/fields.tsx"
+        },
+        {
+          "path": "src/speel-shadcn/people-picker.tsx",
+          "type": "registry:component",
+          "target": "components/speel/people-picker.tsx"
+        },
+        {
+          "path": "src/speel-shadcn/rich-text.tsx",
+          "type": "registry:component",
+          "target": "components/speel/rich-text.tsx"
+        },
+        {
+          "path": "src/speel-shadcn/overlays.tsx",
+          "type": "registry:component",
+          "target": "components/speel/overlays.tsx"
+        },
+        {
+          "path": "src/speel-shadcn/table.tsx",
+          "type": "registry:component",
+          "target": "components/speel/table.tsx"
+        }
+      ]
+    }
+  ]
+}

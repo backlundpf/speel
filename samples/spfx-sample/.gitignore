@@ -1,0 +1,47 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependency directories
+node_modules
+
+# Build generated files (anchored to the project root — heft's compile
+# outputs. Unanchored, `lib`/`dist` would also swallow the shadcn skin's
+# source `src/lib/` and `src/components/`.)
+/dist
+/lib
+/lib-dts
+/lib-commonjs
+/lib-esm
+jest-output
+release
+solution
+temp
+*.sppkg
+.heft
+
+# Coverage directory used by tools like istanbul
+coverage
+
+# OSX
+.DS_Store
+
+# Visual Studio files
+.ntvs_analysis.dat
+.vs
+bin
+obj
+
+# Resx Generated Code
+*.resx.ts
+
+# Styles Generated Code
+*.scss.ts
+
+# Playwright
+.env
+.auth/
+test-results/
+playwright-report/
+playwright/.cache/

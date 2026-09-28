@@ -1,0 +1,17 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/heft/v0/heft-sass-plugin.schema.json",
+
+  "extends": "@microsoft/spfx-web-build-rig/profiles/default/config/sass.json",
+
+  // The rig globs .sass/.scss/.css. Drop plain .css so heft-sass stops compiling
+  // (and CLOBBERING) styles/speel-shadcn.css in lib/ — that file is owned by
+  // `npm run tailwind:build`. heft-sass left its `@import "tailwindcss/..."`
+  // statements unresolved, which then crashed @microsoft/sp-css-loader's import
+  // parser (`getResolve` undefined). The only plain .css in src is the tailwind
+  // sidecar, so this has no other effect; .module.scss is still processed.
+  //
+  // heft config inheritance APPENDS arrays by default — the directive below
+  // REPLACES the inherited fileExtensions instead, so .css is actually dropped.
+  "fileExtensions": [".sass", ".scss"],
+  "$fileExtensions.inheritanceType": "replace"
+}

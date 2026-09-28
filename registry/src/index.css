@@ -1,0 +1,104 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.3rem;
+  --background: oklch(0.985 0.002 250);
+  --foreground: oklch(0.21 0.012 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.012 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.012 255);
+  --primary: oklch(0.46 0.13 252);
+  --primary-foreground: oklch(0.985 0.002 250);
+  --secondary: oklch(0.955 0.005 250);
+  --secondary-foreground: oklch(0.3 0.02 252);
+  --muted: oklch(0.955 0.005 250);
+  --muted-foreground: oklch(0.5 0.015 252);
+  --accent: oklch(0.94 0.01 252);
+  --accent-foreground: oklch(0.3 0.02 252);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.9 0.006 252);
+  --input: oklch(0.9 0.006 252);
+  --ring: oklch(0.55 0.1 252);
+}
+
+.dark {
+  --background: oklch(0.17 0.008 255);
+  --foreground: oklch(0.93 0.005 250);
+  --card: oklch(0.21 0.01 255);
+  --card-foreground: oklch(0.93 0.005 250);
+  --popover: oklch(0.21 0.01 255);
+  --popover-foreground: oklch(0.93 0.005 250);
+  --primary: oklch(0.68 0.12 252);
+  --primary-foreground: oklch(0.17 0.008 255);
+  --secondary: oklch(0.26 0.012 255);
+  --secondary-foreground: oklch(0.93 0.005 250);
+  --muted: oklch(0.26 0.012 255);
+  --muted-foreground: oklch(0.65 0.012 252);
+  --accent: oklch(0.3 0.015 255);
+  --accent-foreground: oklch(0.93 0.005 250);
+  --destructive: oklch(0.65 0.18 25);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.55 0.08 252);
+}
+
+/* speel density: spacing utilities (p-, h-, gap-, size-) are multiples of
+   --spacing; 0.2rem (vs the 0.25rem default) compresses the whole library
+   ~20%. Tightened text-sm pairs with it for data-dense UI. */
+@theme {
+  --spacing: 0.2rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.4;
+  --font-sans:
+    "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  .speel-shadcn,
+  .speel-shadcn * {
+    @apply border-border outline-ring/50;
+  }
+  /* Sample app owns its whole page; consumer apps style their own body. */
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Indeterminate ProgressBar sweep used by the speel-shadcn skin. */
+@keyframes speel-indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}

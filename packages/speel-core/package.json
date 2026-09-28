@@ -1,0 +1,65 @@
+{
+  "name": "@speel/core",
+  "version": "0.1.0-beta.0",
+  "description": "EF-Core-style data layer for SharePoint in SPFx: typed entities, change tracking, fluent queries, saveChangesAsync.",
+  "keywords": [
+    "sharepoint",
+    "spfx",
+    "orm",
+    "entity",
+    "change-tracking"
+  ],
+  "license": "MIT",
+  "author": "Peter Backlund",
+  "homepage": "https://github.com/backlundpf/speel/tree/main/packages/speel-core#readme",
+  "bugs": {
+    "url": "https://github.com/backlundpf/speel/issues"
+  },
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/backlundpf/speel.git",
+    "directory": "packages/speel-core"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "vitest run && tsc -p tsconfig.test.json",
+    "test:types": "tsc -p tsconfig.test.json",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.15.43",
+    "fake-indexeddb": "^6.2.5",
+    "typescript": "^5.4.0",
+    "unplugin-swc": "^1.5.9",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "beta"
+  }
+}

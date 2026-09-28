@@ -1,0 +1,29 @@
+# Build output
+dist
+node_modules
+coverage
+samples/*/lib
+samples/*/lib-commonjs
+samples/*/temp
+samples/*/release
+samples/*/test-results
+# SPFx packaging output — present only after a sample build, but enough to fail
+# `format:check` on a machine that has run one.
+samples/*/sharepoint
+
+# Lockfiles rewrite themselves; reformatting them is churn with no reader.
+package-lock.json
+
+# Generated and gate-checked: `registry build:check` runs
+# `shadcn build && git diff --exit-code public/r`, so reformatting the output
+# makes that gate fail the moment the generator next runs.
+registry/public
+
+# Migration snapshots are written by the migrations CLI in its own shape.
+# Reformatting them puts this repo permanently one `migrations:add` away from
+# a spurious diff.
+*-snapshot.json
+*.snapshot.json
+
+# Vitest inline snapshots are byte-compared.
+packages/*/test/**/__snapshots__

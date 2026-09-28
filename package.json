@@ -1,0 +1,26 @@
+{
+  "name": "speel",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run --workspaces --if-present build",
+    "test": "npm run --workspaces --if-present test",
+    "lint": "npm run --workspaces --if-present lint",
+    "typecheck": "npm run --workspaces --if-present typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check:node-esm": "node scripts/check-node-esm.mjs",
+    "fix:node-esm": "node scripts/add-js-extensions.mjs && prettier --write --log-level warn packages samples/spfx-sample/src/migrations",
+    "verify": "npm run build && npm run check:node-esm && npm run typecheck && npm run test && npm --prefix registry run build:check && npm --prefix samples/spfx-sample run build:check"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6"
+  },
+  "license": "MIT"
+}

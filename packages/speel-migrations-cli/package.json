@@ -1,0 +1,68 @@
+{
+  "name": "@speel/migrations-cli",
+  "version": "0.1.0-beta.0",
+  "description": "Design-time CLI that generates @speel/migrations files by diffing your model against a snapshot.",
+  "keywords": [
+    "sharepoint",
+    "spfx",
+    "migrations",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "Peter Backlund",
+  "homepage": "https://github.com/backlundpf/speel/tree/main/packages/speel-migrations-cli#readme",
+  "bugs": {
+    "url": "https://github.com/backlundpf/speel/issues"
+  },
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/backlundpf/speel.git",
+    "directory": "packages/speel-migrations-cli"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "speel-migrations": "./dist/bin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json && node -e \"require('fs').chmodSync('dist/bin.js', 0o755)\"",
+    "test": "vitest run && tsc -p tsconfig.test.json",
+    "test:types": "tsc -p tsconfig.test.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@swc/core": "^1.15.43",
+    "jiti": "^2.0.0"
+  },
+  "peerDependencies": {
+    "@speel/core": "^0.1.0-beta.0",
+    "@speel/migrations": "^0.1.0-beta.0"
+  },
+  "devDependencies": {
+    "@speel/core": "*",
+    "@speel/migrations": "*",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "beta"
+  }
+}

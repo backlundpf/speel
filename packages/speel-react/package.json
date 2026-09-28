@@ -1,0 +1,99 @@
+{
+  "name": "@speel/react",
+  "version": "0.1.0-beta.0",
+  "description": "Model-driven Fluent UI v8 forms, tables, and surfaces for @speel/core in SPFx.",
+  "keywords": [
+    "sharepoint",
+    "spfx",
+    "react",
+    "fluentui",
+    "forms"
+  ],
+  "license": "MIT",
+  "author": "Peter Backlund",
+  "homepage": "https://github.com/backlundpf/speel/tree/main/packages/speel-react#readme",
+  "bugs": {
+    "url": "https://github.com/backlundpf/speel/issues"
+  },
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/backlundpf/speel.git",
+    "directory": "packages/speel-react"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./fluent-v8": {
+      "types": "./dist/fluent-v8/index.d.ts",
+      "import": "./dist/fluent-v8/index.js"
+    },
+    "./migrations": {
+      "types": "./dist/migrations/index.d.ts",
+      "import": "./dist/migrations/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "test": "vitest run && tsc -p tsconfig.test.json",
+    "test:types": "tsc -p tsconfig.test.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@fluentui/react": ">=8",
+    "@speel/core": "^0.1.0-beta.0",
+    "@speel/identity": "^0.1.0-beta.0",
+    "react": ">=17",
+    "react-dom": ">=17"
+  },
+  "peerDependenciesMeta": {
+    "@fluentui/react": {
+      "optional": true
+    },
+    "@speel/identity": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@tanstack/react-form": "^1.0.0",
+    "@tiptap/core": "^3.30.2",
+    "@tiptap/pm": "^3.30.2",
+    "@tiptap/react": "^3.30.2",
+    "@tiptap/starter-kit": "^3.30.2",
+    "dompurify": "^3.4.14",
+    "fflate": "^0.8.3",
+    "use-sync-external-store": "^1.6.0"
+  },
+  "devDependencies": {
+    "@fluentui/react": "^8",
+    "@speel/identity": "*",
+    "@testing-library/jest-dom": "^6.4.0",
+    "@testing-library/react": "^12.1.5",
+    "@types/react": "^17.0.2",
+    "@types/react-dom": "^17.0.2",
+    "@types/use-sync-external-store": "^1.5.0",
+    "jsdom": "^24.0.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "beta"
+  }
+}
