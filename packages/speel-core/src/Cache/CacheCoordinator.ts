@@ -45,15 +45,18 @@ export class CacheCoordinator {
       navName: e.navName,
       fields: resolveExpandFields(et, e.navName, e.fields),
     }));
-    // The target's properties ride each clause so the provider types the expanded
-    // sub-records too. A name that is no navigation (the model already refuses a
-    // special expand here) yields no navigation and so no properties.
+    // The target's properties and source ride each clause, as on the query path: the
+    // provider types the expanded sub-records, and a provider-routed target tells it
+    // the inline expand is a person column. A name that is no navigation (the model
+    // already refuses a special expand here) yields no navigation and so neither.
     const expandClauses: IExpandClause[] = expandSpecs.map((e) => {
-      const properties = et.findNavigation(e.navName)?.target.properties;
+      const target = et.findNavigation(e.navName)?.target;
       return {
         navColumn: resolveExpandColumn(et, e.navName),
         selectFields: [...e.fields],
-        ...(properties ? { properties } : {}),
+        ...(target
+          ? { properties: target.properties, source: target.sourceHandle }
+          : {}),
       };
     });
 

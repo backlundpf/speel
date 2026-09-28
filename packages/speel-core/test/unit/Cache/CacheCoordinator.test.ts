@@ -6,7 +6,12 @@ import { ModelBuilder } from "../../../src/ModelBuilder/ModelBuilder.js";
 import type { EntityTypeBuilder } from "../../../src/ModelBuilder/EntityTypeBuilder.js";
 import type { IListHandle } from "../../../src/types.js";
 import { listKey } from "../../../src/Cache/listKey.js";
-import { TestSiteUser as SiteUser } from "../fakes/testPrincipals.js";
+import {
+  TestSiteUser as SiteUser,
+  TestPrincipal,
+  PRINCIPALS,
+  registerTestPrincipals,
+} from "../fakes/testPrincipals.js";
 
 class Project {
   Id?: number;
@@ -149,6 +154,44 @@ describe("CacheCoordinator.loadAllAsync", () => {
     });
     await expect(coordinator.loadAllAsync(et)).rejects.toThrow(
       /Project to opt into caching/,
+    );
+  });
+
+  it("a provider-routed expand carries the target's source, as the query path does", async () => {
+    // Without the source the provider takes a person column for a list lookup and
+    // asks SharePoint for model spelling (LoginName/Email/PrincipalType), which an
+    // inline person expand cannot answer — the whole sync read fails.
+    class Ticket {
+      Id?: number;
+      Title?: string;
+      ClosedBy?: TestPrincipal | null;
+      ClosedById?: number;
+    }
+    const mb = new ModelBuilder();
+    registerTestPrincipals(mb, ["principals"]);
+    mb.entity(Ticket, (b) => {
+      b.toList("Tickets");
+      b.property((t) => t.Title).isText();
+      b.hasOne(TestPrincipal, (t) => t.ClosedBy)
+        .withMany()
+        .hasForeignKey((t) => t.ClosedById);
+      b.useCaching((c) => c.expand((t) => t.ClosedBy));
+    });
+    const model = mb.build();
+    const sp = new FakeStorageProvider();
+    const feed = vi.spyOn(sp, "getListItemChangesSinceToken");
+    const coordinator = new CacheCoordinator(new InMemoryCacheProvider(), sp);
+
+    await coordinator.loadAllAsync(model.findEntityType(Ticket)!);
+
+    const clauses = feed.mock.calls[0]![3]!;
+    expect(clauses).toHaveLength(1);
+    expect(clauses[0]).toMatchObject({
+      navColumn: "ClosedBy",
+      source: PRINCIPALS,
+    });
+    expect(clauses[0]!.properties?.map((p) => p.columnName)).toContain(
+      "LoginName",
     );
   });
 
