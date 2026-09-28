@@ -7,6 +7,16 @@ messages — may name an external consumer app, organization, tenant, or account
 Use `contoso` / `example.sharepoint.com` and describe shapes generically ("a
 two-filter default view"), even when a consumer motivated the work.
 
+## Releasing
+
+All `@speel/*` packages version in lockstep. To release: bump every
+`packages/*/package.json` version (and the `@speel/*` peer ranges when the
+minor changes), add a `CHANGELOG.md` entry, merge, then push a `v<version>`
+tag. `.github/workflows/release.yml` verifies the tag matches every package
+and publishes via npm trusted publishing (no tokens; renaming the workflow
+file breaks the trust). Prereleases go to the `beta` dist-tag, releases to
+`latest`.
+
 ## Module specifiers
 
 Package dist must load under plain Node ESM, not just bundlers (the migrations
