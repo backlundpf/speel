@@ -1,6 +1,6 @@
 {
   "name": "@speel/core",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0-beta.1",
   "description": "EF-Core-style data layer for SharePoint in SPFx: typed entities, change tracking, fluent queries, saveChangesAsync.",
   "keywords": [
     "sharepoint",

@@ -1,6 +1,6 @@
 {
   "name": "@speel/identity",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0-beta.1",
   "description": "Signed-in user, groups, and permissions for @speel/core over SharePoint's own security model.",
   "keywords": [
     "sharepoint",

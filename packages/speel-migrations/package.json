@@ -1,6 +1,6 @@
 {
   "name": "@speel/migrations",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0-beta.1",
   "description": "EF-Core-style schema migrations for SharePoint lists and fields, applied at runtime by a Migrator.",
   "keywords": [
     "sharepoint",
