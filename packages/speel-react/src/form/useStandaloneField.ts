@@ -1,7 +1,9 @@
 import {
   buildValidations,
   collectErrors,
+  type DbSet,
   type FieldConfig,
+  type IEntity,
   type FieldContext,
   type FormMode,
   type ValidationRule,
@@ -52,7 +54,8 @@ export interface StandaloneFieldOptions<TValue> {
  * No DbContext is required. A selection field gets `options` from the same
  * `optionsSourceFor` a form-bound field uses: a literal list needs no provider; a
  * thunk or a query uses the surrounding `<SpeelProvider>`'s DbContext and throws a
- * clear error when there is none.
+ * clear error when there is none. Inside a provider, a lookup resolves its target's
+ * set, so it loads, queries and creates exactly as a form-bound lookup does.
  */
 export function useStandaloneField<TValue = unknown>(
   opts: StandaloneFieldOptions<TValue>,
@@ -63,13 +66,26 @@ export function useStandaloneField<TValue = unknown>(
   const db = useContext(DbContextReact) ?? undefined;
   const surfaces = useContext(SurfaceCtx);
   const values = { [opts.displayName]: opts.value };
+  // A standalone field has no navigation, but a lookup's config names its target: with
+  // a provider, that is the set `useField` would resolve. Without one there is no set,
+  // so a lookup declaring no literal list gets no source and no creator.
+  const set =
+    db && opts.config.kind === "Lookup"
+      ? (db.set(opts.config.target.ctor) as unknown as DbSet<IEntity>)
+      : undefined;
   const options = optionsSourceFor({
     config: opts.config,
     ...(db ? { db } : {}),
+    ...(set !== undefined ? { set } : {}),
     values,
   });
-  // A standalone field has no navigation, so no set: only a fill-in Choice creates here.
-  const create = createFor({ config: opts.config, db, values, surfaces });
+  const create = createFor({
+    config: opts.config,
+    db,
+    ...(set !== undefined ? { set } : {}),
+    values,
+    surfaces,
+  });
   const ctx: FieldContext = {
     values,
     value: opts.value,

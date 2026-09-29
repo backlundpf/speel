@@ -176,8 +176,9 @@ the [skins](skins.md) page.
 - **Object-valued Choice options want `optionsValue`.** Without it options are matched by
   reference.
 - **A thunk or query source outside a `SpeelProvider` throws.** Only a literal list works
-  without a `DbContext`. A standalone lookup has no navigation set, so it offers only a
-  declared `options` list and cannot create; a standalone fill-in Choice can.
+  without a `DbContext`. Inside a provider, a standalone lookup resolves its target's set
+  and loads, queries and creates like a form-bound one. Outside a provider it offers only
+  a declared `options` list and cannot create; a standalone fill-in Choice can.
 - **A cascade on `optionsQueryAsync` does not follow sibling fields.** The query reads
   `source` when it runs, and it re-runs only when the search text changes — never when
   another field's value does. For a loaded list, `optionsFilter` is the cascade: it reads
