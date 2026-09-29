@@ -29,7 +29,7 @@ function fakeSpfi(opts: IFakeOpts) {
     title: string;
     jsonParsed: boolean;
     top: number;
-    filter?: string;
+    filter?: string | undefined;
   }[] = [];
   /** Reads that went through the paged-iterator path instead of a batched invoke. */
   const pagedDrains: string[] = [];

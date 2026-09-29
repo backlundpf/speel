@@ -388,7 +388,7 @@ describe("SharePointProvider insert — folder", () => {
         clientToken: "a",
       },
     ]);
-    expect(res.kind).toBe("success");
+    expect(res?.kind).toBe("success");
     expect(uilLookups(queries.slice(before))).toEqual([]);
   });
 
@@ -451,7 +451,7 @@ describe("SharePointProvider insert — folder", () => {
         clientToken: "a",
       },
     ]);
-    expect(res.kind).toBe("success");
+    expect(res?.kind).toBe("success");
     expect(uilLookups(queries.slice(before))).toEqual([]);
   });
 
@@ -466,7 +466,7 @@ describe("SharePointProvider insert — folder", () => {
         clientToken: "u",
       },
     ]);
-    expect(read.items.map((r) => r.Id)).toEqual([12]);
+    expect(read?.items.map((r) => r.Id)).toEqual([12]);
     const before = queries.length;
     const [res] = await provider.executeBatchAsync([
       {
@@ -477,7 +477,7 @@ describe("SharePointProvider insert — folder", () => {
         clientToken: "a",
       },
     ]);
-    expect(res.kind).toBe("success");
+    expect(res?.kind).toBe("success");
     expect(uilLookups(queries.slice(before))).toEqual([]);
   });
 
@@ -495,7 +495,7 @@ describe("SharePointProvider insert — folder", () => {
       },
     ]);
     expect(uilLookups(queries.slice(before))).toEqual([40]);
-    expect(res.kind).toBe("failure");
+    expect(res?.kind).toBe("failure");
   });
 
   it("fails only the operation naming an unresolvable principal; the rest of the batch proceeds", async () => {

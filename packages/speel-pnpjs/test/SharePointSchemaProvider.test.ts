@@ -215,7 +215,7 @@ describe("SharePointSchemaProvider.applyAsync", () => {
 
   it("turns a rejected sub-request into a failed result", async () => {
     const { sp } = makeFakeSp();
-    sp.web.lists.add = vi.fn(async () => {
+    sp.web.lists.add.mockImplementation(async () => {
       throw new Error("403 denied");
     });
     const op: SchemaOperation = {

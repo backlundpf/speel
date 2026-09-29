@@ -153,7 +153,7 @@ describe("SharePointIdentityProvider", () => {
 
   it("survives a picker entry with no EntityData rather than dropping the whole search", async () => {
     const { sp, calls } = makeFakeSp();
-    sp.profiles.clientPeoplePickerSearchUser = vi.fn(async () => {
+    sp.profiles.clientPeoplePickerSearchUser.mockImplementation(async () => {
       calls.push("peoplePicker");
       return [
         {

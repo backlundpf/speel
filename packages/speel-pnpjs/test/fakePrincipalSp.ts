@@ -39,7 +39,7 @@ export interface IRecordedWrite {
     | "addValidateUpdateItemUsingPath"
     | "validateUpdateListItem"
     | "addUsingPath";
-  id?: number;
+  id?: number | undefined;
   etag?: string;
   payload?: Record<string, unknown>;
   formValues?: { FieldName: string; FieldValue: string }[];
