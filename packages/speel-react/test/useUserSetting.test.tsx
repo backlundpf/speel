@@ -31,7 +31,7 @@ class TCtx extends DbContext {
 }
 
 function spyStore(initial: Record<string, unknown> = {}) {
-  const set = vi.fn(() => Promise.resolve());
+  const set = vi.fn<[string, unknown], Promise<void>>(() => Promise.resolve());
   const store: UserSettingsStore = {
     getAll: () => Promise.resolve({ ...initial }),
     set: (k, v) => set(k, v),
@@ -71,8 +71,12 @@ const renderProbe = (store?: UserSettingsStore) => {
   );
 };
 
-beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
-afterEach(() => vi.useRealTimers());
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("useUserSetting", () => {
   it("returns the default until the store resolves", async () => {

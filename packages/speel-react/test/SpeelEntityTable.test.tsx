@@ -27,7 +27,9 @@ class TCtx extends DbContext {
   }
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("SpeelEntityTable", () => {
   it("shows the spinner (with loadingMessage), then rows loaded from db.set(of)", async () => {

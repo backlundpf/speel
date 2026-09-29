@@ -87,13 +87,13 @@ describe("inverse pairing (decorator ↔ decorator, resolved)", () => {
   it("@OneToMany ↔ @ManyToOne pair and synthesize the child FK", () => {
     @Entity({ list: "Blogs" })
     class Blog extends SpeelEntity {
-      @Key public Id?: number = undefined;
+      @Key public override Id?: number = undefined;
       @OneToMany(() => Comment, { inverse: (c: any) => c.Blog })
       public Comments: Comment[] | null = null;
     }
     @Entity({ list: "Comments" })
     class Comment extends SpeelEntity {
-      @Key public Id?: number = undefined;
+      @Key public override Id?: number = undefined;
       @ManyToOne(() => Blog, { inverse: (b: any) => b.Comments })
       public Blog: Blog | null = null;
       public BlogId: number | null = null;

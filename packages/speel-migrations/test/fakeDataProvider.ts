@@ -69,7 +69,8 @@ export function makeFakeDataProvider(
             serverData: { id: op.id },
           };
         }
-        return { kind: "success", clientToken: op.clientToken };
+        const unhandled: never = op;
+        throw new Error(`fakeDataProvider: unhandled op ${String(unhandled)}`);
       }),
     getItemByIdAsync: notImpl("getItemByIdAsync"),
     getItemsByIdsAsync: notImpl("getItemsByIdsAsync"),

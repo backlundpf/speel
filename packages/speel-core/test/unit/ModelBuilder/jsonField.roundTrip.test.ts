@@ -42,7 +42,7 @@ function headlineCodec() {
 function processEntityType() {
   const mb = new ModelBuilder();
   mb.entity(Process as never);
-  return mb.build().findEntityType(Process as never)!;
+  return mb.build().findEntityType(Process)!;
 }
 
 describe("a Json property's codec", () => {

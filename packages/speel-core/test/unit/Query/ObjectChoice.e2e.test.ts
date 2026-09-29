@@ -25,7 +25,7 @@ class Post {
 
 class PostCtx extends DbContext {
   public posts: DbSet<Post> = this.set(Post);
-  protected onModelCreating(mb: ModelBuilder): void {
+  protected override onModelCreating(mb: ModelBuilder): void {
     mb.entity(Post, (b) => {
       b.toList("Posts");
       b.property((e) => e.Title).isText();

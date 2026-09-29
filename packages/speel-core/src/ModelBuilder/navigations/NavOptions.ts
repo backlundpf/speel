@@ -1,4 +1,4 @@
-import type { EntityCtor, OptionContext } from "../../types.js";
+import type { EntityCtor, IEntity, OptionContext } from "../../types.js";
 import type {
   OptionsCreator,
   OptionsLoader,
@@ -32,12 +32,16 @@ export interface NavOptions<TTarget> extends FieldOptions {
   /** Client-side availability predicate over options already in hand. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   optionsFilter?: (ctx: OptionContext<any>) => boolean;
+  // The source is `any`: a decorator cannot name the class it decorates. The target
+  // is the navigation's own, NoInfer so the target thunk decides it and a callback is
+  // CHECKED against it. `any` there refused every typed callback — `DbSet<any>` is not
+  // assignable to a concrete `DbSet<T>`, its filter builder being a mapped type.
   /** Server-side: run per search term, replacing the default load entirely. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  optionsQueryAsync?: OptionsLoader<any, any>;
+  optionsQueryAsync?: OptionsLoader<any, NoInfer<TTarget> & IEntity>;
   /** How to create the target row when the typed text matches nothing. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  optionsCreateAsync?: OptionsCreator<any, any>;
+  optionsCreateAsync?: OptionsCreator<any, NoInfer<TTarget> & IEntity>;
   optionsValue?: (o: TTarget) => unknown;
   optionsRender?: (o: TTarget) => unknown;
 }

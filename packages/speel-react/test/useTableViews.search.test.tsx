@@ -11,6 +11,7 @@ import { DbContext, ModelBuilder } from "@speel/core";
 import {
   createLocalUserSettingsStore,
   initSpeelIdentity,
+  type IdentityDbContext,
 } from "@speel/identity";
 import { FakeIdentityProvider } from "@speel/identity/testing";
 import { useTableViews } from "../src/table/views/useTableViews.js";
@@ -94,10 +95,13 @@ function Probe({ store }: { store: TableViewStore }): React.ReactElement {
 
 const renderProbe = (store: TableViewStore = storeWith([])) => {
   const ctx = new TCtx({ provider: makeFakeProvider({ Tasks: [] }) } as never);
-  const identity = initSpeelIdentity(ctx, (b) =>
-    b
-      .useProvider(new FakeIdentityProvider())
-      .useSettings(createLocalUserSettingsStore()),
+  // A plain DbContext on purpose: settings live in localStorage, so the identity sets go unused.
+  const identity = initSpeelIdentity(
+    ctx as DbContext as IdentityDbContext,
+    (b) =>
+      b
+        .useProvider(new FakeIdentityProvider())
+        .useSettings(createLocalUserSettingsStore()),
   );
   return render(
     <SpeelProvider db={ctx as never} ui={fakeAdapter} identity={identity}>

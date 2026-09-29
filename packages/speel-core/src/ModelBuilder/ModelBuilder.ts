@@ -59,12 +59,13 @@ export class ModelBuilder {
   /**
    * Register a shape — an embedded type used by a `Json` field. Same builder as an
    * entity's, minus rows: `toEmbedded()` is applied for a ctor that arrives without
-   * a `@JsonShape` decorator.
+   * a `@JsonShape` decorator. `T` is unconstrained by `IEntity`: a shape has no
+   * `Id`, and the all-optional `IEntity` would reject it as a weak type.
    */
-  shape<T extends IEntity>(
-    ctor: EntityCtor<T>,
-    configure?: (b: EntityTypeBuilder<T>) => void,
-  ): EntityTypeBuilder<T> {
+  shape<T extends object>(
+    ctor: EntityCtor<T & IEntity>,
+    configure?: (b: EntityTypeBuilder<T & IEntity>) => void,
+  ): EntityTypeBuilder<T & IEntity> {
     const eb = this.getOrCreateEntityBuilder(ctor);
     // A class is an entity or a shape, never both — and overwriting the source
     // here would not stay local to this model: a decorated class's builder is

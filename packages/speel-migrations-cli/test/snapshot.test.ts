@@ -274,28 +274,20 @@ describe("projectModel Json fields", () => {
     class Ticket2 {
       Id?: number;
       Title?: string;
-      Payload?: unknown;
+      Payload?: PayloadShape;
     }
     const mb = new ModelBuilder();
     // The shape a Json field's column holds — an embedded entity type, same as
-    // `@JsonShape` declares, built fluently here (mb.shape shipped with the
-    // embedded source kind, ahead of this task).
+    // `@JsonShape` declares, built fluently here.
     mb.shape(PayloadShape, (b) => {
       b.property((p) => p.Title).isText();
     });
     mb.entity(Ticket2, (b) => {
       b.toList("Tickets2");
       b.property((e) => e.Title).isText();
-      // Task 5's `.isJson()` verb doesn't exist yet — declare the property with
-      // the fluent builder, then overwrite its config by hand. The point here is
-      // the projection (fieldConfigToSpec), not the authoring surface.
-      b.property((e) => e.Payload).isText();
+      b.property((e) => e.Payload).isJson({ of: () => PayloadShape });
     });
     const model = mb.build();
-    const shape = model.findEntityType(PayloadShape as never)!;
-    const et = model.findEntityType(Ticket2 as never)!;
-    const payload = et.properties.find((p) => p.propertyName === "Payload")!;
-    payload.config = { kind: "Json", shape, multi: false };
     const tickets2 = projectModel(model).entities.find(
       (e) => e.list.title === "Tickets2",
     )!;

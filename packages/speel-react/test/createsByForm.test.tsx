@@ -111,7 +111,7 @@ describe("createsByForm — the creator directly", () => {
       // initial also names the display field — the typed text must win over it.
       initial: ({ source }) => ({
         Title: "Should not survive",
-        Category: (source as unknown as Person).Department,
+        Category: (source as unknown as Person).Department!,
       }),
     });
 
@@ -386,7 +386,7 @@ describe("createsByForm — end to end through SpeelField", () => {
     const creator = createsByForm<Person, Office>({
       fields: ["Title", "Category"],
       initial: ({ source }) => ({
-        Category: (source as unknown as Person).Department,
+        Category: (source as unknown as Person).Department!,
       }),
     });
     const m = await renderPersonOfficeField({ creator });

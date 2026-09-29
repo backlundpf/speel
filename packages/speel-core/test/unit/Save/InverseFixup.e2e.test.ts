@@ -22,7 +22,7 @@ class Project {
 class Ctx extends DbContext {
   public programs = this.set(Program);
   public projects = this.set(Project);
-  protected onModelCreating(b: ModelBuilder): void {
+  protected override onModelCreating(b: ModelBuilder): void {
     b.entity(Program, (e) => {
       e.toList("Programs");
       e.property((x) => x.Title).isText();
@@ -72,7 +72,7 @@ it("runs the inverse pass on a membership-only edit (parent otherwise unchanged)
   const prog = Object.assign(new Program(), {
     Id: 1,
     Title: "P",
-    OwnedProjects: [],
+    OwnedProjects: [] as Project[],
   });
   ctx.set(Program).attach(prog);
   const child = Object.assign(new Project(), { Id: 1, Title: "C" });
@@ -99,7 +99,7 @@ it("re-parents on a membership change even when the parent also has a column cha
   const prog = Object.assign(new Program(), {
     Id: 1,
     Title: "P",
-    OwnedProjects: [],
+    OwnedProjects: [] as Project[],
   });
   ctx.set(Program).attach(prog);
   const child = Object.assign(new Project(), { Id: 1, Title: "C" });
@@ -124,7 +124,7 @@ it("re-parents on a membership change even when the parent also has a column cha
 class RequiredFkCtx extends DbContext {
   public programs = this.set(Program);
   public projects = this.set(Project);
-  protected onModelCreating(b: ModelBuilder): void {
+  protected override onModelCreating(b: ModelBuilder): void {
     b.entity(Program, (e) => {
       e.toList("Programs");
       e.property((x) => x.Title).isText();

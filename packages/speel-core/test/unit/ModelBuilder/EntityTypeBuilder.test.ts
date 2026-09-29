@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { EntityTypeBuilder } from "../../../src/ModelBuilder/EntityTypeBuilder.js";
 import { ModelConfigurationException } from "../../../src/errors.js";
+import type { IEntity } from "../../../src/types.js";
 
 class Blog {
   Id?: number;
@@ -87,7 +88,7 @@ describe("EntityTypeBuilder", () => {
     class NoId {
       Title?: string;
     }
-    const b = new EntityTypeBuilder(NoId).toList("X");
+    const b = new EntityTypeBuilder<NoId & IEntity>(NoId).toList("X");
     b.property((e) => e.Title).isText();
     expect(() => b.build()).toThrow(ModelConfigurationException);
   });

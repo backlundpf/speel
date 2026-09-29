@@ -19,6 +19,7 @@ class Blog {
   Id?: number;
   AuthorId?: number;
   Author?: User;
+  TagsId?: number[];
   Comments?: Comment[];
 }
 
@@ -57,7 +58,7 @@ describe("ReferenceNavigationBuilder", () => {
 describe("CollectionNavigationBuilder", () => {
   it("withMany() → self-FK multi-value config", () => {
     const b = new CollectionNavigationBuilder<Blog, Tag>("Tags", Tag);
-    b.withMany().hasForeignKey((e) => e.AuthorId); // FK selector typing covered in types.test-d.ts
+    b.withMany().hasForeignKey((e) => e.TagsId); // FK selector typing covered in types.test-d.ts
     expect(b.getConfig()).toMatchObject({
       name: "Tags",
       kind: "collection",

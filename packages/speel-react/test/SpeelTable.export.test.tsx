@@ -73,7 +73,9 @@ beforeEach(() => {
     written = { name: this.download };
   });
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const lines = (): string[] =>
   capturedText.replace("﻿", "").trimEnd().split("\r\n");

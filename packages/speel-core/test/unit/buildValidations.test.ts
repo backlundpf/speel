@@ -37,6 +37,7 @@ describe("refinementRulesFor", () => {
   it("Choice yields a membership rule, but NOT when fillIn is true", () => {
     const base = {
       options: ["a", "b"] as const,
+      multi: false,
       radioButtons: false,
     };
     expect(

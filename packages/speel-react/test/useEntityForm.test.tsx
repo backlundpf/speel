@@ -35,7 +35,9 @@ function TitleField() {
       required={f.required}
       onChange={f.setValue}
       onBlur={f.markTouched}
-      error={f.touched ? f.errors[0] : undefined}
+      {...(f.touched && f.errors[0] !== undefined
+        ? { error: f.errors[0] }
+        : {})}
     />
   );
 }

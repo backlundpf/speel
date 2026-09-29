@@ -59,7 +59,7 @@ describe("a Json field in a model", () => {
     @Entity({ list: "Broken" })
     class Broken {
       Id?: number;
-      @JsonField({ of: () => NotAShape as never }) Thing?: unknown;
+      @JsonField({ of: () => NotAShape }) Thing?: NotAShape;
     }
     const mb = new ModelBuilder();
     mb.entity(Broken as never);

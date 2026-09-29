@@ -138,6 +138,11 @@ describe("mb.shape", () => {
   });
 });
 
+type FieldDecorator = (
+  target: undefined,
+  ctx: ClassFieldDecoratorContext,
+) => void;
+
 describe("a navigation that targets a shape", () => {
   it("is refused at model build, naming the navigation and the shape", () => {
     @JsonShape()
@@ -147,7 +152,8 @@ describe("a navigation that targets a shape", () => {
     @Entity({ list: "People" })
     class Person {
       Id?: number;
-      @ManyToOne(() => Address) Home?: Address;
+      // A shape has no key, so the types refuse it too; the runtime guard is under test.
+      @(ManyToOne(() => Address as never) as FieldDecorator) Home?: Address;
     }
     const mb = new ModelBuilder();
     mb.entity(Person as never);

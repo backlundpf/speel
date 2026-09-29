@@ -20,12 +20,14 @@ import type { IListHandle } from "../../../src/types.js";
  * production caller.
  */
 async function resolveOne(
-  parents: readonly Record<string, unknown>[],
+  entities: readonly object[],
   nav: INavigation,
   provider: ISharePointProvider,
   tracker: ChangeTracker,
   noTracking: boolean,
 ): Promise<readonly Record<string, unknown>[]> {
+  // Entity instances are plain property bags at runtime; the resolver reads them by key.
+  const parents = entities as readonly Record<string, unknown>[];
   let seq = 0;
   const ops = planIncludeLevel(parents, nav, provider, () => `r${seq++}`);
   const byToken = await runReadBatch(provider, ops);

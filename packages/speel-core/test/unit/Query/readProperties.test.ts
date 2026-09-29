@@ -43,7 +43,7 @@ class Blog {
 class Ctx extends DbContext {
   blogs = this.set(Blog);
   comments = this.set(Comment);
-  protected onModelCreating(mb: ModelBuilder): void {
+  protected override onModelCreating(mb: ModelBuilder): void {
     mb.entity(Author, (b) => {
       b.toList("Authors");
       b.property((e) => e.Name).isText();

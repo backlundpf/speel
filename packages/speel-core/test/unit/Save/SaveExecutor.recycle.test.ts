@@ -14,7 +14,7 @@ class Widget {
 }
 class Ctx extends DbContext {
   public widgets = this.set(Widget);
-  protected onModelCreating(b: ModelBuilder): void {
+  protected override onModelCreating(b: ModelBuilder): void {
     b.entity(Widget, (e) => {
       e.toList("Widgets");
       e.property((x) => x.Title).isText();

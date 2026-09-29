@@ -4,8 +4,12 @@ import { useDebouncedResolver } from "../src/fields/useDebouncedResolver.js";
 
 /** Fake timers on purpose: a real-timer debounce test is a flake waiting for a
  *  loaded CI box, and the thing under test IS the timing. */
-beforeEach(() => vi.useFakeTimers());
-afterEach(() => vi.useRealTimers());
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function Probe({
   resolve,

@@ -32,7 +32,7 @@ function model() {
       propertyName: propName,
       columnName: propName,
       displayName: propName,
-      config: { kind: "Text", maxLength: 255 },
+      config: { kind: "Text", multiline: false, maxLength: 255 },
       required: false,
       readOnly: false,
       key: false,

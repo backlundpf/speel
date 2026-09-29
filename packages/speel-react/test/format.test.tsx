@@ -60,9 +60,10 @@ describe("formatFieldValue", () => {
   it("Choice → optionsRender label", () => {
     const c = cfg({
       kind: "Choice",
-      choices: [{ id: "a", label: "Alpha" }],
+      options: [{ id: "a", label: "Alpha" }],
+      multi: false,
       fillIn: false,
-      displayAs: "Dropdown",
+      radioButtons: false,
       optionsRender: (o) => (o as { label: string }).label,
     });
     expect(text(formatFieldValue(c, { id: "a", label: "Alpha" }))).toBe(

@@ -45,7 +45,9 @@ const done = (): MigrationsEvent => ({
   direction: "up",
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("MigrationsManager output log", () => {
   it("streams each step, grouped under the migration it belongs to", async () => {

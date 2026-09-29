@@ -70,7 +70,9 @@ beforeEach(() => {
   closed = 0;
   vi.spyOn(window, "open").mockReturnValue(fakeWin as unknown as Window);
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const doc = (): string => written.join("");
 const bodyRows = (): string[] =>

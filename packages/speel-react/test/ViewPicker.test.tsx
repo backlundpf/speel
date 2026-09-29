@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, type Mock } from "vitest";
 import {
   render,
   screen,
@@ -32,7 +32,11 @@ const appDefault: AppDefaultView = {
 
 function views(over: Partial<TableViews> = {}): TableViews {
   return {
-    table: { tableState: { columns: [] }, onTableStateChange: () => undefined },
+    table: {
+      tableState: { columns: [] },
+      onTableStateChange: () => undefined,
+      filterOrigins: [],
+    },
     picker: null,
     views: [stored],
     sharedViews: [],
@@ -402,11 +406,11 @@ describe("ViewPicker column chooser", () => {
 
   const chooserCtx = (): ColumnChooserAccess & {
     onChange: ReturnType<typeof vi.fn>;
-    adopt: ReturnType<typeof vi.fn>;
+    adopt: Mock<[], () => void>;
   } => ({
     arranged,
     onChange: vi.fn(),
-    adopt: vi.fn(() => () => undefined),
+    adopt: vi.fn((): (() => void) => () => undefined),
   });
 
   const renderWithChooser = (

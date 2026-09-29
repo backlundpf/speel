@@ -18,6 +18,7 @@ import type { SharedTableViewStore } from "../src/table/views/sharedViewStore.js
 import {
   createLocalUserSettingsStore,
   initSpeelIdentity,
+  type IdentityDbContext,
 } from "@speel/identity";
 import { FakeIdentityProvider } from "@speel/identity/testing";
 import { __resetUrlStoreForTests } from "../src/url/urlStore.js";
@@ -45,7 +46,8 @@ class TCtx extends DbContext {
  * and the point of these tests is the view hook, not where preferences are stored.
  */
 const identityFor = (ctx: DbContext) =>
-  initSpeelIdentity(ctx, (b) =>
+  // Deliberately not an IdentityDbContext (see above): the identity sets go unused.
+  initSpeelIdentity(ctx as IdentityDbContext, (b) =>
     b
       .useProvider(new FakeIdentityProvider())
       .useSettings(createLocalUserSettingsStore()),

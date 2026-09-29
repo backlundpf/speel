@@ -24,7 +24,7 @@ class Unregistered {
 class TestCtx extends DbContext {
   public blogs = this.set(Blog);
   public comments = this.set(Comment);
-  protected onModelCreating(builder: ModelBuilder): void {
+  protected override onModelCreating(builder: ModelBuilder): void {
     builder.entity(Blog, (b) => {
       b.toList("Blogs");
       b.property((e) => e.Title).isText();
@@ -54,7 +54,7 @@ describe("DbContext", () => {
     class StableCtx extends DbContext {
       public a = this.set(Blog);
       public b = this.set(Blog);
-      protected onModelCreating(builder: ModelBuilder): void {
+      protected override onModelCreating(builder: ModelBuilder): void {
         builder
           .entity(Blog)
           .toList("Blogs")
@@ -76,7 +76,7 @@ describe("DbContext", () => {
   it("set()ing an entity that is never configured throws when the model builds (lazily)", () => {
     class BadCtx extends DbContext {
       public bad = this.set(Unregistered);
-      protected onModelCreating(b: ModelBuilder): void {
+      protected override onModelCreating(b: ModelBuilder): void {
         b.entity(Blog)
           .toList("Blogs")
           .property((e) => e.Title)
@@ -94,7 +94,7 @@ describe("DbContext", () => {
   it("set() resolves the auto-registered SiteUser", () => {
     class UserCtx extends DbContext {
       public users = this.set(SiteUser);
-      protected onModelCreating(_b: ModelBuilder): void {
+      protected override onModelCreating(_b: ModelBuilder): void {
         /* none */
       }
     }
@@ -106,7 +106,7 @@ describe("DbContext", () => {
 
   it("a malformed model throws on first access (lazy build)", () => {
     class BrokenCtx extends DbContext {
-      protected onModelCreating(): void {
+      protected override onModelCreating(): void {
         throw new Error("boom");
       }
     }

@@ -4,8 +4,8 @@ import { TestPrincipal as Principal } from "../fakes/testPrincipals.js";
 
 class Author extends SpeelEntity {}
 class Book extends SpeelEntity {
-  public Author: Author | null = null;
-  public AuthorId: number | null = null;
+  public Writer: Author | null = null;
+  public WriterId: number | null = null;
 }
 class Late extends SpeelEntity {}
 class Early extends SpeelEntity {
@@ -25,12 +25,12 @@ describe("builder additions", () => {
     });
     mb.entity(Book, (b) => {
       b.toList("Books");
-      b.hasOne(Author, "Author").withMany().hasForeignKey("AuthorId");
+      b.hasOne(Author, "Writer").withMany().hasForeignKey("WriterId");
     });
     const book = mb.build().findEntityType(Book)!;
-    expect(book.navigations().map((n) => n.name)).toContain("Author");
+    expect(book.navigations().map((n) => n.name)).toContain("Writer");
     expect(
-      book.properties.find((p) => p.propertyName === "AuthorId"),
+      book.properties.find((p) => p.propertyName === "WriterId"),
     ).toBeDefined();
   });
 

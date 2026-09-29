@@ -31,7 +31,8 @@ function build(Ctx: new (o: never) => DbContext) {
   const sp = new FakeStorageProvider();
   const db = initSpeelDbContext(Ctx as never, (b) => b.useProvider(sp));
   return {
-    identity: initSpeelIdentity(db, (b) =>
+    // PlainContext deliberately is not an IdentityDbContext: the runtime guard is under test.
+    identity: initSpeelIdentity(db as IdentityDbContext, (b) =>
       b.useProvider(new FakeIdentityProvider()),
     ),
     sp,

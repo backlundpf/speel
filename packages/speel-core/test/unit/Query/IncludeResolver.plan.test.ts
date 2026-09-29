@@ -28,7 +28,7 @@ class BudgetedProvider extends FakeStorageProvider {
   constructor(private readonly budget: number) {
     super();
   }
-  override maxInFilterValues(): number {
+  maxInFilterValues(): number {
     return this.budget;
   }
 }

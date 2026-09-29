@@ -191,7 +191,7 @@ describe("a fill-in radio Choice offers Other", () => {
     const { field } = renderRadio({ value: "Custom Value" });
     // Same premature-settle hazard as the "saved values" test above.
     await waitFor(() => expect(screen.getAllByRole("radio")).toHaveLength(3));
-    const [openRadio] = screen.getAllByRole("radio");
+    const openRadio = screen.getAllByRole("radio")[0]!;
     const otherRadio = screen.getByRole("radio", { name: "Other" });
     expect(otherRadio).toBeChecked();
 

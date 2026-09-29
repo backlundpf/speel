@@ -34,7 +34,7 @@ const PRINCIPALS = { kind: "provider", key: "principals" } as const;
 
 class Ctx extends DbContext {
   docs = this.set(Doc);
-  protected onModelCreating(mb: ModelBuilder): void {
+  protected override onModelCreating(mb: ModelBuilder): void {
     mb.entity(Person, (b) => {
       b.toProviderSource(PRINCIPALS);
       b.property((p) => p.Title).isText();

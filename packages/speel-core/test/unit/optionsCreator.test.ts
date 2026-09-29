@@ -121,7 +121,7 @@ describe("optionsCreateAsync on the model", () => {
   });
 
   it("reaches nav.config.optionsCreateAsync from the decorator route", () => {
-    const creator: OptionsCreator = async () => undefined;
+    const creator: OptionsCreator<unknown, OcJobTitle> = async () => undefined;
 
     @Entity({ list: "OC_JobTitles" })
     class OcJobTitle extends SpeelEntity {

@@ -18,20 +18,20 @@ import { FakeStorageProvider } from "./fakes/FakeStorageProvider.js";
 
 @Entity({ list: "Sc_Blogs" })
 class ScBlog extends SpeelEntity {
-  @Key public Id?: number = undefined;
+  @Key public override Id?: number = undefined;
   @TextField({ required: true }) public Title: string | null = null;
 }
 
 @Entity({ list: "Sc_Posts" })
 class ScPost extends SpeelEntity {
-  @Key public Id?: number = undefined;
+  @Key public override Id?: number = undefined;
   @ManyToOne(() => ScBlog) public Blog: ScBlog | null = null;
   public BlogId: number | null = null;
 }
 
 @Entity({ list: "Sc_Widgets" })
 class ScWidget extends SpeelEntity {
-  @Key public Id?: number = undefined;
+  @Key public override Id?: number = undefined;
   @TextField() public Name: string | null = null;
 }
 
@@ -109,7 +109,7 @@ describe("DbContext decorator-entity scoping", () => {
       L?: Loose;
     }
     class HCtx extends DbContext {
-      protected onModelCreating(mb: ModelBuilder): void {
+      protected override onModelCreating(mb: ModelBuilder): void {
         mb.entity(Holder, (b) => {
           b.toList("Holders");
           b.hasOne(Loose, (h) => h.L)

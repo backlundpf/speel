@@ -47,7 +47,7 @@ function fancyExpand() {
 
 class Ctx extends DbContext {
   gadgets = this.set(Gadget);
-  protected onModelCreating(mb: ModelBuilder): void {
+  protected override onModelCreating(mb: ModelBuilder): void {
     registerGadget(mb);
     mb.addSpecialExpand(fancyExpand());
   }
@@ -96,7 +96,7 @@ describe("the special-expand seam", () => {
   it("refuses a cache config naming a registered special expand", () => {
     class BadCtx extends DbContext {
       gadgets = this.set(Gadget);
-      protected onModelCreating(mb: ModelBuilder): void {
+      protected override onModelCreating(mb: ModelBuilder): void {
         registerGadget(mb);
         mb.addSpecialExpand(fancyExpand());
         mb.entity(Gadget, (b) => b.useCaching((c) => c.expand((x) => x.Fancy)));
@@ -111,7 +111,7 @@ describe("the special-expand seam", () => {
   it("refuses two handlers claiming one name", () => {
     class DupCtx extends DbContext {
       gadgets = this.set(Gadget);
-      protected onModelCreating(mb: ModelBuilder): void {
+      protected override onModelCreating(mb: ModelBuilder): void {
         registerGadget(mb);
         mb.addSpecialExpand(fancyExpand());
         mb.addSpecialExpand(fancyExpand());

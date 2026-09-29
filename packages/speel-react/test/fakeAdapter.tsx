@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactElement, type ReactNode } from "react";
 import type {
   ComboboxCreate,
   OptionItem,
@@ -16,7 +16,7 @@ const chrome = (
   required: boolean | undefined,
   error: string | undefined,
   control: ReactNode,
-): ReactNode => (
+): ReactElement => (
   <label>
     {label}
     {required ? " *" : ""}

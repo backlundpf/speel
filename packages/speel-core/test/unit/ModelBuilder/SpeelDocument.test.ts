@@ -19,7 +19,7 @@ class Task extends SpeelEntity {
 }
 class Custom extends SpeelDocument {
   Title: string | null = null;
-  FileLeafRef?: string; // explicitly configured below — refines the inherited declaration
+  override FileLeafRef?: string = undefined; // explicitly configured below — refines the inherited declaration
 }
 
 function buildModel() {

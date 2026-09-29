@@ -29,6 +29,7 @@ describe("renderFieldSpec", () => {
       renderFieldSpec({
         kind: "Choice",
         internalName: "S",
+        multi: false,
         choices: ["a", "b"],
         fillIn: false,
         displayAs: "Dropdown",

@@ -150,6 +150,10 @@ optionsCreateAsync: async ({ text, db, source }) => {
 },
 ```
 
+To share one creator or query across fields, declare it on its own as
+`OptionsCreator<Source, Target>` (or `OptionsLoader<Source, Target>`). The navigation checks
+it against its own target, so a creator for a different entity does not compile.
+
 A Choice has no `optionsCreateAsync`: its creation is `fillIn` (`allowFillIn()`), and there
 is nothing to persist — the typed text is the value.
 

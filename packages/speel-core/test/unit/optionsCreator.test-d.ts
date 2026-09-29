@@ -3,10 +3,12 @@ import type { OptionsCreator } from "../../src/Metadata/optionsLoader.js";
 import type { DbContext } from "../../src/DbContext.js";
 import type { DbSet } from "../../src/DbSet.js";
 
-// A UI binding fills the host bag by augmenting the module where it lives.
+// A UI binding fills the host bag by augmenting the module where it lives. Optional
+// here: the augmentation is program-wide, and the runtime tests call creators with
+// core's arguments alone.
 declare module "../../src/Metadata/optionsLoader.js" {
   interface OptionsCreatorHost {
-    extra: number;
+    extra?: number;
   }
 }
 
@@ -18,7 +20,7 @@ type Source = { Department: string };
 
 // The augmentation makes `extra` a typed member of every creator's args.
 const creator: OptionsCreator<Source, Target> = async (args) => {
-  expectTypeOf(args.extra).toEqualTypeOf<number>();
+  expectTypeOf(args.extra).toEqualTypeOf<number | undefined>();
   expectTypeOf(args.text).toEqualTypeOf<string>();
   expectTypeOf(args.displayField).toEqualTypeOf<string>();
   expectTypeOf(args.source).toEqualTypeOf<Source>();

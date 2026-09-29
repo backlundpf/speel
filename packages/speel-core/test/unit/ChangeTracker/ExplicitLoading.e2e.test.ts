@@ -22,7 +22,7 @@ class Project {
 class Ctx extends DbContext {
   public programs = this.set(Program);
   public projects = this.set(Project);
-  protected onModelCreating(b: ModelBuilder): void {
+  protected override onModelCreating(b: ModelBuilder): void {
     b.entity(Program, (e) => {
       e.toList("Programs");
       e.property((x) => x.Title).isText();
@@ -178,7 +178,7 @@ class Badge {
 class OneToOneCtx extends DbContext {
   public employees = this.set(Employee);
   public badges = this.set(Badge);
-  protected onModelCreating(b: ModelBuilder): void {
+  protected override onModelCreating(b: ModelBuilder): void {
     b.entity(Employee, (e) => {
       e.toList("Employees");
       e.property((x) => x.Name).isText();

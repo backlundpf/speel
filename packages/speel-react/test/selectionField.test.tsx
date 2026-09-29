@@ -778,6 +778,7 @@ describe("availability and the selection", () => {
       },
       displayName: "Colour",
       value: held,
+      values: { Colour: held },
       visible: true,
       readOnly: false,
       enabled: true,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { ReactNode } from "react";
+import type { ReactElement } from "react";
 import { createElement } from "react";
 import { nodeText, cellText } from "../src/table/cellText.js";
 import { buildCsv, csvFileName } from "../src/table/csv.js";
@@ -38,7 +38,7 @@ describe("nodeText", () => {
   it("yields nothing for null, booleans, and custom components", () => {
     expect(nodeText(null)).toBe("");
     expect(nodeText(true)).toBe("");
-    const Pill = (): ReactNode => "never rendered";
+    const Pill = (): ReactElement => createElement("b", null, "never rendered");
     expect(nodeText(createElement(Pill))).toBe("");
   });
 });

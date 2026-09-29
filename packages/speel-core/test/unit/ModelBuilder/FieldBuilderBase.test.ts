@@ -7,7 +7,7 @@ class TestBuilder extends FieldBuilderBase<TestBuilder> {
     return this;
   }
   protected emitConfig(): FieldConfig {
-    return { kind: "Text", maxLength: 255 };
+    return { kind: "Text", multiline: false, maxLength: 255 };
   }
 }
 

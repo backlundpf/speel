@@ -16,7 +16,7 @@ function byIds(
   list: IListHandle,
   ids: number[],
   fields: string[] = ["Id", "Name"],
-): IReadOperation {
+): Extract<IReadOperation, { kind: "itemsByIds" }> {
   return { kind: "itemsByIds", source: list, ids, fields, clientToken: token };
 }
 

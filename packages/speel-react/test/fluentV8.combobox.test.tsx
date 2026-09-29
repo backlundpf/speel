@@ -21,8 +21,9 @@ const offices = [
  * Freeform is on, so clicking the text box puts the caret in it to type; the caret
  * button is what browses the list without typing. That is Fluent's own gesture.
  */
-const browse = (container: HTMLElement): void =>
+const browse = (container: HTMLElement): void => {
   fireEvent.click(container.querySelector(".ms-ComboBox-CaretDown-button")!);
+};
 
 describe("V8Combobox", () => {
   it("is named by its label, like every other v8 field", () => {
@@ -246,8 +247,8 @@ describe("V8Combobox", () => {
   describe("multi", () => {
     /** Multi-select renders each option as a tickable row, named by its text. */
     const offer = async (
-      value: (typeof offices)[number][],
-      onChange: (v: (typeof offices)[number][]) => void,
+      value: OptionItem[],
+      onChange: (v: OptionItem[]) => void,
     ): Promise<void> => {
       const { container } = render(
         <V8Combobox

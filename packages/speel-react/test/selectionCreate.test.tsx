@@ -228,9 +228,12 @@ async function type(label: string, text: string): Promise<void> {
   });
 }
 
+/** vitest 1.x types vi.fn by its parameter and return types, not the function type. */
+type Creator = OptionsCreator<Person, Office>;
+
 /** A creator that "saves" by handing back a row with a fresh id. */
 function creating(id = 99) {
-  return vi.fn<OptionsCreator<Person, Office>>(async ({ text }) =>
+  return vi.fn<Parameters<Creator>, ReturnType<Creator>>(async ({ text }) =>
     Object.assign(new Office(), { Id: id, Title: text }),
   );
 }
@@ -338,7 +341,7 @@ describe("a successful create", () => {
 
 describe("decline and failure", () => {
   it("a creator resolving undefined changes nothing and returns to idle", async () => {
-    const creator = vi.fn<OptionsCreator<Person, Office>>(
+    const creator = vi.fn<Parameters<Creator>, ReturnType<Creator>>(
       async () => undefined,
     );
     const m = await renderLookup({
@@ -359,10 +362,12 @@ describe("decline and failure", () => {
 
   it("a rejecting creator reports the failure and leaves the value; picking again retries", async () => {
     let fail = true;
-    const creator = vi.fn<OptionsCreator<Person, Office>>(async ({ text }) => {
-      if (fail) throw new Error("Title is required.");
-      return Object.assign(new Office(), { Id: 99, Title: text });
-    });
+    const creator = vi.fn<Parameters<Creator>, ReturnType<Creator>>(
+      async ({ text }) => {
+        if (fail) throw new Error("Title is required.");
+        return Object.assign(new Office(), { Id: 99, Title: text });
+      },
+    );
     const m = await renderLookup({
       creator,
       value: { Id: 1, Title: "London" },
@@ -390,7 +395,9 @@ describe("decline and failure", () => {
 
   it("shows Adding while in flight, and a second pick calls the creator once", async () => {
     const g = gate<Office | undefined>();
-    const creator = vi.fn<OptionsCreator<Person, Office>>(() => g.promise);
+    const creator = vi.fn<Parameters<Creator>, ReturnType<Creator>>(
+      () => g.promise,
+    );
     const m = await renderLookup({ creator });
     await type("Office", "Zurich");
     await screen.findByRole("button", { name: 'Add "Zurich"' });
@@ -452,7 +459,7 @@ describe("the result lands on the value as it stands", () => {
   it("does not append a row a multi lookup already holds", async () => {
     // The creator found an existing row (as createsByDisplayField does on an exact
     // match the search did not offer): it is already held.
-    const creator = vi.fn<OptionsCreator<Person, Office>>(async () =>
+    const creator = vi.fn<Parameters<Creator>, ReturnType<Creator>>(async () =>
       Object.assign(new Office(), { Id: 2, Title: "Lisbon" }),
     );
     const m = await renderLookup({
@@ -472,7 +479,7 @@ describe("the result lands on the value as it stands", () => {
   it("keeps a single value picked while adding, and still adopts the row", async () => {
     const g = gate<Office | undefined>();
     const m = await renderLookup({
-      creator: vi.fn<OptionsCreator<Person, Office>>(() => g.promise),
+      creator: vi.fn<Parameters<Creator>, ReturnType<Creator>>(() => g.promise),
       value: { Id: 1, Title: "London" },
     });
     await type("Office", "Zurich");
@@ -495,7 +502,9 @@ describe("the result lands on the value as it stands", () => {
 
   it("does nothing when the result arrives after unmount", async () => {
     const g = gate<Office | undefined>();
-    const creator = vi.fn<OptionsCreator<Person, Office>>(() => g.promise);
+    const creator = vi.fn<Parameters<Creator>, ReturnType<Creator>>(
+      () => g.promise,
+    );
     const m = await renderLookup({ creator });
     await type("Office", "Zurich");
     fireEvent.click(
