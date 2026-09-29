@@ -1,20 +1,16 @@
-# Publishes every @speel/* package when a version tag is pushed.
-#
-#   git tag v0.1.0-beta.1 && git push origin v0.1.0-beta.1
-#
-# Auth is npm trusted publishing (OIDC): each package on npmjs.com trusts this
-# repo + this workflow filename, so there is no npm token anywhere. Provenance
-# attestations are generated automatically. Renaming this file breaks that trust.
-#
-# The tag must equal every package's version (lockstep). A prerelease version
-# (anything with a "-") publishes under the `beta` dist-tag, a release under
-# `latest`. Re-running after a partial failure skips versions already on npm.
+# Releases @speel/* with Changesets. On every push to main:
+#   - changesets pending → create/update the "Version Packages" PR (authored by the
+#     release GitHub App, so ci.yml runs on it)
+#   - none pending (a Version PR just merged) → `npm run release`: gates, publish via
+#     npm trusted publishing (OIDC + provenance, no token), one vX.Y.Z tag + release
+#   - only empty changesets pending → nothing
+# npm trusts THIS FILENAME. Renaming it breaks publishing.
 
 name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
 
 permissions:
   contents: read
@@ -25,10 +21,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     steps:
+      - id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -39,43 +43,16 @@ jobs:
       # Trusted publishing needs npm >= 11.5.1.
       - run: npm install -g npm@11
 
-      - name: Tag matches every package version
-        id: version
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          bad=0
-          for f in packages/*/package.json; do
-            v=$(node -p "require('./$f').version")
-            if [ "$v" != "$version" ]; then echo "::error file=$f::version $v != tag $GITHUB_REF_NAME"; bad=1; fi
-          done
-          [ "$bad" = 0 ] || exit 1
-          case "$version" in *-*) tag=beta ;; *) tag=latest ;; esac
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "dist-tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "Publishing $version under '$tag'"
-
       - run: npm ci
 
-      # The package gates from `npm run verify`. The registry and the SPFx sample
-      # are not published, so their builds stay a local/PR concern.
-      - run: npm run build
-      - run: npm run check:node-esm
-      - run: npm run typecheck
-      - run: npm test
-
-      # Dependency order. `--tag` is explicit on purpose: npm ignores a
-      # workspace's publishConfig.tag when publishing, so without it a
-      # prerelease would land on `latest`.
-      - name: Publish
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-          DIST_TAG: ${{ steps.version.outputs.dist-tag }}
-        run: |
-          for pkg in core identity migrations pnpjs react migrations-cli; do
-            name="@speel/$pkg"
-            if npm view "$name@$VERSION" version >/dev/null 2>&1; then
-              echo "skip  $name@$VERSION (already published)"
-              continue
-            fi
-            npm publish --workspace "$name" --tag "$DIST_TAG" --access public --provenance
-          done
+      # No GITHUB_TOKEN env here: the action rejects one that differs from
+      # github-token, and exports the App token to the publish script itself.
+      - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          version-script: npm run version-packages
+          publish-script: npm run release
+          commit-message: "chore(release): version packages"
+          pr-title: "chore(release): version packages"
+          create-github-releases: false
+          push-git-tags: false
