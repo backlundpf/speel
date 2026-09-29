@@ -83,7 +83,7 @@ describe("useUrlState", () => {
       </>,
     );
     act(() => {
-      screen.getAllByText("select")[0].click();
+      screen.getAllByText("select")[0]!.click();
     });
     const shown = screen.getAllByTestId("resnum");
     expect(shown).toHaveLength(2);

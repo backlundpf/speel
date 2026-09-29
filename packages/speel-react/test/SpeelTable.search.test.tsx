@@ -72,13 +72,17 @@ const search = (text: string): void => {
 
 const titles = (): string[] =>
   screen
-    .getAllByRole("row")
+    .getAllByRole<HTMLTableRowElement>("row")
     .slice(1)
     .map((r) => r.cells[0]!.textContent!);
 
 describe("SpeelTable search", () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("narrows the rows to those whose visible text contains the query", () => {
     wrap();

@@ -78,7 +78,9 @@ beforeEach(() => {
     written = { name: this.download };
   });
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const sheet = (): string =>
   strFromU8(unzipSync(capturedBytes!)["xl/worksheets/sheet1.xml"]!);

@@ -67,7 +67,9 @@ beforeEach(() => {
     () => undefined,
   );
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("SpeelTable column state", () => {
   it("renders prop order when no state is given", () => {
