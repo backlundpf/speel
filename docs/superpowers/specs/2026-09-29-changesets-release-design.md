@@ -1,6 +1,6 @@
 # Changesets release automation — design
 
-Date: 2026-09-29 · Status: approved in conversation, pending written-spec review
+Date: 2026-09-29 · Status: approved; updated with config-experiment results
 
 ## Goal
 
@@ -30,7 +30,7 @@ feature PR ──▶ ci.yml: verify + changeset ──▶ squash-merge
                               release.yml (changesets/action)
                               ├─ pending changesets → create/update Version PR (App-authored)
                               └─ none pending → npm run release
-                                   (no-op if everything is published and released)
+                                   (exits early if everything is published and released)
 Version PR ──▶ ci.yml: verify ──▶ squash-merge = release decision ──▶ release.yml publishes
 ```
 
@@ -45,7 +45,7 @@ changes into the next version. Nothing publishes until it is merged.
 - Workflow token: `contents: read`, `id-token: write` only.
 - Steps: checkout → setup-node (`.node-version`, registry URL) → `npm install -g npm@11`
   (trusted publishing needs ≥ 11.5.1) → mint App token (`actions/create-github-app-token`,
-  secrets `RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`) → `npm ci` → `changesets/action`
+  secrets `RELEASE_APP_CLIENT_ID`, `RELEASE_APP_PRIVATE_KEY`; v3 takes `client-id`, `app-id` is deprecated) → `npm ci` → `changesets/action`
   (SHA-pinned) with `version: npm run version-packages`, `publish: npm run release`,
   `createGithubReleases: false`, `GITHUB_TOKEN` = the App token.
 - All GitHub writes (Version PR branch/PR, tag, release) use the App token.
@@ -99,9 +99,12 @@ prints the plan. Recovery from any failure is re-running the job.
 - `@changesets/cli` pinned root devDependency; root scripts `changeset`, `version-packages`,
   `release`, `check:changeset`.
 - `.changeset/config.json`: `fixed: [["@speel/*"]]`, `access: "public"`,
-  `baseBranch: "main"`, default changelog generator, `privatePackages` off, plus whatever the
-  config experiment (Testing) proves necessary for peer dependencies.
-- `.changeset/pre.json`: pre mode on `beta`, seeded so the next version is `0.1.0-beta.2`.
+  `baseBranch: "main"`, default changelog generator, `privatePackages` off. No
+  experimental peer option: the experiment showed the fixed group never cascades to `1.0.0`.
+- `.changeset/pre.json`: written by `changeset pre enter beta`; no seeding — the next
+  version comes out `0.1.0-beta.2` from the current `0.1.0-beta.1`.
+- Each package's `publishConfig.tag` is removed (the release script passes the dist-tag;
+  a stale `beta` there would mislead a manual publish after pre mode exits).
 - `.changeset/README.md`: when to add a changeset, patch vs minor under 0.x, `--empty`.
 - Each package's `files` gains `CHANGELOG.md`.
 - CLAUDE.md "Releasing" rewritten; root `CHANGELOG.md` gains the pointer.
@@ -119,7 +122,7 @@ prints the plan. Recovery from any failure is re-running the job.
 
 - GitHub App `speel-release` (name flexible): no webhook; repository permissions Contents
   read & write, Pull requests read & write; installed on `backlundpf/speel` only.
-- Repo secrets `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY`.
+- Repo secrets `RELEASE_APP_CLIENT_ID` (the App's Client ID) and `RELEASE_APP_PRIVATE_KEY`.
 - npm: no change (workflow filename stays `release.yml`; trusted publishers allow publish).
 
 ## Testing
@@ -127,20 +130,26 @@ prints the plan. Recovery from any failure is re-running the job.
 - `check-changeset`: fixture tests (node:test) for each rule and exemption.
 - `release` plan: unit tests for nothing-to-do, partial re-run, fresh release, version
   mismatch; `--dry-run` against the live registry locally.
-- Changesets config experiment, in a throwaway worktree before the config is committed:
-  - a `patch` changeset → all six `0.1.0-beta.2`;
-  - a `minor` changeset → all six `0.2.0-beta.0`, `@speel/*` peer ranges widened;
-  - never `1.0.0`; workspace `"*"` devDependencies untouched.
-    Config (peer option, `pre.json` seed) is adjusted until all hold; the working config is
-    what gets committed.
+- Changesets config experiment — **run 2026-09-29 against `@changesets/cli` 3.0.3**:
+  - `patch` in pre mode → all six `0.1.0-beta.2`; a second patch → `0.1.0-beta.3`.
+  - `minor` in pre mode from `0.1.0-beta.N` → `0.1.0-beta.N+1` (semver: `0.1.0` is already
+    the next minor); from stable `0.1.0` → all six `0.2.0`, peers widened to `^0.2.0`.
+  - Never `1.0.0`, with or without the experimental peer option — so it is not used.
+  - Peers are re-pinned to `^<new version>` each release, and workspace `"*"`
+    devDependencies become exact pins (`0.1.0-beta.2`); npm workspaces still link them
+    (verified with `npm ci`). Accepted: both are consistent with lockstep.
+  - CHANGELOG quirks the release-notes builder must handle: an untouched package gets
+    `No changes in this release.`; dependents get `- @speel/<pkg>@<version>` bullets.
+  - Generated CHANGELOGs already pass prettier (v3 `format: "auto"`).
 
 ## Cutover
 
 1. Implementation PR (merges under the current rules; no changeset check on `main` yet).
 2. Before merging: owner creates the App + secrets; allowlist gains `changesets/action`.
-3. Merge → first `release.yml` run on `main`: nothing pending → release script no-ops
-   (beta.1 published, `v0.1.0-beta.1` released) — proves the token, the action and the
-   no-op path.
+3. Merge → first `release.yml` run on `main`. This PR carries only an `--empty`
+   changeset, and changesets/action does nothing while only empty changesets are pending
+   (no PR, no publish) — proves the App token and the action load. The publish path is
+   first exercised by step 5.
 4. Add the required status checks to "Protect main".
 5. First real release: the next change with a changeset → Version PR → merge →
    `0.1.0-beta.2` end to end.
