@@ -128,7 +128,7 @@ export class JsonFieldBuilder extends FieldBuilderBase<JsonFieldBuilder> {
 }
 
 /** Field decorator declaring a single embedded shape stored as JSON. */
-export function JsonField<T extends IEntity>(opts: JsonFieldOptions<T>) {
+export function JsonField<T extends object>(opts: JsonFieldOptions<T>) {
   return (
     _t: unknown,
     ctx: ClassFieldDecoratorContext<unknown, DecoratedValue<T>>,
@@ -141,7 +141,7 @@ export function JsonField<T extends IEntity>(opts: JsonFieldOptions<T>) {
 }
 
 /** Field decorator declaring an array of embedded shapes stored as JSON. */
-export function MultiJsonField<T extends IEntity>(opts: JsonFieldOptions<T>) {
+export function MultiJsonField<T extends object>(opts: JsonFieldOptions<T>) {
   return (
     _t: unknown,
     ctx: ClassFieldDecoratorContext<unknown, DecoratedValue<T[]>>,
