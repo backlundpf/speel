@@ -1,54 +1,62 @@
 // Pure rules behind the PR changeset check. scripts/check-changeset.mjs feeds them
-// the PR's diff; keeping the rules I/O-free is what makes them testable.
+// the PR's diff; keeping the rules I/O-free is what makes them testable. Parsing
+// uses the CLI's own parser, so the check accepts exactly what `changeset version`
+// will accept on main.
+import parse from "@changesets/parse";
 
 export const EXEMPT_AUTHORS = ["dependabot[bot]"];
-export const EXEMPT_BRANCHES = ["changeset-release/main"];
-const BUMP_LINE = /^\s*(["']?)(@?[^"':\s]+)\1\s*:\s*(patch|minor|major)\s*$/;
+export const VERSION_PR_BRANCH = "changeset-release/main";
+export const RELEASE_MODE_LABEL = "release-mode";
 
-/** A new pending changeset file: `.changeset/<name>.md`, never the README. */
+/** A pending changeset file: `.changeset/<name>.md`, never the README or `pre/`. */
 export function isChangesetPath(path) {
   return (
     /^\.changeset\/[^/]+\.md$/.test(path) && path !== ".changeset/README.md"
   );
 }
 
-/** The releases a changeset's frontmatter declares; an `--empty` changeset declares none. */
+/** The releases a changeset declares, via the CLI's parser; throws what it throws. */
 export function parseChangeset(content) {
-  const lines = content.split(/\r?\n/);
-  if (lines[0] !== "---")
-    throw new Error("missing frontmatter (first line must be ---)");
-  const end = lines.indexOf("---", 1);
-  if (end === -1) throw new Error("unterminated frontmatter (no closing ---)");
-  const releases = [];
-  for (const line of lines.slice(1, end)) {
-    if (line.trim() === "") continue;
-    const m = BUMP_LINE.exec(line);
-    if (!m)
-      throw new Error(`unrecognized frontmatter line: ${JSON.stringify(line)}`);
-    releases.push({ name: m[2], type: m[3] });
-  }
-  return { releases };
+  const { releases } = parse(content);
+  return { releases: releases.map(({ name, type }) => ({ name, type })) };
+}
+
+function isExempt({ author, headRef }) {
+  if (EXEMPT_AUTHORS.includes(author)) return true;
+  // The Version PR: the release App's bot on its branch. A human (or a fork) naming a
+  // branch changeset-release/main gets no pass.
+  return headRef === VERSION_PR_BRANCH && author.endsWith("[bot]");
 }
 
 export function checkChangesets({
   changedFiles,
-  addedChangesets,
+  touchedChangesets,
+  pendingChangesets,
+  versionEdits,
+  preJsonChanged,
+  labels,
   headRef,
   author,
   preMode,
   packageNames,
 }) {
-  if (EXEMPT_AUTHORS.includes(author) || EXEMPT_BRANCHES.includes(headRef)) {
-    return { ok: true, errors: [], notes: [`exempt (${author || headRef})`] };
+  if (isExempt({ author, headRef })) {
+    return {
+      ok: true,
+      errors: [],
+      notes: [`exempt (${author} on ${headRef})`],
+    };
   }
   const errors = [];
   const notes = [];
-  for (const { path, content } of addedChangesets) {
+  // Every pending changeset, not only this PR's: one bad file breaks `changeset version`
+  // on main for everyone.
+  for (const { path, content } of pendingChangesets) {
     let releases;
     try {
       ({ releases } = parseChangeset(content));
     } catch (e) {
-      errors.push(`${path}: ${e.message}`);
+      errors.push(`${path}: ${e.message.split("\n")[0]}`);
       continue;
     }
     for (const { name, type } of releases) {
@@ -69,10 +77,22 @@ export function checkChangesets({
     );
   }
   const touchesPackages = changedFiles.some((f) => f.startsWith("packages/"));
-  if (touchesPackages && addedChangesets.length === 0) {
+  if (touchesPackages && touchedChangesets.length === 0) {
     errors.push(
       "This PR changes packages/ but adds no changeset. Run `npx changeset` " +
         "(or `npx changeset --empty` for changes that should not release) and commit the file.",
+    );
+  }
+  for (const path of versionEdits) {
+    errors.push(
+      `${path}: "version" was edited by hand. Versions come only from changesets — ` +
+        "revert it and add a changeset instead.",
+    );
+  }
+  if (preJsonChanged && !labels.includes(RELEASE_MODE_LABEL)) {
+    errors.push(
+      `.changeset/pre.json changed. Entering or leaving prerelease mode is deliberate: ` +
+        `add the "${RELEASE_MODE_LABEL}" label to this PR if that is the intent.`,
     );
   }
   return { ok: errors.length === 0, errors, notes };

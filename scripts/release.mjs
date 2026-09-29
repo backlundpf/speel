@@ -13,7 +13,13 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { planRelease, releaseNotes } from "./release-plan.mjs";
+import {
+  npmPublished,
+  planRelease,
+  releaseFound,
+  releaseNotes,
+  tagFound,
+} from "./release-plan.mjs";
 
 const dryRun = process.argv.includes("--dry-run");
 
@@ -34,30 +40,31 @@ const pre = existsSync(".changeset/pre.json")
   ? JSON.parse(readFileSync(".changeset/pre.json", "utf8"))
   : null;
 
-// Exact-version views print the version when it exists; anything else means unpublished.
+// Each lookup tells "not there" (E404 / release not found / no such ref) apart from
+// a real failure (network, auth, 5xx), which aborts the run instead of guessing.
 const published = new Set(
   packages
-    .filter(
-      (p) =>
-        capture("npm", [
-          "view",
-          `${p.name}@${p.version}`,
-          "version",
-        ]).stdout.trim() === p.version,
+    .filter((p) =>
+      npmPublished(
+        capture("npm", ["view", `${p.name}@${p.version}`, "version"]),
+        p.version,
+      ),
     )
     .map((p) => `${p.name}@${p.version}`),
 );
 const version = packages[0].version;
-const tagExists =
+const tagExists = tagFound(
   capture("git", [
     "ls-remote",
     "--exit-code",
     "--tags",
     "origin",
     `refs/tags/v${version}`,
-  ]).status === 0;
-const releaseExists =
-  capture("gh", ["release", "view", `v${version}`]).status === 0;
+  ]),
+);
+const releaseExists = releaseFound(
+  capture("gh", ["release", "view", `v${version}`]),
+);
 
 const plan = planRelease({
   packages,
@@ -67,7 +74,7 @@ const plan = planRelease({
   pre,
 });
 console.log(
-  `release ${plan.tag} → dist-tag "${plan.distTag}"\n` +
+  `release ${plan.tag}${plan.distTag ? ` → dist-tag "${plan.distTag}"` : ""}\n` +
     `  publish: ${plan.toPublish.length ? plan.toPublish.join(", ") : "(all published)"}\n` +
     `  gates: ${plan.runGates ? "yes" : "no"} · tag exists: ${plan.tagExists} · create release: ${plan.createRelease}`,
 );

@@ -48,25 +48,51 @@ export function planRelease({
     );
   }
   const [version] = versions;
-  const distTag = distTagFor(version, pre);
   const toPublish = PUBLISH_ORDER.filter(
     (n) => !published.has(`${n}@${version}`),
   );
   const createRelease = !releaseExists;
+  const nothingToDo = toPublish.length === 0 && !createRelease;
+  // A finished release needs no dist-tag: after `pre exit`, the still-current
+  // prerelease is published and released, and must not fail every push.
+  const distTag = nothingToDo ? null : distTagFor(version, pre);
   return {
     version,
     tag: `v${version}`,
     distTag,
-    prerelease: distTag !== "latest",
+    prerelease: distTag !== null && distTag !== "latest",
     toPublish,
     runGates: toPublish.length > 0,
     createRelease,
     tagExists,
-    nothingToDo: toPublish.length === 0 && !createRelease,
+    nothingToDo,
   };
 }
 
-const DEPENDENCY_BUMP = /^\s*-\s+@speel\/[\w-]+@\S+\s*$/;
+/** `npm view <name>@<version> version`: the version → published; E404 → not; else throw. */
+export function npmPublished({ status, stdout, stderr }, version) {
+  if (status === 0 && stdout.trim() === version) return true;
+  if (/\bE404\b/.test(stderr)) return false;
+  throw new Error(`npm view failed (exit ${status}): ${stderr.trim()}`);
+}
+
+/** `gh release view <tag>`: exit 0 → exists; "release not found" → not; else throw. */
+export function releaseFound({ status, stderr }) {
+  if (status === 0) return true;
+  if (/release not found/i.test(stderr)) return false;
+  throw new Error(`gh release view failed (exit ${status}): ${stderr.trim()}`);
+}
+
+/** `git ls-remote --exit-code`: 0 → tag exists; 2 → no such ref; else throw. */
+export function tagFound({ status, stderr }) {
+  if (status === 0) return true;
+  if (status === 2) return false;
+  throw new Error(`git ls-remote failed (exit ${status}): ${stderr.trim()}`);
+}
+
+// Dependency-bump bookkeeping the CLI writes into every dependent's section.
+const DEPENDENCY_BUMP =
+  /^\s*-\s+(?:@speel\/[\w-]+@\S+|(?:[0-9a-f]{7,}:\s+)?Updated dependencies(?:\s+\[[^\]]*\])?)\s*$/;
 
 /** One package's section for `version`, reduced to real entries grouped by change type. */
 function sectionFor(version, text) {

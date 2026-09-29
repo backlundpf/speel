@@ -2,6 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   PUBLISH_ORDER,
+  npmPublished,
+  releaseFound,
+  tagFound,
   distTagFor,
   planRelease,
   releaseNotes,
@@ -131,7 +134,8 @@ const REACT = `# @speel/react
 
 ### Patch Changes
 
-- @speel/core@0.1.0-beta.2
+- Updated dependencies
+  - @speel/core@0.1.0-beta.2
   - @speel/identity@0.1.0-beta.2
 `;
 const PNPJS = `# @speel/pnpjs
@@ -173,4 +177,49 @@ test("releaseNotes with no real entries says so", () => {
     releaseNotes(V, [{ name: "@speel/pnpjs", text: PNPJS }]),
     "No package changes in this release.\n",
   );
+});
+
+test("after pre exit, a fully published prerelease is nothing to do, not an error", () => {
+  const p = planRelease({
+    packages: pkgs(),
+    published: all(),
+    tagExists: true,
+    releaseExists: true,
+    pre: { mode: "exit", tag: "beta" },
+  });
+  assert.equal(p.nothingToDo, true);
+});
+
+test("npmPublished: the version → true; E404 → false; anything else throws", () => {
+  assert.equal(
+    npmPublished({ status: 0, stdout: `${V}\n`, stderr: "" }, V),
+    true,
+  );
+  assert.equal(
+    npmPublished({ status: 1, stdout: "", stderr: "npm error code E404\n" }, V),
+    false,
+  );
+  assert.throws(
+    () =>
+      npmPublished(
+        { status: 1, stdout: "", stderr: "npm error code ETIMEDOUT" },
+        V,
+      ),
+    /ETIMEDOUT/,
+  );
+});
+
+test("releaseFound: exists → true; 'release not found' → false; anything else throws", () => {
+  assert.equal(releaseFound({ status: 0, stderr: "" }), true);
+  assert.equal(
+    releaseFound({ status: 1, stderr: "release not found\n" }),
+    false,
+  );
+  assert.throws(() => releaseFound({ status: 1, stderr: "HTTP 502" }), /502/);
+});
+
+test("tagFound: exit 0 → true; exit 2 (no match) → false; anything else throws", () => {
+  assert.equal(tagFound({ status: 0, stderr: "" }), true);
+  assert.equal(tagFound({ status: 2, stderr: "" }), false);
+  assert.throws(() => tagFound({ status: 128, stderr: "fatal: auth" }), /auth/);
 });

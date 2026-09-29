@@ -4,6 +4,8 @@
 #   - none pending (a Version PR just merged) → `npm run release`: gates, publish via
 #     npm trusted publishing (OIDC + provenance, no token), one vX.Y.Z tag + release
 #   - only empty changesets pending → nothing
+# Before any of that, `npm run release` publishes a version on main that isn't
+# released yet (idempotent; no-op otherwise).
 # npm trusts THIS FILENAME. Renaming it breaks publishing.
 
 name: Release
@@ -44,6 +46,12 @@ jobs:
       - run: npm install -g npm@11
 
       - run: npm ci
+
+      # First, publish any version on main that isn't released yet — a Version PR merged
+      # while stale, or a re-run after a failure. A no-op when everything is published.
+      - run: npm run release
+        env:
+          GITHUB_TOKEN: ${{ steps.app.outputs.token }}
 
       # No GITHUB_TOKEN env here: the action rejects one that differs from
       # github-token, and exports the App token to the publish script itself.
