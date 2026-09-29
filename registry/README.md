@@ -45,7 +45,14 @@ npm run build:check    # registry:build + fail on any git diff (artifact freshne
 ```
 
 `public/r/speel-shadcn.json` is a committed build output; `build:check` is the gate
-that keeps it from drifting from source.
+that keeps it from drifting from source. The root `verify` runs this project's
+`typecheck`, `test` and `build:check`.
+
+**Author skin changes here, never in the sample.** `samples/spfx-sample` imports the
+skin from this registry: after changing `src/speel-shadcn/`, run `npm run sync:skin`
+from the repo root. It copies each file `registry.json` ships to the target
+`shadcn add` would write in the sample. `npm run check:skin` (part of `verify`) fails
+when the sample's copy differs.
 
 ## Layout
 

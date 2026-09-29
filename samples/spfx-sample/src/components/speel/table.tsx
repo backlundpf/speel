@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 
@@ -12,7 +12,13 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-import type { TableColumn, TableProps, TableSort } from "@speel/react";
+import { useResizable } from "@speel/react";
+import type {
+  RowIntent,
+  TableColumn,
+  TableProps,
+  TableSort,
+} from "@speel/react";
 
 import { ShadIconButton } from "./fields";
 import { ShadPopover } from "./overlays";
@@ -75,6 +81,46 @@ function HeaderCell({
   );
 }
 
+function ResizeHandle({
+  columnKey,
+  width,
+  onColumnResize,
+}: {
+  columnKey: string;
+  width: number | undefined;
+  onColumnResize: (key: string, width: number) => void;
+}): ReactElement {
+  const { size, handleProps } = useResizable({
+    axis: "x",
+    min: { w: 60 },
+    initial: { w: width ?? 150 },
+  });
+  const reported = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const w = size.w;
+    if (w !== undefined && w !== reported.current) {
+      reported.current = w;
+      onColumnResize(columnKey, w);
+    }
+  }, [size.w, columnKey, onColumnResize]);
+  return (
+    <span
+      {...handleProps}
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize ${columnKey}`}
+      className="hover:bg-border absolute top-0 right-0 h-full w-1 cursor-col-resize select-none"
+    />
+  );
+}
+
+const INTENT_ROW: Record<RowIntent, string> = {
+  success: "bg-emerald-50 dark:bg-emerald-950/40",
+  warning: "bg-amber-50 dark:bg-amber-950/40",
+  error: "bg-destructive/10",
+  muted: "text-muted-foreground bg-muted/40",
+};
+
 export function ShadTable(p: TableProps): ReactElement {
   if (p.items.length === 0) {
     return (
@@ -95,6 +141,7 @@ export function ShadTable(p: TableProps): ReactElement {
             {p.columns.map((c) => (
               <TableHead
                 key={c.key}
+                className="relative"
                 style={c.width !== undefined ? { width: c.width } : undefined}
               >
                 <HeaderCell
@@ -102,23 +149,37 @@ export function ShadTable(p: TableProps): ReactElement {
                   sort={p.sort}
                   onSortChange={p.onSortChange}
                 />
+                {p.onColumnResize ? (
+                  <ResizeHandle
+                    columnKey={c.key}
+                    width={c.width}
+                    onColumnResize={p.onColumnResize}
+                  />
+                ) : null}
               </TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {p.items.map((row, i) => (
-            <TableRow key={p.getRowKey ? p.getRowKey(row, i) : i}>
-              {p.columns.map((c) => (
-                <TableCell
-                  key={c.key}
-                  className={cn(c.width !== undefined && "truncate")}
-                >
-                  {c.render(row) as ReactNode}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
+          {p.items.map((row, i) => {
+            const intent = p.getRowIntent?.(row, i);
+            const cls = p.getRowClassName?.(row, i);
+            return (
+              <TableRow
+                key={p.getRowKey ? p.getRowKey(row, i) : i}
+                className={cn(intent ? INTENT_ROW[intent] : undefined, cls)}
+              >
+                {p.columns.map((c) => (
+                  <TableCell
+                    key={c.key}
+                    className={cn(c.width !== undefined && "truncate")}
+                  >
+                    {c.render(row) as ReactNode}
+                  </TableCell>
+                ))}
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

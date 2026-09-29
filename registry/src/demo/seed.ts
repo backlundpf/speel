@@ -22,10 +22,11 @@ function inDays(n: number): Date {
 export async function createDemoDb(): Promise<DemoContext> {
   const provider = new FakeStorageProvider();
   for (const u of PEOPLE) {
-    provider.seedUserInfo({
+    provider.seedPrincipal({
       Id: u.Id,
       Title: u.Title,
-      EMail: u.Email,
+      LoginName: `i:0#.f|membership|${u.Email}`,
+      Email: u.Email,
       PrincipalType: 1,
     });
   }

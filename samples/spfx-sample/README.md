@@ -139,7 +139,7 @@ npx shadcn@latest add https://raw.githubusercontent.com/backlundpf/speel/main/re
 # local: npx shadcn@latest add ../../registry/public/r/speel-shadcn.json --overwrite
 ```
 
-This writes the 8 adapter files to `src/components/speel/` (incl. `compat.ts`), 16 stock
+This writes the 9 adapter files to `src/components/speel/` (incl. `compat.ts`), 16 stock
 shadcn components to `src/components/ui/`, `cn` to `src/lib/utils.ts`, and injects the
 speel theme tokens into `src/styles/speel-shadcn.css`. (`command` is excluded — cmdk needs
 React 18; the multiselect uses a radix Popover + listbox instead.)
@@ -154,6 +154,11 @@ for f in badge button calendar; do cp ../../registry/src/components/ui/$f.tsx sr
 `button`/`badge`: shadcn v4's plain-function `Button` can't receive a `ref` from radix
 `asChild` triggers on React 17, so popovers/tooltips render unanchored and invisible —
 they're wrapped in `forwardRef`. `calendar`: pinned to this react-day-picker's `classNames` API.
+
+**In this monorepo, the registry is the only place the skin is authored.** Never edit
+`src/components/speel/` here: change `registry/src/speel-shadcn/`, then run
+`npm run sync:skin` from the repo root to copy the registry's files over this sample's.
+`verify` runs `npm run check:skin`, which fails when the two differ.
 
 ### 3. Wire up TypeScript + webpack
 
