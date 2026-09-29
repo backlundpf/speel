@@ -45,7 +45,7 @@ class AuditCtx extends DbContext {
   public auditRequests = this.set(AuditRequest);
   public auditResponses = this.set(AuditResponse);
   public auditResponseDocs = this.set(AuditResponseDoc);
-  protected onModelCreating(b: ModelBuilder): void {
+  protected override onModelCreating(b: ModelBuilder): void {
     b.entity(AuditRequest, (e) => {
       e.toList("AuditRequests");
       e.property((x) => x.Title).isText();

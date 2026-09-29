@@ -31,20 +31,20 @@ class FluentTask extends SpeelEntity {
 
 @Entity({ list: "DecoratedReports" })
 class DecoratedReport extends SpeelDocument {
-  @Key public Id?: number = undefined;
+  @Key public override Id?: number = undefined;
   @TextField() public Title: string | null = null;
 }
 
 @Entity({ list: "DecoratedTasks" })
 class DecoratedTask extends SpeelEntity {
-  @Key public Id?: number = undefined;
+  @Key public override Id?: number = undefined;
   @TextField() public Title: string | null = null;
 }
 
 // A document that is deliberately provisioned as a plain list — the override must win.
 @Entity({ list: "OverriddenReports", template: "genericList" })
 class OverriddenReport extends SpeelDocument {
-  @Key public Id?: number = undefined;
+  @Key public override Id?: number = undefined;
   @TextField() public Title: string | null = null;
 }
 
@@ -56,7 +56,7 @@ class OverriddenReport extends SpeelDocument {
   onQuickLaunch: true,
 })
 class AnnotatedReport extends SpeelDocument {
-  @Key public Id?: number = undefined;
+  @Key public override Id?: number = undefined;
   @TextField() public Title: string | null = null;
 }
 

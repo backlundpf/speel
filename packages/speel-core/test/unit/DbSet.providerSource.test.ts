@@ -13,7 +13,7 @@ import {
 class Ctx extends DbContext {
   principals = this.set(TestPrincipal);
   siteUsers = this.set(TestSiteUser);
-  protected onModelCreating(mb: ModelBuilder): void {
+  protected override onModelCreating(mb: ModelBuilder): void {
     registerTestPrincipals(mb, ["principals", "siteUsers"]);
   }
 }

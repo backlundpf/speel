@@ -6,6 +6,7 @@ import { SpeelDocument } from "../../../src/SpeelDocument.js";
 import { SiteUser } from "../../../src/SiteUser.js";
 import { Principal } from "../../../src/Principal.js";
 import { Entity, Key, ManyToOne, TextField } from "../../../src/index.js";
+import type { EntityCtor } from "../../../src/types.js";
 import { FakeStorageProvider } from "../fakes/FakeStorageProvider.js";
 import { planIncludeLevel } from "../../../src/Query/IncludeResolver.js";
 
@@ -97,7 +98,7 @@ describe("SpeelEntity's person members target SiteUser", () => {
     }
     class Ctx extends DbContext {
       tickets = this.set(Ticket);
-      protected onModelCreating(mb: ModelBuilder): void {
+      protected override onModelCreating(mb: ModelBuilder): void {
         mb.entity(Ticket, (b) => {
           b.toList("Tickets");
           b.property((t) => t.Title).isText();
@@ -149,7 +150,7 @@ describe("SpeelEntity's person members target SiteUser", () => {
     class Ctx extends DbContext {
       tickets = this.set(Ticket);
       memos = this.set(Memo);
-      protected onModelCreating(mb: ModelBuilder): void {
+      protected override onModelCreating(mb: ModelBuilder): void {
         mb.entity(Ticket, (b) => {
           b.toList("Tickets");
           b.property((t) => t.Title).isText(); // no Author re-point on the leaf
@@ -159,7 +160,7 @@ describe("SpeelEntity's person members target SiteUser", () => {
     class MemoOnlyCtx extends DbContext {
       memos = this.set(Memo);
     }
-    const expectRePointed = (ctx: DbContext, leaf: Function): void => {
+    const expectRePointed = (ctx: DbContext, leaf: EntityCtor): void => {
       const et = ctx.model.findEntityType(leaf)!;
       const author = et.findNavigation("Author")!;
       expect(author.target.ctor).toBe(Employee);

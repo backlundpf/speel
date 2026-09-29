@@ -59,7 +59,7 @@ class RecordingProvider extends FakeStorageProvider {
     return super.getItemsPagedAsync(list, fields, pageSize, cursor, options);
   }
 
-  override maxInFilterValues(
+  maxInFilterValues(
     column: string,
     fields: readonly string[],
     maxValue: number,

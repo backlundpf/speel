@@ -26,7 +26,7 @@ function modelAndProvider() {
     propertyName: "Title",
     columnName: "Title",
     displayName: "Title",
-    config: { kind: "Text", maxLength: 255 },
+    config: { kind: "Text", multiline: false, maxLength: 255 },
     required: false,
     readOnly: false,
     key: false,

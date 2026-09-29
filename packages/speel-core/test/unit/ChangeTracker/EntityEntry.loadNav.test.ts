@@ -157,7 +157,7 @@ class Tag {
 class BannerCtx extends DbContext {
   public blogs = this.set(Blog);
   public tags = this.set(Tag);
-  protected onModelCreating(b: ModelBuilder): void {
+  protected override onModelCreating(b: ModelBuilder): void {
     b.entity(Blog, (e) => {
       e.toList("Blogs");
       e.property((x) => x.Title).isText();

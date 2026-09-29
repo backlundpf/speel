@@ -25,7 +25,7 @@ class Blog {
 
 class TestCtx extends DbContext {
   public blogs = this.set(Blog);
-  protected onModelCreating(builder: ModelBuilder): void {
+  protected override onModelCreating(builder: ModelBuilder): void {
     builder.entity(Blog, (b) => {
       b.toList("Blogs");
       b.property((e) => e.Title)
@@ -130,7 +130,7 @@ describe("end-to-end smoke", () => {
       .toArrayAsync();
 
     expect(top5.length).toBe(5);
-    expect(top5[0]!.ViewCount).toBeGreaterThan(top5[4]!.ViewCount);
+    expect(top5[0]!.ViewCount).toBeGreaterThan(top5[4]!.ViewCount!);
     expect(top5.every((b) => b.Status === "Published")).toBe(true);
     expect(top5.every((b) => b.ViewCount! > 50)).toBe(true);
   });
@@ -197,7 +197,7 @@ class NavBlog {
 class NavCtx extends DbContext {
   public navBlogs = this.set(NavBlog);
   public comments = this.set(Comment);
-  protected onModelCreating(mb: ModelBuilder): void {
+  protected override onModelCreating(mb: ModelBuilder): void {
     registerTestPrincipals(mb, ["principals"]);
     mb.entity(Comment, (b) => {
       b.toList("Comments");

@@ -24,7 +24,7 @@ const titleProp = new Property({
   propertyName: "Title",
   columnName: "Title",
   displayName: "Title",
-  config: { kind: "Text", maxLength: 255 },
+  config: { kind: "Text", multiline: false, maxLength: 255 },
   required: true,
   readOnly: false,
   key: false,
@@ -113,6 +113,13 @@ describe("EntityType navigations", () => {
     const fk = et.findProperty("AuthorId")!;
     const nav: INavigation = {
       name: "Author",
+      columnName: "Author",
+      displayName: "Author",
+      required: false,
+      visible: true,
+      enabled: true,
+      readOnly: false,
+      customValidations: [],
       kind: "reference",
       storage: "self-fk-scalar",
       target: et as unknown as EntityType,

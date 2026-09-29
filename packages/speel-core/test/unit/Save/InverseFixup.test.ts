@@ -38,7 +38,10 @@ describe("fixupInverseAsync", () => {
     const t = new ChangeTracker(m, new FakeStorageProvider());
     const a = Object.assign(new Project(), { Id: 1, ProgramId: 10 });
     const b = Object.assign(new Project(), { Id: 2 });
-    const prog = Object.assign(new Program(), { Id: 10, OwnedProjects: [a] });
+    const prog = Object.assign(new Program(), {
+      Id: 10,
+      OwnedProjects: [a] as Project[],
+    });
     t.track(
       prog,
       EntityState.Unchanged,

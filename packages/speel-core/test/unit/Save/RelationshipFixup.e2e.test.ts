@@ -21,7 +21,7 @@ class Project {
 class Ctx extends DbContext {
   public projects = this.set(Project);
   public programs = this.set(Program);
-  protected onModelCreating(b: ModelBuilder): void {
+  protected override onModelCreating(b: ModelBuilder): void {
     b.entity(Program, (e) => {
       e.toList("Programs");
       e.property((x) => x.Title).isText();

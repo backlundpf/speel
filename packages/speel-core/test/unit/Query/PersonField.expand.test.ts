@@ -28,7 +28,7 @@ class Doc {
 class DocCtx extends DbContext {
   public docs: DbSet<Doc> = this.set(Doc);
   public programs: DbSet<Programs> = this.set(Programs);
-  protected onModelCreating(mb: ModelBuilder): void {
+  protected override onModelCreating(mb: ModelBuilder): void {
     registerTestPrincipals(mb, ["siteUsers"]);
     mb.entity(Programs, (b) => {
       b.toList("Programs");

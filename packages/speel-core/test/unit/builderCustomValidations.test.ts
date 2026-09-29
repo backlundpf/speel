@@ -20,7 +20,7 @@ describe("builders store only custom validations; buildValidations derives the r
 
     // Property carries only the custom rule.
     expect(p.customValidations).toHaveLength(1);
-    expect(p.customValidations[0].message).toBe("no bad");
+    expect(p.customValidations[0]!.message).toBe("no bad");
 
     // The full set is composed on demand: required + minLength + maxLength + custom.
     const full = buildValidations(p);

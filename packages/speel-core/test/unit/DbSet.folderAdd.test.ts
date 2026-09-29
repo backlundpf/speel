@@ -74,7 +74,7 @@ class Report {
 
 class ReportCtx extends DbContext {
   public reports = this.set(Report);
-  protected onModelCreating(builder: ModelBuilder): void {
+  protected override onModelCreating(builder: ModelBuilder): void {
     registerTestPrincipals(builder, ["principals"]);
     builder.entity(Report, (b) => {
       b.toList("Reports");

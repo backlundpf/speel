@@ -218,6 +218,7 @@ describe("PayloadBuilder", () => {
       displayName: "Category",
       config: {
         kind: "Choice",
+        multi: false,
         options: [],
         fillIn: false,
         radioButtons: false,

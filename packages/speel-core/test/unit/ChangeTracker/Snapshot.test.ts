@@ -14,7 +14,7 @@ import { Materialize } from "../../../src/Query/Materialize.js";
 
 class Blog {
   Id?: number;
-  Title?: string;
+  Title?: string | undefined;
   Tags?: string[];
   PublishedAt?: Date;
 }
@@ -33,7 +33,7 @@ function et() {
     propertyName: "Title",
     columnName: "Title",
     displayName: "Title",
-    config: { kind: "Text", maxLength: 255 },
+    config: { kind: "Text", multiline: false, maxLength: 255 },
     required: false,
     readOnly: false,
     key: false,

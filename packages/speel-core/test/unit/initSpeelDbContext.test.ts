@@ -14,7 +14,7 @@ class Blog {
 
 class TestCtx extends DbContext {
   public blogs = this.set(Blog);
-  protected onModelCreating(builder: ModelBuilder): void {
+  protected override onModelCreating(builder: ModelBuilder): void {
     builder.entity(Blog, (b) => {
       b.toList("Blogs");
       b.property((e) => e.Title).isText();
@@ -44,7 +44,7 @@ describe("initSpeelDbContext", () => {
     let modelCreatingCalled = false;
     class SpyCtx extends DbContext {
       public blogs = this.set(Blog);
-      protected onModelCreating(builder: ModelBuilder): void {
+      protected override onModelCreating(builder: ModelBuilder): void {
         modelCreatingCalled = true;
         builder
           .entity(Blog)

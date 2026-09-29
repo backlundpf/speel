@@ -14,7 +14,7 @@ class Project {
 
 class CachedCtx extends DbContext {
   public projects = this.set(Project);
-  protected onModelCreating(b: ModelBuilder): void {
+  protected override onModelCreating(b: ModelBuilder): void {
     b.entity(Project, (e) => {
       e.toList("Projects");
       e.property((p) => p.Title).isText();
@@ -25,7 +25,7 @@ class CachedCtx extends DbContext {
 
 class UncachedCtx extends DbContext {
   public projects = this.set(Project);
-  protected onModelCreating(b: ModelBuilder): void {
+  protected override onModelCreating(b: ModelBuilder): void {
     b.entity(Project, (e) => {
       e.toList("Projects");
       e.property((p) => p.Title).isText();
@@ -109,7 +109,7 @@ describe("DbContext caching", () => {
   it("throws when the cached entity is not list-backed", async () => {
     class UserCacheCtx extends DbContext {
       public users = this.set(SiteUser);
-      protected onModelCreating(b: ModelBuilder): void {
+      protected override onModelCreating(b: ModelBuilder): void {
         b.entity(SiteUser, (e) => {
           e.toProviderSource({ kind: "provider", key: "siteUsers" });
           e.useCaching();

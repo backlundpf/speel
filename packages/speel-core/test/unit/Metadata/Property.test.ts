@@ -9,7 +9,7 @@ describe("Property metadata", () => {
       propertyName: "Title",
       columnName: "Title",
       displayName: "Title",
-      config: { kind: "Text", maxLength: 255 },
+      config: { kind: "Text", multiline: false, maxLength: 255 },
       required: true,
       readOnly: false,
       key: false,
@@ -17,11 +17,19 @@ describe("Property metadata", () => {
     expect(p.propertyName).toBe("Title");
     expect(p.config.kind).toBe("Text");
     expect(p.required).toBe(true);
-    expect(p.config).toEqual({ kind: "Text", maxLength: 255 });
+    expect(p.config).toEqual({
+      kind: "Text",
+      multiline: false,
+      maxLength: 255,
+    });
   });
 
   it("keeps config carried through (Text maxLength)", () => {
-    const config: FieldConfig = { kind: "Text", maxLength: 50 };
+    const config: FieldConfig = {
+      kind: "Text",
+      multiline: false,
+      maxLength: 50,
+    };
     const p = new Property({
       propertyName: "X",
       columnName: "X",

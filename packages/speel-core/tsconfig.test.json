@@ -4,10 +4,6 @@
     "noEmit": true,
     "types": []
   },
-  "include": [
-    "src/**/*.ts",
-    "test/unit/**/*.test-d.ts",
-    "test/unit/fakes/**/*.ts"
-  ],
+  "include": ["src/**/*.ts", "test/**/*"],
   "exclude": ["dist", "node_modules"]
 }

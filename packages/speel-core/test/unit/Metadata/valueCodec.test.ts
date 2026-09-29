@@ -8,7 +8,7 @@ const text: FieldConfig = { kind: "Text", multiline: false };
 const dateTime: FieldConfig = {
   kind: "DateTime",
   displayFormat: "DateTime",
-  friendlyFormat: false,
+  friendlyFormat: "Disabled",
 };
 
 describe("codecFor", () => {
@@ -21,29 +21,29 @@ describe("codecFor", () => {
   it("writes a Date as an ISO string and reads it back as a Date", () => {
     const codec = codecFor(dateTime, "when")!;
     const when = new Date("2026-09-22T14:30:00.000Z");
-    expect(codec.toWire(when)).toBe("2026-09-22T14:30:00.000Z");
-    const back = codec.fromWire("2026-09-22T14:30:00.000Z");
+    expect(codec.toWire!(when)).toBe("2026-09-22T14:30:00.000Z");
+    const back = codec.fromWire!("2026-09-22T14:30:00.000Z");
     expect(back).toBeInstanceOf(Date);
     expect((back as Date).getTime()).toBe(when.getTime());
   });
 
   it("passes null and undefined through untouched", () => {
     const codec = codecFor(dateTime, "when")!;
-    expect(codec.toWire(null)).toBeNull();
-    expect(codec.fromWire(undefined)).toBeUndefined();
+    expect(codec.toWire!(null)).toBeNull();
+    expect(codec.fromWire!(undefined)).toBeUndefined();
   });
 
   it("rejects an unparseable date string from fromWire", () => {
     const codec = codecFor(dateTime, "when")!;
-    expect(() => codec.fromWire("banana")).toThrow(DataException);
-    const err = () => codec.fromWire("banana");
+    expect(() => codec.fromWire!("banana")).toThrow(DataException);
+    const err = () => codec.fromWire!("banana");
     expect(() => err()).toThrow(/when.*banana/);
   });
 
   it("rejects an invalid Date from toWire", () => {
     const codec = codecFor(dateTime, "when")!;
     const invalid = new Date("banana");
-    expect(() => codec.toWire(invalid)).toThrow(DataException);
+    expect(() => codec.toWire!(invalid)).toThrow(DataException);
   });
 
   it("leaves a Choice alone — there is nothing to resolve against", () => {

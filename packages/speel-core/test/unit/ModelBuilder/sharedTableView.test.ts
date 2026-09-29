@@ -3,6 +3,7 @@ import {
   DbContext,
   ModelBuilder,
   SharedTableView,
+  type EntitySource,
 } from "../../../src/index.js";
 
 class Ctx extends DbContext {
@@ -16,11 +17,10 @@ const entityType = () =>
 
 describe("SharedTableView", () => {
   it("is readable by everyone — the write restriction is the tenant's list permissions", () => {
-    const source = entityType().source as {
-      kind: "list";
-      list: { value: string };
-      provisioning?: Record<string, unknown>;
-    };
+    const source = entityType().source as Extract<
+      EntitySource,
+      { kind: "list" }
+    >;
     expect(source.list.value).toBe("Speel Shared Views");
     // Deliberately NOT 'own': every user must read every shared view. Restricting writes is a
     // list-permissions change no provisioning option can express.

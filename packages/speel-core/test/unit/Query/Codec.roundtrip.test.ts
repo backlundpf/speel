@@ -38,6 +38,7 @@ function rowEt(): EntityType<Row> {
     displayName: "Fruit",
     config: {
       kind: "Choice",
+      multi: false,
       options: [],
       fillIn: false,
       radioButtons: false,

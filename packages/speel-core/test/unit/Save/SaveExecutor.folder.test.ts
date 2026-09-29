@@ -32,7 +32,7 @@ class Doc {
 // The person navigation targets a provider-source entity — the fake validates a
 // person column by its target's source, exactly as the real provider resolves it.
 class DocCtx extends DbContext {
-  protected onModelCreating(b: ModelBuilder): void {
+  protected override onModelCreating(b: ModelBuilder): void {
     registerTestPrincipals(b, ["principals"]);
     b.entity(Tag, (e) => {
       e.toList("Tags");
