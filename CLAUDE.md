@@ -9,13 +9,20 @@ two-filter default view"), even when a consumer motivated the work.
 
 ## Releasing
 
-All `@speel/*` packages version in lockstep. To release: bump every
-`packages/*/package.json` version (and the `@speel/*` peer ranges when the
-minor changes), add a `CHANGELOG.md` entry, merge, then push a `v<version>`
-tag. `.github/workflows/release.yml` verifies the tag matches every package
-and publishes via npm trusted publishing (no tokens; renaming the workflow
-file breaks the trust). Prereleases go to the `beta` dist-tag, releases to
-`latest`.
+Changesets drives versions; never hand-edit a package version. Every PR that touches
+`packages/` adds a changeset (`npx changeset`, or `npx changeset --empty` for changes
+that should not release) — CI's `changeset` check enforces it and rejects `major`
+before 1.0 (use `minor` for breaking changes under 0.x). All six `@speel/*` packages
+are one fixed group (lockstep until 1.0) in pre mode on `beta`.
+
+`release.yml` keeps a standing "Version Packages" PR (authored by the release GitHub
+App) up to date on every merge to `main`; **merging it is the release** — it publishes
+via npm trusted publishing (no tokens; renaming `release.yml` breaks the trust),
+creates one `vX.Y.Z` tag and one GitHub release. A failed release is fixed by
+re-running the job (`scripts/release.mjs` is idempotent; `npm run release -- --dry-run`
+shows its plan). Moving `latest` during the beta stays manual (`npm dist-tag add`,
+needs the owner's 2FA). All changes to `main` go through PRs (required checks
+`verify` and `changeset`).
 
 ## Module specifiers
 

@@ -1,7 +1,9 @@
 # Changelog
 
-All `@speel/*` packages are versioned in lockstep. Prereleases publish under the npm
-`beta` dist-tag (`npm install @speel/core@beta`).
+From 0.1.0-beta.2 on, each package keeps its own `CHANGELOG.md`
+(`packages/<pkg>/CHANGELOG.md`, also shipped in its npm tarball), and every release
+has one GitHub release (`vX.Y.Z`) collecting them. The entries below are the history
+from before Changesets. All `@speel/*` packages are versioned in lockstep until 1.0.
 
 ## 0.1.0-beta.1 — 2026-09-28
 

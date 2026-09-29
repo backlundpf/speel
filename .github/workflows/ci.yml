@@ -1,10 +1,11 @@
-# Runs the full `npm run verify` gate on every PR and on pushes to main.
+# Every PR: format + the full verify gate, and the changeset check.
+# (No push-to-main trigger: the Version Packages PR's CI is the post-merge check.)
 name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
+    # labeled/unlabeled: the changeset check reads the release-mode label.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -33,3 +34,23 @@ jobs:
       - run: npm ci --prefix samples/spfx-sample
       - run: npm run format:check
       - run: npm run verify
+
+  changeset:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the check diffs against origin/<base>
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci # the check parses changesets with the CLI's own parser
+
+      - run: node scripts/check-changeset.mjs
+        env:
+          PR_HEAD_REF: ${{ github.head_ref }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
