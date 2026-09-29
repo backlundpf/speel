@@ -118,7 +118,13 @@ export interface ComboboxProps extends FieldChrome {
   onChange: (v: OptionItem[]) => void;
   onResolveSuggestions: (query: string) => Promise<OptionItem[]>;
   multi?: boolean;
-  /** Shown when a query came back with nothing. */
+  /**
+   * Shown when a query came back with nothing and the list has no rows. A skin lists the
+   * held `value` alongside the suggestions, so a page that omits it still shows it; on a
+   * typed search, list a held value the search did not return only when its own text
+   * contains what was typed. Otherwise it is no result, and listing it beside this line
+   * contradicts it.
+   */
   noResultsText?: string;
   /**
    * Present only when the field can create what the user typed. The skin then owns an

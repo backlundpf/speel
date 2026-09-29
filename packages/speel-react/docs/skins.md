@@ -86,7 +86,10 @@ array, so a single-value field passes zero or one `OptionItem` and reads `v[0]` 
 keeps one code path in every skin. Its list **opens on focus** (and on click), in both skins.
 Typed text is a query and never a value: only a pick may call `onChange`, and what it hands
 back is the caller's own `OptionItem`, `data` and all. `noResultsText` is the message to show
-under a query that came back with nothing. The `Dropdown` slot remains for fixed micro-lists
+under a query that came back with nothing. The held `value` rides along in the list so a page
+that omits it still shows it, but on a typed search a skin lists it only when its text
+contains what was typed. A search that matches nothing shows the message alone, never beside
+the held row. The `Dropdown` slot remains for fixed micro-lists
 (the boolean and date-preset filters, the pager) — it is no longer a field control.
 
 **Creating and "Other"** — two optional members are what a skin implements for values not in
