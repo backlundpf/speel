@@ -59,6 +59,7 @@ import type {
   SpinnerProps,
   TextInputProps,
 } from "@speel/react";
+import { SpeelActionBar } from "@speel/react";
 
 import { useStableId } from "./compat";
 import { Chrome, fieldAria } from "./chrome";
@@ -259,6 +260,7 @@ const BUTTON_VARIANT = {
   primary: "default",
   secondary: "outline",
   subtle: "ghost",
+  danger: "destructive",
 } as const;
 
 export function ShadButton(p: ButtonProps): ReactElement {
@@ -406,14 +408,51 @@ const MESSAGE_CLASS = {
 } as const;
 
 export function ShadMessageBar(p: MessageBarProps): ReactElement {
+  // Multiline (the default): actions sit below the text. Single line: beside it.
+  const inline = p.multiline === false;
+  const actions =
+    p.actions !== undefined ? (
+      <div
+        data-slot="message-actions"
+        data-multiline={String(!inline)}
+        className={cn(
+          "flex flex-none items-center gap-2",
+          inline ? "" : "col-start-2 mt-2",
+        )}
+      >
+        <SpeelActionBar actions={p.actions} />
+      </div>
+    ) : null;
+  const description = (
+    <AlertDescription
+      className={cn(
+        inline && actions ? "min-w-0 flex-1" : p.onDismiss && "pr-8",
+      )}
+    >
+      {p.children as ReactNode}
+    </AlertDescription>
+  );
   return (
     <Alert
       variant={p.intent === "error" ? "destructive" : "default"}
       className={cn("relative", MESSAGE_CLASS[p.intent])}
     >
-      <AlertDescription className={p.onDismiss ? "pr-8" : undefined}>
-        {p.children as ReactNode}
-      </AlertDescription>
+      {inline && actions ? (
+        <div
+          className={cn(
+            "col-start-2 flex items-center gap-3",
+            p.onDismiss && "pr-8",
+          )}
+        >
+          {description}
+          {actions}
+        </div>
+      ) : (
+        <>
+          {description}
+          {actions}
+        </>
+      )}
       {p.onDismiss ? (
         <button
           type="button"

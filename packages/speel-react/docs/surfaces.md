@@ -130,6 +130,25 @@ props — see below) or a **content variant** (`children` / optional `actions`).
 props across both variants: `open`, `onOpenChange`, `title`, `blocking`, `size`
 (`'small' | 'medium' | 'large'`), `resizable`.
 
+The content variant's `actions` is the library's one actions shape: an array of
+`SpeelAction`s rendered as the skin's buttons, or any node rendered as-is in the footer
+slot — status text, a spinner, a "don't ask again" checkbox. A destructive confirm takes
+`appearance: "danger"`; `align: "start"` moves an action to the far end of a split footer.
+
+```tsx
+<SpeelModal
+  open={open}
+  onOpenChange={setOpen}
+  title="Overwrite role?"
+  actions={[
+    { key: "ok", text: "Overwrite", appearance: "danger", onClick: overwrite },
+    { key: "cancel", text: "Cancel", onClick: () => setOpen(false) },
+  ]}
+>
+  This replaces the permission mask on every site.
+</SpeelModal>
+```
+
 `SpeelModal` additionally accepts `draggable`, `fullscreenToggle` and `defaultFullscreen`.
 `SpeelPanel` additionally accepts `position` (`'start' | 'end'`).
 
@@ -169,6 +188,8 @@ body, field set, sections, and submit/cancel/edit-mode footer are the same as in
 `SpeelForm` — see [forms.md](forms.md) for field rendering, `EntityFields`, `sections`,
 and `beforeSubmit`. The `onSaved` callback (declarative variant) is called after a
 successful save; `closeOnSave` (default `true`) closes the surface automatically.
+`allowEdit` (also on `showForm` / `showDocumentForm` requests) turns a `mode="view"`
+surface into a read-only display form: Close only, no Edit.
 
 ## Boundaries & gotchas
 
@@ -192,3 +213,8 @@ successful save; `closeOnSave` (default `true`) closes the surface automatically
 
 - **Content variant needs `children`.** If neither `entity` nor `children` is passed,
   TypeScript will reject the JSX — the props type is a discriminated union.
+
+- **An array of elements is a node, not actions.** `actions` is read as an action array
+  only when every entry is a plain `{ key, text }` object; `[<Button />]` renders as-is.
+  Under React 17's typings `ReactNode` admits any object, so an action missing `text` is
+  not a type error — it fails at render, as a plain object passed as a child.

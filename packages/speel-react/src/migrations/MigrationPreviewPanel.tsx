@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useSpeelUI } from "../context.js";
 import { SpeelPanel } from "../surface/SpeelPanel.js";
-import type { SpeelFormAction } from "../form/formFooter.js";
+import type { SpeelAction } from "../actions.js";
 import { ACCENT } from "./tokens.js";
 import type {
   MigrationsPlan,
@@ -137,7 +137,7 @@ export function MigrationPreviewPanel({
       s.willRun && s.migrationId === migrationId && s.presence !== "present",
   ).length;
 
-  const actions: SpeelFormAction[] = [];
+  const actions: SpeelAction[] = [];
   if (onApply)
     actions.push({
       key: "apply",

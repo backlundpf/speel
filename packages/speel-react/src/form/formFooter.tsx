@@ -2,18 +2,15 @@ import { useStore } from "@tanstack/react-form";
 import type { FormMode } from "@speel/core";
 import { useSpeelUI } from "../context.js";
 import type { EntityForm } from "./useEntityForm.js";
+import {
+  SpeelActionBar,
+  type SpeelAction,
+  type SpeelActions,
+} from "../actions.js";
 
-export interface SpeelFormAction {
-  key: string;
-  text: string;
-  /** Accessible name, when the visible text is not one on its own — a bare "Apply"
-   *  in a surface floating over another "Apply". */
-  ariaLabel?: string;
-  primary?: boolean;
-  type?: "button" | "submit";
-  disabled?: boolean;
-  onClick?: (form: EntityForm) => void;
-}
+/** @deprecated Use `SpeelAction<EntityForm>` — the one action type across forms,
+ *  surfaces and the MessageBar. */
+export type SpeelFormAction = SpeelAction<EntityForm>;
 
 /**
  * Shared footer for the inline form and the surfaces. With `onClose` (surfaces) Save submits
@@ -24,43 +21,34 @@ export function FormFooter(props: {
   ef: EntityForm;
   mode: FormMode;
   setMode: (m: FormMode) => void;
-  actions?: SpeelFormAction[];
+  actions?: SpeelActions<EntityForm>;
+  /** False drops the view-mode Edit button (read-only display form). Default true. */
+  canEdit?: boolean;
   onClose?: () => void;
   /** Caller notification, fired after Cancel's own reset/mode/close handling. */
   onCancel?: () => void;
 }): JSX.Element {
   const { ef, mode, setMode, actions, onClose, onCancel } = props;
+  const canEdit = props.canEdit ?? true;
   const ui = useSpeelUI();
   const isSubmitting = useStore(
     ef.form.store,
     (s) => s.isSubmitting as boolean,
   );
 
-  if (actions) {
-    return (
-      <>
-        {actions.map((a) => (
-          <ui.Button
-            key={a.key}
-            text={a.text}
-            appearance={a.primary ? "primary" : "secondary"}
-            type={a.type ?? "button"}
-            disabled={a.disabled ?? false}
-            {...(a.ariaLabel !== undefined ? { ariaLabel: a.ariaLabel } : {})}
-            {...(a.type === "submit" ? {} : { onClick: () => a.onClick?.(ef) })}
-          />
-        ))}
-      </>
-    );
+  if (actions !== undefined) {
+    return <SpeelActionBar actions={actions} ctx={ef} />;
   }
   if (mode === "view") {
     return (
       <>
-        <ui.Button
-          text="Edit"
-          appearance="primary"
-          onClick={() => setMode("edit")}
-        />
+        {canEdit ? (
+          <ui.Button
+            text="Edit"
+            appearance="primary"
+            onClick={() => setMode("edit")}
+          />
+        ) : null}
         {onClose ? (
           <ui.Button text="Close" appearance="secondary" onClick={onClose} />
         ) : null}

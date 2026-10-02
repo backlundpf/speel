@@ -10,6 +10,7 @@ import type {
   SurfaceFormVariantProps,
 } from "./surfaceProps.js";
 import { FormFooter } from "../form/formFooter.js";
+import { resolveAllowEdit } from "../form/SpeelForm.js";
 import {
   useDocumentFormParts,
   DocumentFileBlock,
@@ -26,7 +27,12 @@ export type SurfaceFormProps<T extends IEntity> = {
 export function SurfaceForm<T extends IEntity>(
   props: SurfaceFormProps<T>,
 ): JSX.Element {
-  const [mode, setMode] = useState<FormMode>(props.mode ?? "edit");
+  const [mode, setRawMode] = useState<FormMode>(props.mode ?? "edit");
+  const canEdit = resolveAllowEdit(props.allowEdit, props.entity);
+  const setMode = (m: FormMode): void => {
+    if (m === "edit" && !canEdit) return;
+    setRawMode(m);
+  };
   // Fresh form per open AND per mode.
   return (
     <Inner
@@ -34,12 +40,17 @@ export function SurfaceForm<T extends IEntity>(
       {...props}
       mode={mode}
       setMode={setMode}
+      canEdit={canEdit}
     />
   );
 }
 
 function Inner<T extends IEntity>(
-  p: SurfaceFormProps<T> & { mode: FormMode; setMode: (m: FormMode) => void },
+  p: SurfaceFormProps<T> & {
+    mode: FormMode;
+    setMode: (m: FormMode) => void;
+    canEdit: boolean;
+  },
 ): JSX.Element {
   const {
     Surface,
@@ -103,6 +114,7 @@ function Inner<T extends IEntity>(
           ef={efForFooter}
           mode={mode}
           setMode={setMode}
+          canEdit={p.canEdit}
           onClose={() => onOpenChange(false)}
         />
       }
