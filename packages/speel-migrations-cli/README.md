@@ -56,3 +56,5 @@ npm run migrations:list
 ```
 
 The diff maps a model change to operations — new list → `createList` + `addField`s (all lists created before any fields, so cross-list lookups resolve); added/removed/changed field → `addField`/`dropField`/`alterField`; index change → `addIndex`/`dropIndex` — and mirrors each into `down`. It never infers renames (drop + add); hand-merge those into `renameField`/`renameList`.
+
+A changed field type (say `isText()` → `isNote()`) becomes an `alterField` both ways. When either direction may lose data — Note → Text truncates to 255 characters, MultiChoice → Choice keeps one value — `add` prints a warning to stderr naming the migration, direction and step, and marks that line in the generated file with a `// May lose data: …` comment. Nothing is blocked; the Migrator repeats the warning when the step is applied.

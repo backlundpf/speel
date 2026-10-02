@@ -1,7 +1,10 @@
 import type { DbContext } from "@speel/core";
 import type { Migration } from "./defineMigration.js";
 import { recordOps } from "./operations/MigrationBuilder.js";
-import type { MigrationOperation } from "./operations/operations.js";
+import type {
+  MigrationOperation,
+  SchemaOperation,
+} from "./operations/operations.js";
 import type { ISchemaProvider } from "./schema/ISchemaProvider.js";
 import {
   applyResultToSnapshot,
@@ -13,6 +16,7 @@ import { SharePointHistoryStore } from "./history/SharePointHistoryStore.js";
 import type { MigrationPlan, PlanOptions, PlanStep } from "./plan/PlanTypes.js";
 import { buildSteps, summarizeOp } from "./plan/buildSteps.js";
 import { annotateSteps } from "./plan/presence.js";
+import { alterFieldDataLoss, annotateDataLoss } from "./plan/dataLoss.js";
 import { computeWaves, splitFences } from "./plan/waves.js";
 import { MigrationApplyError } from "./MigrationApplyError.js";
 import {
@@ -151,6 +155,9 @@ export class Migrator {
     annotate: boolean | undefined,
     snapshot: SchemaSnapshot,
   ): Promise<MigrationPlan> {
+    // Data-loss warnings come from the read begin() already made, so every
+    // plan carries them, annotated or not.
+    annotateDataLoss(snapshot, steps);
     if (annotate === true) annotateSteps(snapshot, steps);
     return { direction, steps };
   }
@@ -272,18 +279,38 @@ export class Migrator {
         });
         if (pending.length === 0) continue;
 
+        // Judged against the live type BEFORE the wave lands — afterwards the
+        // snapshot already holds the new type. The step runs regardless.
+        const warnings = new Map<SchemaOperation, string>();
         for (const op of pending) {
-          emit({ kind: "step-start", migrationId, summary: summarizeOp(op) });
+          const warning = dataLossOf(snapshot, op);
+          if (warning === undefined) continue;
+          warnings.set(op, warning);
+          log.push(`warn ${migrationId} ${summarizeOp(op)}: ${warning}`);
+          console.warn(
+            `[speel migrations] ${migrationId}: ${summarizeOp(op)} — ${warning}`,
+          );
+        }
+        for (const op of pending) {
+          const warning = warnings.get(op);
+          emit({
+            kind: "step-start",
+            migrationId,
+            summary: summarizeOp(op),
+            ...(warning !== undefined ? { warning } : {}),
+          });
         }
         const results = await this.schema.applyAsync(pending, snapshot);
         for (const r of results) applyResultToSnapshot(snapshot, r);
         for (const r of results) {
+          const warning = warnings.get(r.op);
           emit({
             kind: "step-done",
             migrationId,
             summary: summarizeOp(r.op),
             status: r.status,
             ...(r.error ? { error: r.error.message } : {}),
+            ...(warning !== undefined ? { warning } : {}),
           });
         }
 
@@ -294,4 +321,18 @@ export class Migrator {
       }
     }
   }
+}
+
+/** The data-loss warning for an alterField against the column's live type. */
+function dataLossOf(
+  snapshot: SchemaSnapshot,
+  op: SchemaOperation,
+): string | undefined {
+  if (op.op !== "alterField") return undefined;
+  const current = snapshot.lists
+    .get(op.list)
+    ?.fields.get(op.field.internalName)?.typeAsString;
+  return current === undefined
+    ? undefined
+    : alterFieldDataLoss(current, op.field);
 }

@@ -94,3 +94,32 @@ describe("renderMigrationFile", () => {
     expect(src.trimEnd().endsWith("});")).toBe(true);
   });
 });
+
+describe("renderMigrationFile data-loss comments", () => {
+  it("prefixes a step that may lose data with a comment", () => {
+    const narrow = {
+      op: "alterField" as const,
+      list: "Config",
+      field: {
+        kind: "Text" as const,
+        internalName: "Value",
+        multiline: false,
+      },
+    };
+    const diff: SnapshotDiff = {
+      up: [],
+      down: [narrow],
+      warnings: [
+        {
+          direction: "down",
+          op: narrow,
+          message: "truncates to 255 characters.",
+        },
+      ],
+    };
+    const src = renderMigrationFile("20260605T1200_Widen", diff);
+    expect(src).toContain(
+      '    // May lose data: truncates to 255 characters.\n    b.alterField("Config", "Value",',
+    );
+  });
+});

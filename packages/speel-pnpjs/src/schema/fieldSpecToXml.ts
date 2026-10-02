@@ -144,23 +144,91 @@ function typeParts(
   }
 }
 
+/** An existing column's identity, carried over when its SchemaXml is rebuilt. */
+interface ColumnIdentity {
+  id: string;
+  sourceId?: string;
+  name: string;
+  staticName: string;
+}
+
 /** Pure translation: FieldSpec → the CAML `createFieldAsXml` takes. */
 export function fieldSpecToXml(
   spec: FieldSpec,
   snapshot: SchemaSnapshot,
+  identity?: ColumnIdentity,
 ): string {
   const { type, attrs, children } = typeParts(spec, snapshot);
   return render(
     [
       ["Type", type],
-      ["Name", spec.internalName],
-      ["StaticName", spec.internalName],
+      ["ID", identity?.id],
+      ["SourceID", identity?.sourceId],
+      ["Name", identity?.name ?? spec.internalName],
+      ["StaticName", identity?.staticName ?? spec.internalName],
       ["DisplayName", spec.displayName ?? spec.internalName],
       ["Required", bool(spec.required ?? false)],
       ["Indexed", bool(spec.indexed ?? false)],
+      ["Hidden", spec.hidden === true ? "TRUE" : undefined],
       ["Description", spec.description],
       ...attrs,
     ],
     children,
+  );
+}
+
+const xmlUnesc = (s: string): string =>
+  s.replace(
+    /&(lt|gt|quot|apos|amp);/g,
+    (_m, e: string) =>
+      ({ lt: "<", gt: ">", quot: '"', apos: "'", amp: "&" })[e] as string,
+  );
+
+/** The attributes of a SchemaXml's opening `<Field …>` tag, unescaped. */
+function fieldAttrs(schemaXml: string): Map<string, string> {
+  const open = /<Field\b([^>]*?)\/?>/.exec(schemaXml)?.[1] ?? "";
+  const attrs = new Map<string, string>();
+  for (const m of open.matchAll(/([\w:]+)="([^"]*)"/g)) {
+    attrs.set(m[1]!, xmlUnesc(m[2]!));
+  }
+  return attrs;
+}
+
+/**
+ * Rebuild an existing column's SchemaXml for a new type. SharePoint changes a
+ * field's type only through its SchemaXml — a MERGE update cannot move
+ * FieldTypeKind. The column keeps its ID, SourceID, Name and StaticName (and
+ * its DisplayName / Indexed when the spec leaves them unset); everything else,
+ * including the old type's storage attributes (ColName, RowOrdinal, Version),
+ * is replaced by what `fieldSpecToXml` emits for the spec.
+ */
+export function retypeFieldXml(
+  currentSchemaXml: string,
+  spec: FieldSpec,
+  snapshot: SchemaSnapshot,
+): string {
+  const current = fieldAttrs(currentSchemaXml);
+  const id = current.get("ID");
+  if (id === undefined) {
+    throw new Error(
+      `retypeFieldXml: the SchemaXml of '${spec.internalName}' has no ID to keep`,
+    );
+  }
+  const displayName = spec.displayName ?? current.get("DisplayName");
+  const indexed = spec.indexed ?? current.get("Indexed") === "TRUE";
+  const sourceId = current.get("SourceID");
+  return fieldSpecToXml(
+    {
+      ...spec,
+      ...(displayName !== undefined ? { displayName } : {}),
+      indexed,
+    },
+    snapshot,
+    {
+      id,
+      ...(sourceId !== undefined ? { sourceId } : {}),
+      name: current.get("Name") ?? spec.internalName,
+      staticName: current.get("StaticName") ?? spec.internalName,
+    },
   );
 }

@@ -12,6 +12,8 @@ export const ACCENT = {
   ok: "var(--speel-accent-ok, #107c10)",
   /** Destructive, failed, "this would change the site". */
   danger: "var(--speel-accent-danger, #a4262c)",
+  /** May lose data — the step still runs, but an admin should know. */
+  warn: "var(--speel-accent-warn, #8a5c00)",
   /** Secondary text: presence labels, step counts. */
   muted: "var(--speel-accent-muted, #605e5c)",
   /** Tertiary text: a step that will not run, the current-row marker. */

@@ -75,4 +75,20 @@ describe("FieldSpecBuilder", () => {
       multi: true,
     });
   });
+  it("carries the creation-only hidden and addToDefaultView flags", () => {
+    expect(
+      f("Tracking").text({ hidden: true, addToDefaultView: false }),
+    ).toEqual({
+      kind: "Text",
+      internalName: "Tracking",
+      multiline: false,
+      hidden: true,
+      addToDefaultView: false,
+    });
+    expect(f("Flag").boolean({ addToDefaultView: false })).toEqual({
+      kind: "Boolean",
+      internalName: "Flag",
+      addToDefaultView: false,
+    });
+  });
 });

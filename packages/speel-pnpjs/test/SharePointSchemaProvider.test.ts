@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { SharePointSchemaProvider } from "../src/schema/SharePointSchemaProvider.js";
 import { emptySnapshot } from "@speel/migrations";
-import type { SchemaOperation } from "@speel/migrations";
+import type { SchemaOperation, SchemaSnapshot } from "@speel/migrations";
 
 // Structural SPFI double. `batched()` hands back the same surface plus an
 // execute(), so we can assert both what was queued and how many batch scopes
@@ -32,6 +32,12 @@ function makeFakeSp() {
   ];
 
   const fieldXmlArgs: unknown[] = [];
+  // The current SchemaXml per internal name — what a retype reads back.
+  const schemaXml: Record<string, string> = {
+    Value:
+      '<Field Type="Text" DisplayName="Value" Required="FALSE" Indexed="FALSE" MaxLength="255" ID="{value-id}" SourceID="{tasks-guid}" StaticName="Value" Name="Value" ColName="nvarchar5" />',
+  };
+  const state = { executed: false };
   const fields = {
     createFieldAsXml: vi.fn(
       async (xml: string | { SchemaXml: string; Options?: number }) => {
@@ -42,6 +48,16 @@ function makeFakeSp() {
       },
     ),
     getByInternalNameOrTitle: (n: string) => ({
+      select:
+        (...cols: string[]) =>
+        async () => {
+          calls.push(
+            `selectField:${n}:${cols.join(",")}:${state.executed ? "after" : "before"} execute`,
+          );
+          const xml = schemaXml[n];
+          if (xml === undefined) throw new Error(`404 field ${n}`);
+          return { SchemaXml: xml };
+        },
       update: vi.fn(async (props: unknown) => {
         calls.push(`updateField:${n}:${JSON.stringify(props)}`);
       }),
@@ -76,10 +92,15 @@ function makeFakeSp() {
     web: { lists },
     batched: (props: unknown) => {
       batchProps.push(props);
-      return [sp, vi.fn(async () => {})];
+      return [
+        sp,
+        vi.fn(async () => {
+          state.executed = true;
+        }),
+      ];
     },
   };
-  return { sp, calls, batchProps, fieldXmlArgs };
+  return { sp, calls, batchProps, fieldXmlArgs, schemaXml };
 }
 
 describe("SharePointSchemaProvider.readSchemaAsync", () => {
@@ -168,7 +189,8 @@ describe("SharePointSchemaProvider.applyAsync", () => {
     expect(fieldXmlArgs).toHaveLength(1);
     const arg = fieldXmlArgs[0] as { SchemaXml: string; Options?: number };
     expect(typeof arg).toBe("object");
-    expect(arg.Options).toBe(8);
+    // 8 (AddFieldInternalNameHint) | 16 (AddFieldToDefaultView)
+    expect(arg.Options).toBe(24);
     expect(arg.SchemaXml).toContain('Name="ActionItems"');
     expect(arg.SchemaXml).toContain('DisplayName="Action Items"');
   });
@@ -260,5 +282,169 @@ describe("SharePointSchemaProvider.applyAsync", () => {
       emptySnapshot(),
     );
     expect(calls).toEqual(["recycleList:Tasks"]);
+  });
+});
+
+describe("SharePointSchemaProvider addField default view", () => {
+  async function optionsFor(op: SchemaOperation) {
+    const { sp, fieldXmlArgs } = makeFakeSp();
+    await new SharePointSchemaProvider(sp as never).applyAsync(
+      [op],
+      emptySnapshot(),
+    );
+    return fieldXmlArgs[0] as { SchemaXml: string; Options: number };
+  }
+
+  it("adds a new column to the default view", async () => {
+    const arg = await optionsFor({
+      op: "addField",
+      list: "Tasks",
+      field: { kind: "Boolean", internalName: "Done" },
+    });
+    expect(arg.Options & 16).toBe(16);
+    expect(arg.Options & 8).toBe(8);
+  });
+
+  it("leaves it out when the field opts out", async () => {
+    const arg = await optionsFor({
+      op: "addField",
+      list: "Tasks",
+      field: { kind: "Boolean", internalName: "Done", addToDefaultView: false },
+    });
+    expect(arg.Options).toBe(8);
+  });
+
+  it("leaves a hidden field out without being told", async () => {
+    const arg = await optionsFor({
+      op: "addField",
+      list: "Tasks",
+      field: { kind: "Boolean", internalName: "Sync", hidden: true },
+    });
+    expect(arg.Options).toBe(8);
+    expect(arg.SchemaXml).toContain('Hidden="TRUE"');
+  });
+});
+
+describe("SharePointSchemaProvider alterField type changes", () => {
+  function snapWith(type: string): SchemaSnapshot {
+    const snap = emptySnapshot();
+    snap.lists.set("Tasks", {
+      id: "tasks-guid",
+      title: "Tasks",
+      fields: new Map([
+        [
+          "Value",
+          {
+            internalName: "Value",
+            typeAsString: type,
+            required: false,
+            indexed: false,
+          },
+        ],
+      ]),
+    });
+    return snap;
+  }
+  const note: SchemaOperation = {
+    op: "alterField",
+    list: "Tasks",
+    field: {
+      kind: "Text",
+      internalName: "Value",
+      displayName: "Value",
+      multiline: true,
+      richText: false,
+      appendOnly: false,
+      numberOfLines: 6,
+    },
+  };
+  const text: SchemaOperation = {
+    op: "alterField",
+    list: "Tasks",
+    field: {
+      kind: "Text",
+      internalName: "Value",
+      displayName: "Value",
+      multiline: false,
+      maxLength: 255,
+    },
+  };
+
+  it("keeps the MERGE update when the type does not change", async () => {
+    const { sp, calls } = makeFakeSp();
+    await new SharePointSchemaProvider(sp as never).applyAsync(
+      [text],
+      snapWith("Text"),
+    );
+    expect(calls).toEqual([
+      'updateField:Value:{"Required":false,"Title":"Value","MaxLength":255}',
+    ]);
+  });
+
+  it("rewrites the SchemaXml for Text → Note, after the batch, keeping the column's ID", async () => {
+    const { sp, calls } = makeFakeSp();
+    const [result] = await new SharePointSchemaProvider(sp as never).applyAsync(
+      [note],
+      snapWith("Text"),
+    );
+
+    expect(result).toEqual({ op: note, status: "applied" });
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toMatch(/^selectField:Value:SchemaXml:/);
+    const update = JSON.parse(
+      calls[1]!.slice("updateField:Value:".length),
+    ) as Record<string, string>;
+    expect(Object.keys(update)).toEqual(["SchemaXml"]);
+    expect(update.SchemaXml).toContain('Type="Note"');
+    expect(update.SchemaXml).toContain('ID="{value-id}"');
+    expect(update.SchemaXml).toContain('SourceID="{tasks-guid}"');
+    expect(update.SchemaXml).toContain('NumLines="6"');
+    expect(update.SchemaXml).not.toContain("MaxLength");
+  });
+
+  it("rewrites the SchemaXml for Note → Text too (the rollback)", async () => {
+    const { sp, calls, schemaXml } = makeFakeSp();
+    schemaXml.Value =
+      '<Field Type="Note" DisplayName="Value" NumLines="6" RichText="FALSE" ID="{value-id}" SourceID="{tasks-guid}" StaticName="Value" Name="Value" />';
+    const [result] = await new SharePointSchemaProvider(sp as never).applyAsync(
+      [text],
+      snapWith("Note"),
+    );
+
+    expect(result?.status).toBe("applied");
+    const update = JSON.parse(
+      calls[1]!.slice("updateField:Value:".length),
+    ) as Record<string, string>;
+    expect(update.SchemaXml).toContain('Type="Text"');
+    expect(update.SchemaXml).toContain('MaxLength="255"');
+    expect(update.SchemaXml).not.toMatch(/NumLines|RichText/);
+  });
+
+  it("falls back to the MERGE update for a column the snapshot does not hold", async () => {
+    const { sp, calls } = makeFakeSp();
+    await new SharePointSchemaProvider(sp as never).applyAsync(
+      [note],
+      emptySnapshot(),
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatch(/^updateField:Value:.*"RichText":false/);
+  });
+
+  it("keeps op order in the results and isolates a failed retype", async () => {
+    const { sp, calls, schemaXml } = makeFakeSp();
+    delete schemaXml.Value;
+    const drop: SchemaOperation = { op: "dropList", title: "Other" };
+    const results = await new SharePointSchemaProvider(sp as never).applyAsync(
+      [note, drop],
+      snapWith("Text"),
+    );
+
+    expect(results.map((r) => r.op)).toEqual([note, drop]);
+    expect(results[0]?.status).toBe("failed");
+    expect(results[0]?.error?.message).toMatch(/404 field Value/);
+    expect(results[1]?.status).toBe("applied");
+    expect(calls).toContain("recycleList:Other");
+    // The retype read never rides the batch: it goes once the batch is sent.
+    expect(calls).toContain("selectField:Value:SchemaXml:after execute");
   });
 });

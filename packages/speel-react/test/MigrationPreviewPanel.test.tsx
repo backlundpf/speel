@@ -374,3 +374,48 @@ describe("MigrationPreviewPanel mark applied", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("MigrationPreviewPanel data-loss warnings", () => {
+  it("badges a step that may lose data and says why", () => {
+    const warned: MigrationsPlan = {
+      direction: "down",
+      steps: [
+        {
+          migrationId: "m1",
+          direction: "down",
+          summary: 'Alter field Value (Text) on "Config"',
+          willRun: true,
+          destructive: false,
+          presence: "unknown",
+          opaque: false,
+          warning:
+            "Converting Value from Note to Text truncates existing values to 255 characters.",
+        },
+      ],
+    };
+    skin(
+      <MigrationPreviewPanel
+        migrationId="m1"
+        plan={warned}
+        onDismiss={() => {}}
+      />,
+    );
+    expect(screen.getByText("may lose data")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Converting Value from Note to Text truncates existing values to 255 characters.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("shows no badge on steps without a warning", () => {
+    skin(
+      <MigrationPreviewPanel
+        migrationId="m1"
+        plan={plan}
+        onDismiss={() => {}}
+      />,
+    );
+    expect(screen.queryByText("may lose data")).not.toBeInTheDocument();
+  });
+});

@@ -6,11 +6,21 @@ interface CommonOpts {
   required?: boolean;
   indexed?: boolean;
   default?: unknown;
+  /** Create the column hidden. Creation only; a hidden column skips the default view. */
+  hidden?: boolean;
+  /** Add the new column to the default view (default true). Creation only. */
+  addToDefaultView?: boolean;
 }
 
 type CommonFields = Pick<
   FieldSpecBase,
-  "displayName" | "description" | "required" | "indexed" | "default"
+  | "displayName"
+  | "description"
+  | "required"
+  | "indexed"
+  | "default"
+  | "hidden"
+  | "addToDefaultView"
 >;
 
 const common = (o: CommonOpts): Partial<CommonFields> => ({
@@ -19,6 +29,10 @@ const common = (o: CommonOpts): Partial<CommonFields> => ({
   ...(o.required !== undefined ? { required: o.required } : {}),
   ...(o.indexed !== undefined ? { indexed: o.indexed } : {}),
   ...(o.default !== undefined ? { default: o.default } : {}),
+  ...(o.hidden !== undefined ? { hidden: o.hidden } : {}),
+  ...(o.addToDefaultView !== undefined
+    ? { addToDefaultView: o.addToDefaultView }
+    : {}),
 });
 
 export class FieldSpecBuilder {

@@ -77,16 +77,16 @@ await migrator.migrate({ onProgress: (e) => console.log(e.kind, e) });
 The stream is bracketed per migration — `migration-start` / `migration-done`, each carrying the id
 and direction — with `step-start` / `step-done` in between, one pair per operation, summarised in
 the same plain language `plan()` uses. A `step-done` reports `applied`, `skipped` (already
-satisfied, so nothing was sent and no start was reported) or `failed` with its message.
+satisfied, so nothing was sent and no start was reported) or `failed` with its message. A step that
+may lose data carries its `warning` on both events (see below).
 
 Steps start a **wave at a time**, because a wave is one batched request: its operations are in
 flight together and finish together. That is what buys the thing worth having — whatever is stuck
 is named while it is stuck. Custom `run` steps are bracketed individually and report `failed`
 before their error propagates, a data step being the likeliest thing to hang.
 
-Nothing is buffered: `MigrateResult.log` is unchanged, and a caller that passes no callback runs
-exactly as before. `@speel/react`'s `MigrationsManager` passes its own collector, so an admin panel
-gets this with no wiring — see
+Nothing is buffered. `@speel/react`'s `MigrationsManager` passes its own collector, so an admin
+panel gets this with no wiring — see
 [`../../speel-react/docs/migrations-ui.md`](../../speel-react/docs/migrations-ui.md).
 
 ### `plan(options?)` — dry run
@@ -100,7 +100,18 @@ Returns the operations `migrate()` / `migrateTo()` _would_ run, without running 
   own either/or behaviour).
 
 Each step carries a human `summary`, `willRun`, a `destructive` flag (`dropList` / `dropField`),
-and `opaque` for custom `run` steps, whose `source` is included for display.
+a `warning` when it may lose data, and `opaque` for custom `run` steps, whose `source` is included
+for display.
+
+### Data-loss warnings
+
+An `alterField` that changes a column's type in a narrowing direction may lose data: Note → Text
+truncates every value to 255 characters, Text → Number drops what does not parse, MultiChoice →
+Choice keeps one selection. The Migrator judges each against the column's live type — `plan()`
+sets the step's `warning`, and at apply time the step's events carry it, `MigrateResult.log` gets a
+`warn <migrationId> <summary>: <message>` line and `console.warn` logs it. **The step still runs**:
+the warning is for the admin, not a gate. Widenings (Text → Note, Number → Currency, anything →
+Note from a single-valued scalar, single → multi) stay silent.
 
 Adding `annotate: true` fills in each step's `presence` — `'present'` / `'absent'` / `'unknown'`.
 It costs no extra requests: every command already reads the live schema once into a snapshot, and
@@ -125,15 +136,8 @@ Choose it once, before the first apply: the title is how the store finds its row
 site's history list afterwards reads as an empty history and every applied migration looks pending.
 `historyList` is ignored when you supply your own `history` store.
 
-Each history row is written _after_ the migration's ops complete successfully. If the migration
-throws mid-way, the row is never written — the migration stays pending and can be retried after
-the underlying issue is fixed.
-
-### Per-environment tracking
-
-Each SharePoint site (dev / test / prod) maintains its own `SpeelMigrationsHistory`. Applying to
-one site does not affect another. A migration id that is pending on prod after being applied on
-dev is expected — that is the normal flow.
+Each history row is written _after_ the migration's ops complete successfully. Each site (dev /
+test / prod) keeps its own history, so an id pending on prod after applying on dev is normal.
 
 ### Batching
 
@@ -151,7 +155,8 @@ columns to lists that already exist is one. In practice a baseline of a dozen li
 columns costs about five requests end to end, against one per operation before.
 
 `MigrateResult.log` records skipped operations as `skip <migrationId> <summary>` lines alongside
-the `up` / `down` entries.
+the `up` / `down` entries. A type-changing `alterField` goes out on its own after the batch — see
+schema.md.
 
 ### Idempotency
 
@@ -199,15 +204,9 @@ bad operations rather than one per deploy.
 
 ### Admin UI
 
-The `MigrationsManager` Fluent v8 component provides a visual admin surface — lists every
-migration in id order with Applied/Pending status, per-row Apply/Restore actions, and a per-row
-preview panel driven by `plan()` with Mark applied inside it. It lives in `@speel/react`:
-
-```tsx
-import { MigrationsManager } from "@speel/react/migrations";
-```
-
-See [`../../speel-react/docs/migrations-ui.md`](../../speel-react/docs/migrations-ui.md) for
+The `MigrationsManager` component in `@speel/react` (`import { MigrationsManager } from
+"@speel/react/migrations"`) lists every migration with Applied/Pending status, per-row
+Apply/Restore actions, and a `plan()`-driven preview with Mark applied inside it. See [`../../speel-react/docs/migrations-ui.md`](../../speel-react/docs/migrations-ui.md) for
 setup and customization.
 
 ## Boundaries & gotchas
@@ -236,6 +235,8 @@ setup and customization.
 - **Presence annotation is existence-only.** The snapshot answers "does this list/field exist" and
   "is it indexed", not "does its shape match" — a `'present'` field may still have the wrong type.
   Only custom `run` steps report `'unknown'`.
+- **Data-loss warnings judge type changes only.** A shorter `maxLength` or a removed choice on the
+  same type is not detected, and a column the snapshot does not hold is not judged.
 - **A failed migration leaves more behind than a sequential one would.** Operations in the failing
   wave are already committed. This is what makes the retry cheap rather than a problem, but it does
   mean the site is further along than the history list suggests. Preview with

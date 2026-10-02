@@ -93,15 +93,19 @@ Applying 20260608T1816_InitialSchema
   … Add field DueDate (DateTime) to "Projects"
   ↷ Create list "Programs" — already there
   ✗ Index field Owner on "Projects" — Field not found
+  ✓ Alter field Notes (Text) on "Projects"
+    ⚠ May lose data: Converting Notes from Note to Text truncates existing values to 255 characters.
 ```
 
 A step appears with `…` the moment it goes out and flips to its result when the response lands.
 Because operations are sent a wave at a time, a whole wave shows as in flight together — which is
 what names the step that is stuck when something hangs. The box follows the tail, keeps the last
-run visible after it finishes, and clears when the next run starts.
+run visible after it finishes, and clears when the next run starts. A step that may lose data — a
+narrowing type change such as Note → Text — carries a `⚠ May lose data` line under it, in the
+warning accent, from the moment it goes out; the step still runs.
 
 The same lines are mirrored to the devtools console, wrapped in a `console.group` per migration
-(failures go to `console.error`), so an admin who hits a hang can copy out a transcript instead of
+(failures go to `console.error`, data-loss warnings to `console.warn`), so an admin who hits a hang can copy out a transcript instead of
 screenshotting a spinner. It is always on — there is no prop — and the panel closes its own group
 when a run throws, since a failed run never reports a migration as done.
 
@@ -122,8 +126,9 @@ It opens `MigrationPreviewPanel` — a `SpeelPanel`, so it carries the same chro
 other surface in the library: resizable from its inner edge, light-dismissable, its actions
 in the footer. It lists the operations with, per step, a plain-language summary, its
 direction, whether it **will run** or is **skipped**, its live presence on the site (already
-present / not present / unverifiable), and a **destructive** badge on `dropList` /
-`dropField`. When the plan spans several migrations, each step is labelled with the migration
+present / not present / unverifiable), a **destructive** badge on `dropList` /
+`dropField`, and a **may lose data** badge with the reason on an `alterField` that narrows a
+column's type. When the plan spans several migrations, each step is labelled with the migration
 it came from.
 
 The default view is the steps that will run; a **Show all steps** checkbox reveals the rest,
@@ -168,7 +173,7 @@ the adapter alone:
 </SpeelUIProvider>
 ```
 
-The status colours the adapter has no vocabulary for — applied, destructive, the muted
+The status colours the adapter has no vocabulary for — applied, destructive, may lose data, the muted
 gutter of a step that will not run — read from `--speel-accent-*` custom properties and
 fall back to the Fluent palette, so a themed host can reach them without a fork.
 

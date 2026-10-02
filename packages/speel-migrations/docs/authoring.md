@@ -79,7 +79,7 @@ All verbs are on `MigrationBuilder`. The verified set from `src/operations/Migra
 | Verb                            | What it does                                                         |
 | ------------------------------- | -------------------------------------------------------------------- |
 | `addField(list, name, build)`   | Add a field. Pass a builder callback: `f => f.text(...)`. See Title. |
-| `alterField(list, name, build)` | Change an existing field's attributes.                               |
+| `alterField(list, name, build)` | Change an existing field's attributes, or its type.                  |
 | `dropField(list, name)`         | Remove a field permanently.                                          |
 | `renameField(list, from, to)`   | Rename a field. The diff never emits this.                           |
 
@@ -96,7 +96,34 @@ All verbs are on `MigrationBuilder`. The verified set from `src/operations/Migra
 `f.choice(choices[])`, `f.multiChoice(choices[])`, `f.lookup({ list, showField?, multi? })`,
 `f.user({ showField?, multi? })`.
 
-All accept common options: `displayName`, `description`, `required`, `indexed`, `default`.
+All accept common options: `displayName`, `description`, `required`, `indexed`, `default`, plus
+two that apply at creation only: `hidden` and `addToDefaultView`.
+
+### Default view placement
+
+`addField` puts the new column in the list's default view. Opt a column out with
+`addToDefaultView: false` (tracking or system columns); a `hidden: true` column is left out
+automatically. Columns added before this behaviour existed are not moved retroactively — put them
+in the view from a `run` step:
+
+```ts
+import "@pnp/sp/views/index.js";
+import { getSPFI } from "@speel/pnpjs";
+
+b.run("show Priority in the default view", async ({ context }) => {
+  const view = getSPFI(context).web.lists.getByTitle("Tasks").defaultView;
+  await view.fields.add("Priority");
+});
+```
+
+### Changing a column's type
+
+`alterField` accepts a builder of a different type — `f.note()` over a `Text` column, `f.text()`
+over a `Note` — and the generated `down` reverses it. Widening keeps every value. **Narrowing may
+lose data**: Note → Text truncates each value to 255 characters, Text → Number or Text → DateTime
+drops values that do not convert, MultiChoice → Choice keeps one selection. The step still runs;
+`migrations:add`, `plan()`, the apply log and the admin panel all flag it (see runtime.md). Before
+a narrowing `down`, back up what matters from a `run` step.
 
 > Stability: still settling. The `FieldSpecBuilder` API reflects
 > `src/operations/FieldSpecBuilder.ts`; verify against that file for new field types.
@@ -145,6 +172,8 @@ locally before committing.
 - **Sites provisioned before this behaviour carry an orphan.** An `addField` on `Title` used to
   collide, leaving SharePoint's suffixed column (`Title0`) alongside the built-in. Internal names
   are immutable, so re-running fixes nothing — drop the orphan.
+- **Note → Text is lossy, and so is rolling a widening back.** A migration that widens a column
+  has a `down` that narrows it; rolling back truncates whatever was written in between.
 - **`renameList`/`renameField` do not update the snapshot.** After hand-merging a rename, run
   `migrations:list` to confirm the snapshot is clean. If it reports drift, re-run `migrations:add`
   to reconcile.

@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { fieldSpecToXml } from "../src/schema/fieldSpecToXml.js";
+import {
+  fieldSpecToXml,
+  retypeFieldXml,
+} from "../src/schema/fieldSpecToXml.js";
 import { emptySnapshot, type SchemaSnapshot } from "@speel/migrations";
 
 function snapWithOwners(): SchemaSnapshot {
@@ -272,5 +275,76 @@ describe("fieldSpecToXml", () => {
     expect(
       fieldSpecToXml({ kind: "Boolean", internalName: "D" }, snap),
     ).not.toContain("Description");
+  });
+
+  it("emits Hidden only when the spec sets it", () => {
+    expect(
+      fieldSpecToXml(
+        { kind: "Boolean", internalName: "H", hidden: true },
+        snap,
+      ),
+    ).toContain('Hidden="TRUE"');
+    expect(
+      fieldSpecToXml({ kind: "Boolean", internalName: "H" }, snap),
+    ).not.toContain("Hidden");
+  });
+});
+
+describe("retypeFieldXml", () => {
+  const current =
+    '<Field Type="Text" DisplayName="Config &amp; Value" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="TRUE" MaxLength="255" ID="{1111-aaaa}" SourceID="{2222-bbbb}" StaticName="Value" Name="Value" ColName="nvarchar5" RowOrdinal="0" Version="3" />';
+
+  it("keeps the column's identity and swaps in the new type's attributes", () => {
+    const xml = retypeFieldXml(
+      current,
+      {
+        kind: "Text",
+        internalName: "Value",
+        multiline: true,
+        richText: false,
+        numberOfLines: 6,
+      },
+      snap,
+    );
+    expect(xml).toBe(
+      '<Field Type="Note" ID="{1111-aaaa}" SourceID="{2222-bbbb}" Name="Value" StaticName="Value" DisplayName="Config &amp; Value" Required="FALSE" Indexed="TRUE" NumLines="6" RichText="FALSE" />',
+    );
+  });
+
+  it("drops the old storage and version attributes", () => {
+    const xml = retypeFieldXml(
+      current,
+      { kind: "Text", internalName: "Value", multiline: true },
+      snap,
+    );
+    expect(xml).not.toMatch(/ColName|RowOrdinal|Version|MaxLength/);
+  });
+
+  it("lets the spec's display name and index flag win when it sets them", () => {
+    const xml = retypeFieldXml(
+      current,
+      {
+        kind: "Text",
+        internalName: "Value",
+        multiline: false,
+        displayName: "Value",
+        indexed: false,
+        maxLength: 100,
+      },
+      snap,
+    );
+    expect(xml).toContain('DisplayName="Value"');
+    expect(xml).toContain('Indexed="FALSE"');
+    expect(xml).toContain('MaxLength="100"');
+  });
+
+  it("throws when the current SchemaXml has no ID to keep", () => {
+    expect(() =>
+      retypeFieldXml(
+        '<Field Type="Text" Name="Value" />',
+        { kind: "Text", internalName: "Value", multiline: true },
+        snap,
+      ),
+    ).toThrow(/ID/);
   });
 });

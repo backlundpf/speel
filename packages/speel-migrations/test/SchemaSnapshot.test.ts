@@ -170,6 +170,36 @@ describe("applyResultToSnapshot", () => {
     });
   });
 
+  it("records the SharePoint type name, not the spec kind", () => {
+    const snap = snapWith();
+    applyResultToSnapshot(snap, {
+      op: {
+        op: "addField",
+        list: "Tasks",
+        field: { kind: "Text", internalName: "Body", multiline: true },
+      },
+      status: "applied",
+    });
+    expect(snap.lists.get("Tasks")?.fields.get("Body")?.typeAsString).toBe(
+      "Note",
+    );
+  });
+
+  it("moves a column's type when alterField changes it", () => {
+    const snap = snapWith();
+    applyResultToSnapshot(snap, {
+      op: {
+        op: "alterField",
+        list: "Tasks",
+        field: { kind: "Text", internalName: "Due", multiline: true },
+      },
+      status: "applied",
+    });
+    expect(snap.lists.get("Tasks")?.fields.get("Due")?.typeAsString).toBe(
+      "Note",
+    );
+  });
+
   it("drops a deleted field and a recycled list", () => {
     const snap = snapWith();
     applyResultToSnapshot(snap, {
