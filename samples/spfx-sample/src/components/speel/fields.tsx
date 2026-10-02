@@ -686,18 +686,26 @@ export function ShadCombobox(p: ComboboxProps): ReactElement {
   };
 
   // The selection rides along, so a page of results that omits it still shows its text.
-  const list: OptionItem[] = [
-    ...suggestions,
-    ...p.value.filter((v) => !suggestions.some((s) => s.key === v.key)),
-  ];
-
-  // The Add row: a creator, non-blank trimmed text, and no suggestion (or held value)
-  // whose string text is it, ignoring case. Non-string text never hides it.
+  const held = p.value.filter((v) => !suggestions.some((s) => s.key === v.key));
+  const candidates: OptionItem[] = [...suggestions, ...held];
+  // On a typed search a held value the search did not return is listed only when its
+  // own text matches what was typed. Otherwise it is no result, and listing it beside
+  // "no matches" contradicts the message.
   const trimmed = query.trim();
+  const typedLower = trimmed.toLowerCase();
+  const list = candidates.filter(
+    (o) =>
+      trimmed === "" ||
+      !held.includes(o) ||
+      (typeof o.text === "string" && o.text.toLowerCase().includes(typedLower)),
+  );
+
+  // The Add row: a creator, non-blank trimmed text, and no suggestion (or held value,
+  // listed or not) whose string text is it, ignoring case. Non-string text never hides it.
   const showCreate =
     p.create !== undefined &&
     trimmed !== "" &&
-    !list.some(
+    !candidates.some(
       (o) =>
         typeof o.text === "string" &&
         o.text.toLowerCase() === trimmed.toLowerCase(),
@@ -719,7 +727,7 @@ export function ShadCombobox(p: ComboboxProps): ReactElement {
   // The Add row takes the no-matches line's place when there is nothing else to offer.
   const noResults =
     searched &&
-    suggestions.length === 0 &&
+    list.length === 0 &&
     p.noResultsText !== undefined &&
     !showCreate;
 

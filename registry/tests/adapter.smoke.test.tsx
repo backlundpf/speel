@@ -333,14 +333,33 @@ describe("shadcnAdapter smoke", () => {
       />,
     );
     fireEvent.change(getByRole("combobox", { name: "Office" }), {
-      target: { value: "Lis" },
+      target: { value: "L" },
     });
     await findByRole("option", { name: "Lisbon" });
-    // The page that came back does not contain London; it is still listed, still held.
+    // London matches what was typed, but the page that came back omits it; it is
+    // still listed, still held.
     expect(getByRole("option", { name: "London" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
+  });
+
+  it("Combobox says nothing matched without listing a held value the search did not match", async () => {
+    const london = { key: "1", text: "London", data: { id: 1 } };
+    const { getByRole, findByText, queryByRole } = render(
+      <shadcnAdapter.Combobox
+        label="Office"
+        value={[london]}
+        onChange={noop}
+        onResolveSuggestions={async () => []}
+        noResultsText="No matches."
+      />,
+    );
+    fireEvent.change(getByRole("combobox", { name: "Office" }), {
+      target: { value: "zz" },
+    });
+    await findByText("No matches.");
+    expect(queryByRole("option", { name: "London" })).toBeNull();
   });
 
   it("Combobox multi adds the one picked, and takes back the one picked again", async () => {

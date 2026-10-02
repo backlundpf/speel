@@ -189,6 +189,60 @@ describe("V8Combobox", () => {
     expect(await screen.findByText("No offices match")).toBeInTheDocument();
   });
 
+  describe("the held value in a typed search", () => {
+    it("says nothing matched without listing a held value the search did not match", async () => {
+      render(
+        <V8Combobox
+          label="Office"
+          value={[offices[0]!]}
+          onChange={vi.fn()}
+          onResolveSuggestions={async () => []}
+          noResultsText="No offices match"
+        />,
+      );
+      fireEvent.input(screen.getByLabelText("Office"), {
+        target: { value: "zz" },
+      });
+      expect(await screen.findByText("No offices match")).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "London" })).toBeNull();
+    });
+
+    it("lists a held value a page omitted when its text matches what was typed", async () => {
+      render(
+        <V8Combobox
+          label="Office"
+          value={[offices[0]!]}
+          onChange={vi.fn()}
+          onResolveSuggestions={async () => []}
+          noResultsText="No offices match"
+        />,
+      );
+      fireEvent.input(screen.getByLabelText("Office"), {
+        target: { value: "lon" },
+      });
+      expect(
+        await screen.findByRole("option", { name: "London" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText("No offices match")).toBeNull();
+    });
+
+    it("lists the held value when nothing is typed", async () => {
+      const { container } = render(
+        <V8Combobox
+          label="Office"
+          value={[offices[0]!]}
+          onChange={vi.fn()}
+          onResolveSuggestions={async () => []}
+          noResultsText="No offices match"
+        />,
+      );
+      browse(container);
+      expect(
+        await screen.findByRole("option", { name: "London" }),
+      ).toBeInTheDocument();
+    });
+  });
+
   describe("opening on focus", () => {
     it("opens its list when focused by keyboard, and asks about nothing typed", async () => {
       const ask = vi.fn(async () => [{ key: "a", text: "Alpha", data: "a" }]);

@@ -1307,19 +1307,29 @@ export function V8Combobox(p: ComboboxProps): JSX.Element {
     openIfClosed();
   };
 
-  // The selection always rides along, so a page that omits it still shows its text.
-  const list: OptionItem[] = [
-    ...suggestions,
-    ...p.value.filter((v) => !suggestions.some((s) => s.key === v.key)),
-  ];
-  const options: IComboBoxOption[] = list.map((o) => ({
-    key: o.key,
-    text: String(o.text),
-  }));
-
   // The box's text as last typed — `askedRef` already tracks it (see `search` above),
   // so the Add row rides the same value rather than a second piece of state.
   const typedText = (askedRef.current ?? "").trim();
+
+  // The selection always rides along, so a page that omits it still shows its text.
+  const held = p.value.filter((v) => !suggestions.some((s) => s.key === v.key));
+  const list: OptionItem[] = [...suggestions, ...held];
+  // On a typed search a held value the search did not return is listed only when its
+  // own text matches what was typed. Otherwise it is no result, and listing it beside
+  // "no matches" contradicts the message. Dropping it is safe only while text is typed:
+  // the closed box shows the held value from its option, and closing the list clears
+  // the typed text, which puts the option back.
+  const typedLower = typedText.toLowerCase();
+  const listed = list.filter(
+    (o) =>
+      typedText === "" ||
+      !held.includes(o) ||
+      (typeof o.text === "string" && o.text.toLowerCase().includes(typedLower)),
+  );
+  const options: IComboBoxOption[] = listed.map((o) => ({
+    key: o.key,
+    text: String(o.text),
+  }));
   const createState = p.create?.state;
   // A `create.state` that is not idle is only "ours" when it is still about the text
   // in the box: typing something else, or a plain pick, leaves it behind rather than
@@ -1341,7 +1351,7 @@ export function V8Combobox(p: ComboboxProps): JSX.Element {
 
   if (
     searched &&
-    suggestions.length === 0 &&
+    listed.length === 0 &&
     p.noResultsText !== undefined &&
     !showCreate
   ) {
