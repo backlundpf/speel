@@ -267,7 +267,11 @@ export class SaveExecutor {
             fileName: staged.fileName,
             content: staged.content,
             overwrite: staged.overwrite,
-            fields: PayloadBuilder.buildForAdd(entry.entity, et),
+            // The upload's fileName names the file; a FileLeafRef field applied
+            // as metadata afterwards would rename it behind the reconcile below.
+            fields: PayloadBuilder.buildForAdd(entry.entity, et).filter(
+              (f) => f.property.columnName !== "FileLeafRef",
+            ),
             onProgress: staged.onProgress,
             // The staged per-file signal wins for the in-flight upload; otherwise
             // the save-level signal is forwarded so mid-chunk abort works.
@@ -322,6 +326,25 @@ export class SaveExecutor {
       entry.refreshSnapshot();
       entry.state = EntityState.Unchanged;
     } else if (p.operation.kind === "update") {
+      // A FileLeafRef write renamed the file, so its URL moved within the same
+      // folder: refresh FileRef before the snapshot adopts the entity.
+      const leaf = p.operation.fields.find(
+        (f) => f.property.columnName === "FileLeafRef",
+      )?.value;
+      const ref = entry.entityType.findByColumnName("FileRef");
+      const url = ref
+        ? (entry.entity as unknown as Record<string, unknown>)[ref.propertyName]
+        : undefined;
+      if (typeof leaf === "string" && typeof url === "string") {
+        Object.assign(
+          entry.entity as unknown as Record<string, unknown>,
+          fileFactsPatch(
+            entry.entityType,
+            leaf,
+            `${url.slice(0, url.lastIndexOf("/"))}/${leaf}`,
+          ),
+        );
+      }
       entry.refreshSnapshot();
       entry.state = EntityState.Unchanged;
     } else if (p.operation.kind === "delete") {

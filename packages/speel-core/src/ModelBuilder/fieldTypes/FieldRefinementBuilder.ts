@@ -14,6 +14,11 @@ export abstract class FieldRefinementBuilder<
     this.state().readOnly = value;
     return this.self();
   }
+  /** The provider owns the column (a built-in): never provisioned; read-only unless `isReadOnly(false)`. */
+  isSystemGenerated(value = true): TSelf {
+    this.state().systemGenerated = value;
+    return this.self();
+  }
   isIndexed(value = true): TSelf {
     this.state().indexed = value;
     return this.self();

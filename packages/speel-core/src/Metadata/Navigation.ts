@@ -20,6 +20,8 @@ export interface INavigation extends IFieldState {
   readonly storage: NavigationStorage;
   readonly target: EntityType;
   readonly foreignKey: Property;
+  /** The provider owns this column (a built-in): migrations never provision it. */
+  readonly systemGenerated: boolean;
   config: FieldConfig;
   inverse?: INavigation; // populated when both sides declared (not readonly: resolved at finalize)
 }
