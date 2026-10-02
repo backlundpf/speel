@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render } from "@testing-library/react";
 
-import type { OptionItem } from "@speel/react";
+import { SpeelUIProvider, type OptionItem } from "@speel/react";
 
 import { shadcnAdapter } from "@/speel-shadcn/adapter";
 
@@ -483,5 +483,54 @@ describe("shadcnAdapter smoke", () => {
     );
     const content = document.querySelector('[data-slot="dialog-content"]');
     expect(content!.className).toContain("speel-shadcn");
+  });
+});
+
+describe("shadcn actions", () => {
+  it("danger renders the destructive variant", () => {
+    const { getByRole } = render(
+      <shadcnAdapter.Button text="Overwrite" appearance="danger" />,
+    );
+    expect(getByRole("button", { name: "Overwrite" })).toHaveAttribute(
+      "data-variant",
+      "destructive",
+    );
+  });
+
+  it("MessageBar renders an action array through the skin's Button", () => {
+    const onClick = vi.fn();
+    const { getByRole } = render(
+      <SpeelUIProvider ui={shadcnAdapter}>
+        <shadcnAdapter.MessageBar
+          intent="error"
+          actions={[{ key: "r", text: "Re-check", onClick }]}
+        >
+          Load failed
+        </shadcnAdapter.MessageBar>
+      </SpeelUIProvider>,
+    );
+    const btn = getByRole("button", { name: "Re-check" });
+    expect(getByRole("alert")).toContainElement(btn);
+    fireEvent.click(btn);
+    expect(onClick).toHaveBeenCalled();
+  });
+
+  it("MessageBar renders a node as-is, inline when multiline is false", () => {
+    const { getByRole } = render(
+      <SpeelUIProvider ui={shadcnAdapter}>
+        <shadcnAdapter.MessageBar
+          intent="info"
+          multiline={false}
+          actions={<a href="#d">Details</a>}
+        >
+          Heads up
+        </shadcnAdapter.MessageBar>
+      </SpeelUIProvider>,
+    );
+    const link = getByRole("link", { name: "Details" });
+    expect(link.closest("[data-slot=message-actions]")).toHaveAttribute(
+      "data-multiline",
+      "false",
+    );
   });
 });
