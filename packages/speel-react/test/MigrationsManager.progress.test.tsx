@@ -278,3 +278,84 @@ describe("MigrationsManager devtools mirror", () => {
     await waitFor(() => expect(groupEnd).toHaveBeenCalledTimes(1));
   });
 });
+
+describe("MigrationsManager data-loss warnings", () => {
+  const SUMMARY = 'Alter field Value (Text) on "Config"';
+  const WARNING =
+    "Converting Value from Note to Text truncates existing values to 255 characters.";
+
+  it("shows the warning under the step while it runs and after it lands", async () => {
+    vi.spyOn(console, "group").mockImplementation(() => {});
+    vi.spyOn(console, "groupEnd").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const migrate = scripted([
+      start(),
+      {
+        kind: "step-start",
+        migrationId: ID,
+        summary: SUMMARY,
+        warning: WARNING,
+      },
+      {
+        kind: "step-done",
+        migrationId: ID,
+        summary: SUMMARY,
+        status: "applied",
+        warning: WARNING,
+      },
+      done(),
+    ]);
+    skin(
+      <MigrationsManager
+        migrator={fake({
+          status: vi.fn().mockResolvedValue(pendingOne),
+          migrate,
+        })}
+      />,
+    );
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Apply 1 pending/ }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText(`✓ ${SUMMARY}`)).toBeInTheDocument(),
+    );
+    expect(screen.getByText(`⚠ May lose data: ${WARNING}`)).toBeInTheDocument();
+    // The devtools mirror raises it too, as a warning rather than a log line.
+    expect(warn).toHaveBeenCalledWith(
+      `✓ ${SUMMARY}\n⚠ May lose data: ${WARNING}`,
+    );
+  });
+
+  it("shows no warning line for a step without one", async () => {
+    vi.spyOn(console, "group").mockImplementation(() => {});
+    vi.spyOn(console, "groupEnd").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const migrate = scripted([
+      start(),
+      {
+        kind: "step-done",
+        migrationId: ID,
+        summary: SUMMARY,
+        status: "applied",
+      },
+      done(),
+    ]);
+    skin(
+      <MigrationsManager
+        migrator={fake({
+          status: vi.fn().mockResolvedValue(pendingOne),
+          migrate,
+        })}
+      />,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Apply 1 pending/ }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText(`✓ ${SUMMARY}`)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/May lose data/)).not.toBeInTheDocument();
+  });
+});

@@ -67,6 +67,11 @@ function Step({
             destructive
           </span>
         )}
+        {step.warning !== undefined && (
+          <span style={{ color: ACCENT.warn, fontWeight: 600 }}>
+            may lose data
+          </span>
+        )}
         <span style={{ color: ACCENT.muted }}>
           {presenceLabel(step.presence)}
         </span>
@@ -79,6 +84,9 @@ function Step({
           {step.willRun ? "will run" : "skipped"}
         </span>
       </div>
+      {step.warning !== undefined && (
+        <span style={{ color: ACCENT.warn }}>{step.warning}</span>
+      )}
       {step.opaque && (
         <div style={{ display: "grid", gap: 2 }}>
           <span style={{ color: ACCENT.muted }}>
@@ -106,7 +114,8 @@ function Step({
 
 /**
  * Read-only preview of one migration's operations: what would run, what is already
- * present on the site, and which steps destroy data. Presence is existence-only —
+ * present on the site, which steps destroy data, and which may lose data (a
+ * narrowing type change such as Note → Text, which still runs). Presence is existence-only —
  * it cannot confirm that an existing field's type matches the migration's spec.
  *
  * Rendered as a `SpeelPanel`, so it carries the same chrome as every other surface

@@ -20,13 +20,20 @@ export interface MigrationResult {
 export type MigrationsEvent =
   | { kind: "migration-start"; migrationId: string; direction: "up" | "down" }
   | { kind: "migration-done"; migrationId: string; direction: "up" | "down" }
-  | { kind: "step-start"; migrationId: string; summary: string }
+  | {
+      kind: "step-start";
+      migrationId: string;
+      summary: string;
+      /** Why this step may lose data. It runs anyway. */
+      warning?: string;
+    }
   | {
       kind: "step-done";
       migrationId: string;
       summary: string;
       status: "applied" | "skipped" | "failed";
       error?: string;
+      warning?: string;
     };
 
 /** Passed to `migrate()`/`migrateTo()`; a runner that ignores it still works. */
@@ -44,6 +51,8 @@ export interface MigrationsPlanStep {
   summary: string;
   willRun: boolean;
   destructive: boolean;
+  /** Why this step may lose data (a narrowing type change). It runs anyway. */
+  warning?: string;
   presence: StepPresence;
   opaque: boolean;
   label?: string;
@@ -94,6 +103,7 @@ interface LogStep {
   summary: string;
   status: StepStatus;
   error?: string;
+  warning?: string;
 }
 interface LogGroup {
   migrationId: string;
@@ -116,6 +126,22 @@ function lineOf(step: LogStep): string {
     case "failed":
       return `✗ ${step.summary} — ${step.error ?? "failed"}`;
   }
+}
+
+/** The line under a step that may lose data. */
+const warningLineOf = (warning: string): string =>
+  `⚠ May lose data: ${warning}`;
+
+/** A step taken from its event, carrying the event's error and warning. */
+function stepOf(e: Extract<MigrationsEvent, { summary: string }>): LogStep {
+  return {
+    summary: e.summary,
+    status: e.kind === "step-start" ? "running" : e.status,
+    ...(e.kind === "step-done" && e.error !== undefined
+      ? { error: e.error }
+      : {}),
+    ...(e.warning !== undefined ? { warning: e.warning } : {}),
+  };
 }
 
 const COLOR_OF: Record<StepStatus, string> = {
@@ -161,7 +187,7 @@ function groupEvents(events: readonly MigrationsEvent[]): LogGroup[] {
       groups.push(g);
     }
     if (e.kind === "step-start") {
-      g.steps.push({ summary: e.summary, status: "running" });
+      g.steps.push(stepOf(e));
       continue;
     }
     const inFlight = [...g.steps]
@@ -170,12 +196,9 @@ function groupEvents(events: readonly MigrationsEvent[]): LogGroup[] {
     if (inFlight) {
       inFlight.status = e.status;
       if (e.error !== undefined) inFlight.error = e.error;
+      if (e.warning !== undefined) inFlight.warning = e.warning;
     } else {
-      g.steps.push({
-        summary: e.summary,
-        status: e.status,
-        ...(e.error !== undefined ? { error: e.error } : {}),
-      });
+      g.steps.push(stepOf(e));
     }
   }
   return groups;
@@ -240,15 +263,10 @@ export function MigrationsManager({
         endGroup();
         return;
       }
-      const step: LogStep =
-        e.kind === "step-start"
-          ? { summary: e.summary, status: "running" }
-          : {
-              summary: e.summary,
-              status: e.status,
-              ...(e.error !== undefined ? { error: e.error } : {}),
-            };
+      const step = stepOf(e);
       if (step.status === "failed") console.error(lineOf(step));
+      else if (step.warning !== undefined)
+        console.warn(`${lineOf(step)}\n${warningLineOf(step.warning)}`);
       else console.log(lineOf(step));
     },
     [endGroup],
@@ -487,9 +505,16 @@ export function MigrationsManager({
                   {g.steps.map((step, i) => (
                     <div
                       key={`${step.summary}-${i}`}
-                      style={{ color: COLOR_OF[step.status], paddingLeft: 12 }}
+                      style={{ paddingLeft: 12 }}
                     >
-                      {lineOf(step)}
+                      <div style={{ color: COLOR_OF[step.status] }}>
+                        {lineOf(step)}
+                      </div>
+                      {step.warning !== undefined && (
+                        <div style={{ color: ACCENT.warn, paddingLeft: 12 }}>
+                          {warningLineOf(step.warning)}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
