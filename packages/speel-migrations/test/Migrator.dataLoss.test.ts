@@ -40,7 +40,9 @@ async function setup(): Promise<{
   };
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("Migrator data-loss warnings", () => {
   it("flags a narrowing alterField in the plan", async () => {
