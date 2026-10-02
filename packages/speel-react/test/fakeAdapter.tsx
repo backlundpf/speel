@@ -215,6 +215,7 @@ export const fakeAdapter: SpeelUIAdapter = {
     options,
     multiselect,
     ariaLabel,
+    placeholder,
   }) => {
     // An inline caption names the control through ariaLabel instead of the stacked
     // label chrome — the footer's pager is the case.
@@ -225,7 +226,7 @@ export const fakeAdapter: SpeelUIAdapter = {
         label,
         required,
         error,
-        <div role="group" aria-label={name}>
+        <div role="group" aria-label={name} data-placeholder={placeholder}>
           {options.map((o) => (
             <label key={o.key}>
               <input
@@ -261,7 +262,7 @@ export const fakeAdapter: SpeelUIAdapter = {
           onChange(o ? o.data : undefined);
         }}
       >
-        <option value="" />
+        <option value="">{placeholder ?? ""}</option>
         {options.map((o) => (
           <option key={o.key} value={o.key}>
             {String(o.text)}
@@ -312,17 +313,26 @@ export const fakeAdapter: SpeelUIAdapter = {
     );
   },
 
-  Checkbox: ({ label, disabled, error, checked, onChange }) =>
+  Checkbox: ({
+    label,
+    disabled,
+    error,
+    checked,
+    onChange,
+    ariaLabel,
+    indeterminate,
+  }) =>
     chrome(
       label,
       false,
       error,
       <input
-        aria-label={label}
+        aria-label={ariaLabel ?? label}
         type="checkbox"
         checked={checked}
+        {...(indeterminate ? { "aria-checked": "mixed" as const } : {})}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
+        onChange={(e) => onChange(indeterminate ? true : e.target.checked)}
       />,
     ),
 
@@ -393,6 +403,7 @@ export const fakeAdapter: SpeelUIAdapter = {
     multi,
     noResultsText,
     create,
+    placeholder,
   }) => {
     const [query, setQuery] = useState("");
     const [suggestions, setSuggestions] = useState<OptionItem[]>([]);
@@ -415,6 +426,7 @@ export const fakeAdapter: SpeelUIAdapter = {
       <div>
         <input
           aria-label={label}
+          placeholder={placeholder}
           disabled={disabled}
           onFocus={async () => {
             const found = await onResolveSuggestions("");
@@ -487,11 +499,13 @@ export const fakeAdapter: SpeelUIAdapter = {
     </div>
   ),
 
-  Button: ({ text, onClick, type, disabled, ariaLabel, iconName }) => (
+  Button: ({ text, onClick, type, disabled, ariaLabel, iconName, tooltip }) => (
     <button
       type={type ?? "button"}
       disabled={disabled}
       aria-label={ariaLabel}
+      aria-description={tooltip}
+      title={tooltip}
       data-icon={iconName}
       onClick={onClick}
     >

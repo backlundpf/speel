@@ -133,9 +133,17 @@ export function ShadCheckbox(p: CheckboxProps): ReactElement {
       <div className="flex items-center gap-2">
         <Checkbox
           id={id}
-          checked={p.checked}
+          // Radix's mixed state: aria-checked="mixed", and a click reports `true`.
+          checked={p.indeterminate ? "indeterminate" : p.checked}
           disabled={p.disabled}
           aria-invalid={!!p.error}
+          aria-label={p.ariaLabel}
+          // The stock checkbox draws its tick for the mixed state too; swap it for a
+          // dash without forking the component.
+          className={cn(
+            p.indeterminate &&
+              "relative border-primary bg-primary [&_svg]:hidden after:absolute after:top-1/2 after:left-1/2 after:h-0.5 after:w-2 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:bg-primary-foreground after:content-['']",
+          )}
           onCheckedChange={(v) => p.onChange(v === true)}
         />
         {p.label ? (
@@ -254,16 +262,36 @@ const BUTTON_VARIANT = {
 } as const;
 
 export function ShadButton(p: ButtonProps): ReactElement {
-  return (
+  const tipId = useStableId();
+  const button = (
     <Button
       type={p.type ?? "button"}
       variant={BUTTON_VARIANT[p.appearance ?? "secondary"]}
       disabled={!!p.disabled}
       aria-label={p.ariaLabel}
+      aria-describedby={p.tooltip !== undefined ? tipId : undefined}
       onClick={p.onClick}
     >
       {p.text}
     </Button>
+  );
+  if (p.tooltip === undefined) return button;
+  // A disabled button takes no pointer or focus events, so the trigger is a wrapper
+  // around it — focusable itself while the button is not — and the hint still shows.
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex" tabIndex={p.disabled ? 0 : undefined}>
+            {button}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="speel-shadcn">{p.tooltip}</TooltipContent>
+      </Tooltip>
+      <span id={tipId} className="sr-only">
+        {p.tooltip}
+      </span>
+    </TooltipProvider>
   );
 }
 
@@ -438,7 +466,7 @@ export function ShadDropdown(p: DropdownProps): ReactElement {
               : {})}
             className="w-full"
           >
-            <SelectValue placeholder="Select…" />
+            <SelectValue placeholder={p.placeholder ?? "Select…"} />
           </SelectTrigger>
           {/* speel-shadcn tag: portaled content escapes the host wrapper, so each portal
               re-applies the class that scopes the skin's base-layer CSS rules. */}
@@ -507,7 +535,9 @@ function ShadMultiDropdown(p: DropdownProps): ReactElement {
                   </Fragment>
                 ))
               ) : (
-                <span className="text-muted-foreground">Select…</span>
+                <span className="text-muted-foreground">
+                  {p.placeholder ?? "Select…"}
+                </span>
               )}
             </span>
             <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
@@ -831,7 +861,7 @@ export function ShadCombobox(p: ComboboxProps): ReactElement {
             disabled={p.disabled}
             placeholder={
               p.value.length === 0
-                ? "Search…"
+                ? (p.placeholder ?? "Search…")
                 : p.multi
                   ? "Add more…"
                   : "Search to change…"

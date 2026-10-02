@@ -48,6 +48,7 @@ import type {
   IContextualMenuItem,
 } from "@fluentui/react";
 import { V8Field, chromeFrom, useFieldAria } from "./Field.js";
+import { useStableId } from "./useStableId.js";
 import { columnBounds, heldWidth } from "./columnBounds.js";
 import { useResizable } from "../surface/useResizable.js";
 import { useDragResize } from "../surface/useDragResize.js";
@@ -191,9 +192,15 @@ export function V8Checkbox(p: CheckboxProps): JSX.Element {
     <V8Field chrome={chrome} aria={aria} renderLabel={false}>
       <Checkbox
         {...(p.label !== undefined ? { label: p.label } : {})}
+        {...(p.ariaLabel !== undefined ? { ariaLabel: p.ariaLabel } : {})}
         checked={p.checked}
+        indeterminate={!!p.indeterminate}
         disabled={!!p.disabled}
-        onChange={(_e, checked) => p.onChange(checked === true)}
+        // Fluent reports a click on a mixed box as the unchanged `checked`; the
+        // contract (and every other skin) has it move to checked.
+        onChange={(_e, checked) =>
+          p.onChange(p.indeterminate ? true : checked === true)
+        }
       />
     </V8Field>
   );
@@ -213,13 +220,14 @@ export function V8ProgressBar(p: ProgressBarProps): JSX.Element {
 }
 
 export function V8Button(p: ButtonProps): JSX.Element {
+  const tooltipId = useStableId();
   const Btn =
     p.appearance === "primary"
       ? PrimaryButton
       : p.appearance === "subtle"
         ? ActionButton
         : DefaultButton;
-  return (
+  const button = (
     <Btn
       text={p.text}
       type={p.type ?? "button"}
@@ -229,7 +237,22 @@ export function V8Button(p: ButtonProps): JSX.Element {
         : {})}
       {...(p.ariaLabel !== undefined ? { ariaLabel: p.ariaLabel } : {})}
       {...(p.onClick ? { onClick: p.onClick } : {})}
+      {...(p.tooltip !== undefined
+        ? {
+            // A natively disabled button swallows pointer and focus events, so the
+            // tooltip could never open on it. `allowDisabledFocus` keeps it disabled
+            // (aria-disabled, styled, clicks ignored) without the native attribute.
+            allowDisabledFocus: true,
+            "aria-describedby": tooltipId,
+          }
+        : {})}
     />
+  );
+  if (p.tooltip === undefined) return button;
+  return (
+    <TooltipHost content={p.tooltip} id={tooltipId}>
+      {button}
+    </TooltipHost>
   );
 }
 
@@ -967,6 +990,7 @@ export function V8Dropdown(p: DropdownProps): JSX.Element {
     ...(aria.describedBy !== undefined
       ? { "aria-describedby": aria.describedBy }
       : {}),
+    ...(p.placeholder !== undefined ? { placeholder: p.placeholder } : {}),
   };
   const options: IDropdownOption[] = p.options.map((o) => ({
     key: o.key,
@@ -1294,7 +1318,7 @@ export function V8Combobox(p: ComboboxProps): JSX.Element {
   const openIfClosed = (): void => {
     if (!openRef.current) comboRef.current?.focus(true);
   };
-  const openOnFocus = (e: React.FocusEvent<HTMLElement>): void => {
+  const openOnFocus = (e: { target: EventTarget | null }): void => {
     // Only focus landing on the input opens the list. The caret button (tabIndex -1,
     // but still mouse-focusable) takes focus on mousedown; opening there let the click
     // on release run Fluent's toggle against an already-open list and shut it again, so
@@ -1437,6 +1461,7 @@ export function V8Combobox(p: ComboboxProps): JSX.Element {
           ? { ariaDescribedBy: aria.describedBy }
           : {})}
         componentRef={comboRef}
+        {...(p.placeholder !== undefined ? { placeholder: p.placeholder } : {})}
         allowFreeform
         autoComplete="on"
         useComboBoxAsMenuWidth
