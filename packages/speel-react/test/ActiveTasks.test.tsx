@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, fireEvent } from "@testing-library/react";
 import { SpeelProvider } from "../src/SpeelProvider.js";
 import { ActiveTasksProvider } from "../src/tasks/ActiveTasksProvider.js";
 import type {
@@ -214,5 +214,160 @@ describe("active tasks", () => {
       return null;
     }
     expect(() => render(<Bad />)).toThrow();
+  });
+});
+
+describe("a blocking task holds the background still (#45)", () => {
+  function mountWithBackground(): {
+    api: { current: ActiveTasksApi | null };
+    onKey: ReturnType<typeof vi.fn>;
+    button: HTMLButtonElement;
+    container: HTMLElement;
+  } {
+    const apiRef = { current: null as ActiveTasksApi | null };
+    const onKey = vi.fn();
+    function Capture(): null {
+      apiRef.current = useActiveTasks();
+      return null;
+    }
+    const { container } = render(
+      <SpeelProvider db={{} as never} ui={fakeAdapter}>
+        <Capture />
+        <button onKeyDown={onKey}>Save</button>
+      </SpeelProvider>,
+    );
+    const button = screen.getByRole("button", { name: "Save" });
+    return {
+      api: apiRef,
+      onKey,
+      button: button as HTMLButtonElement,
+      container,
+    };
+  }
+
+  it("the overlay announces itself and takes focus into its status region", () => {
+    const { api, button } = mountWithBackground();
+    button.focus();
+    act(() => {
+      api.current!.begin({ label: "Saving", blocking: true });
+    });
+    const overlay = screen.getByTestId("blocking-overlay");
+    expect(overlay).toHaveAttribute("role", "alertdialog");
+    expect(overlay).toHaveAttribute("aria-modal", "true");
+    expect(overlay).toHaveAttribute("aria-busy", "true");
+    const status = screen.getByRole("status");
+    expect(overlay).toContainElement(status);
+    expect(overlay).toHaveAttribute("aria-labelledby", status.id);
+    expect(status).toHaveTextContent("Saving");
+    expect(document.activeElement).toBe(status);
+  });
+
+  it("the background is inert (and hidden from AT where inert is unsupported)", () => {
+    const { api, container } = mountWithBackground();
+    act(() => {
+      api.current!.begin({ label: "Saving", blocking: true });
+    });
+    expect(container).toHaveAttribute("inert");
+    // jsdom has no native inert, so the fallback applies too.
+    expect(container).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByTestId("blocking-overlay")).not.toHaveAttribute("inert");
+  });
+
+  it("a keydown on a background control triggers nothing while blocking", () => {
+    const { api, onKey, button } = mountWithBackground();
+    act(() => {
+      api.current!.begin({ label: "Saving", blocking: true });
+    });
+    fireEvent.keyDown(button, { key: "Enter" });
+    fireEvent.keyDown(button, { key: " " });
+    expect(onKey).not.toHaveBeenCalled();
+  });
+
+  it("focus that wanders into the background is pulled back to the overlay", () => {
+    const { api, button } = mountWithBackground();
+    act(() => {
+      api.current!.begin({ label: "Saving", blocking: true });
+    });
+    act(() => {
+      button.focus();
+    });
+    expect(document.activeElement).toBe(screen.getByRole("status"));
+  });
+
+  it("the last blocking task ending lifts the block and gives focus back", () => {
+    const { api, onKey, button, container } = mountWithBackground();
+    button.focus();
+    let a!: TaskHandle, b!: TaskHandle;
+    act(() => {
+      a = api.current!.begin({ label: "One", blocking: true });
+      b = api.current!.begin({ label: "Two", blocking: true });
+    });
+    act(() => {
+      a.done();
+    });
+    // One blocking task still running: still blocked.
+    expect(container).toHaveAttribute("inert");
+    act(() => {
+      b.done();
+    });
+    expect(screen.queryByTestId("blocking-overlay")).toBeNull();
+    expect(container).not.toHaveAttribute("inert");
+    expect(container).not.toHaveAttribute("aria-hidden");
+    expect(document.activeElement).toBe(button);
+    fireEvent.keyDown(button, { key: "Enter" });
+    expect(onKey).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not restore focus to an element that left the document", () => {
+    const { api } = mountWithBackground();
+    const gone = document.createElement("button");
+    document.body.appendChild(gone);
+    gone.focus();
+    let h!: TaskHandle;
+    act(() => {
+      h = api.current!.begin({ label: "Saving", blocking: true });
+    });
+    gone.remove();
+    act(() => {
+      h.done();
+    });
+    expect(document.activeElement).not.toBe(gone);
+  });
+
+  it("covers body-level portals too, including ones opened mid-task, and leaves their own attributes alone", async () => {
+    const { api } = mountWithBackground();
+    // A modal layer portaled to the body before the task, already aria-hidden by its owner.
+    const before = document.createElement("div");
+    before.setAttribute("aria-hidden", "true");
+    document.body.appendChild(before);
+    let h!: TaskHandle;
+    act(() => {
+      h = api.current!.begin({ label: "Saving", blocking: true });
+    });
+    expect(before).toHaveAttribute("inert");
+    // A layer that opens while the task runs.
+    const during = document.createElement("div");
+    document.body.appendChild(during);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(during).toHaveAttribute("inert");
+    act(() => {
+      h.done();
+    });
+    expect(before).not.toHaveAttribute("inert");
+    expect(before).toHaveAttribute("aria-hidden", "true");
+    expect(during).not.toHaveAttribute("inert");
+    before.remove();
+    during.remove();
+  });
+
+  it("toasts and the running-task stack stay reachable above the scrim", () => {
+    const { api } = mountWithBackground();
+    act(() => {
+      api.current!.begin({ label: "Loading" });
+      api.current!.begin({ label: "Saving", blocking: true });
+    });
+    expect(screen.getByTestId("task-stack")).not.toHaveAttribute("inert");
   });
 });

@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -10,7 +11,9 @@ import {
 import { createPortal } from "react-dom";
 import { useSpeelUI } from "../context.js";
 import { useHostFontFamily } from "../overlay/useHostFont.js";
-import { Z } from "../layers.js";
+import { useStableId } from "../fluent-v8/useStableId.js";
+import { ABOVE_BLOCKING_ATTR, BLOCKING_OVERLAY_ATTR, Z } from "../layers.js";
+import { blockBackground } from "./blockBackground.js";
 
 export type TaskStatus = "in-progress" | "aging" | "completed" | "failed";
 
@@ -227,6 +230,7 @@ function TaskSurfaces({
       {stack.length > 0 ? (
         <div
           data-testid="task-stack"
+          {...{ [ABOVE_BLOCKING_ATTR]: "" }}
           style={{
             position: "fixed",
             ...(fontFamily ? { fontFamily } : {}),
@@ -248,25 +252,75 @@ function TaskSurfaces({
         </div>
       ) : null}
       {blocking.length > 0 ? (
-        <div
-          data-testid="blocking-overlay"
-          style={{
-            position: "fixed",
-            ...(fontFamily ? { fontFamily } : {}),
-            inset: 0,
-            zIndex: Z.blockingTasks,
-            background: "rgba(0,0,0,0.9)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 16,
-          }}
-        >
+        <BlockingOverlay {...(fontFamily ? { fontFamily } : {})}>
           {blocking.map((t) => row(t, "white", 360))}
-        </div>
+        </BlockingOverlay>
       ) : null}
     </>,
     document.body,
+  );
+}
+
+/**
+ * The scrim for running blocking tasks. Mounted while at least one runs, so its mount
+ * and unmount are the block's start and end: while mounted, the rest of the page is
+ * inert and focus sits in the status region (see `blockBackground`); unmounting lifts
+ * that and hands focus back.
+ */
+function BlockingOverlay({
+  fontFamily,
+  children,
+}: {
+  fontFamily?: string;
+  children: ReactNode;
+}): JSX.Element {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
+  const statusId = useStableId();
+  useLayoutEffect(() => {
+    const overlay = overlayRef.current;
+    const status = statusRef.current;
+    if (!overlay || !status) return;
+    return blockBackground(overlay, status);
+  }, []);
+  return (
+    <div
+      ref={overlayRef}
+      data-testid="blocking-overlay"
+      {...{ [BLOCKING_OVERLAY_ATTR]: "" }}
+      role="alertdialog"
+      aria-modal="true"
+      aria-busy="true"
+      aria-labelledby={statusId}
+      style={{
+        position: "fixed",
+        ...(fontFamily ? { fontFamily } : {}),
+        inset: 0,
+        zIndex: Z.blockingTasks,
+        background: "rgba(0,0,0,0.9)",
+        // An open Radix modal sets `pointer-events: none` on the body; without this the
+        // scrim would inherit it and let clicks through to the modal beneath.
+        pointerEvents: "auto",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        ref={statusRef}
+        id={statusId}
+        role="status"
+        tabIndex={-1}
+        style={{
+          outline: "none",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 16,
+        }}
+      >
+        {children}
+      </div>
+    </div>
   );
 }
