@@ -141,6 +141,7 @@ describe("diffSnapshots", () => {
     expect(diffSnapshots(withProjects, withProjects)).toEqual({
       up: [],
       down: [],
+      warnings: [],
     });
   });
 
@@ -171,5 +172,31 @@ describe("diffSnapshots", () => {
     const firstAdd = up.findIndex((o) => o.op === "addField");
     expect(up.filter((o) => o.op === "createList")).toHaveLength(2);
     expect(lastCreate).toBeLessThan(firstAdd); // every createList precedes every addField
+  });
+});
+
+describe("diffSnapshots data-loss warnings", () => {
+  const withValue = (multiline: boolean): SnapshotDoc => ({
+    version: 1,
+    entities: [
+      {
+        list: { title: "Config", template: "genericList" },
+        fields: [{ kind: "Text", internalName: "Value", multiline }],
+      },
+    ],
+  });
+
+  it("flags the narrowing direction of a type change — here the down", () => {
+    const diff = diffSnapshots(withValue(false), withValue(true));
+    expect(diff.warnings).toHaveLength(1);
+    expect(diff.warnings?.[0]).toMatchObject({ direction: "down" });
+    expect(diff.warnings?.[0]?.op).toBe(diff.down[0]);
+    expect(diff.warnings?.[0]?.message).toMatch(/255 characters/);
+  });
+
+  it("flags the up when the model narrows", () => {
+    const diff = diffSnapshots(withValue(true), withValue(false));
+    expect(diff.warnings?.map((w) => w.direction)).toEqual(["up"]);
+    expect(diff.warnings?.[0]?.op).toBe(diff.up[0]);
   });
 });

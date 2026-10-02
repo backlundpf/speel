@@ -1,9 +1,20 @@
 import type { MigrationOperation, FieldSpec } from "@speel/migrations";
+import { alterFieldDataLoss, spFieldTypeOf } from "@speel/migrations";
 import type { SnapshotDoc, SnapshotEntity } from "./snapshot.js";
+
+/** A generated step that may lose data when it runs (a narrowing type change). */
+export interface DiffWarning {
+  direction: "up" | "down";
+  /** The very op object in `up` / `down` the warning is about. */
+  op: MigrationOperation;
+  message: string;
+}
 
 export interface SnapshotDiff {
   up: MigrationOperation[];
   down: MigrationOperation[];
+  /** Steps that may lose data. `diffSnapshots` always sets it. */
+  warnings?: DiffWarning[];
 }
 
 export function diffSnapshots(
@@ -12,6 +23,7 @@ export function diffSnapshots(
 ): SnapshotDiff {
   const up: MigrationOperation[] = [];
   const down: MigrationOperation[] = [];
+  const warnings: DiffWarning[] = [];
   const prevByTitle = byTitle(prev);
   const nextByTitle = byTitle(next);
 
@@ -43,9 +55,9 @@ export function diffSnapshots(
   for (const [title, nextE] of nextByTitle) {
     const prevE = prevByTitle.get(title);
     if (!prevE) continue;
-    diffFields(title, prevE, nextE, up, down);
+    diffFields(title, prevE, nextE, up, down, warnings);
   }
-  return { up, down };
+  return { up, down, warnings };
 }
 
 function diffFields(
@@ -54,6 +66,7 @@ function diffFields(
   nextE: SnapshotEntity,
   up: MigrationOperation[],
   down: MigrationOperation[],
+  warnings: DiffWarning[],
 ): void {
   const prevByName = new Map<string, FieldSpec>();
   for (const f of prevE.fields) prevByName.set(f.internalName, f);
@@ -87,8 +100,20 @@ function diffFields(
       }
     }
     if (!sameExceptIndex(prevF, nextF)) {
-      up.push({ op: "alterField", list, field: nextF });
-      down.push({ op: "alterField", list, field: prevF });
+      const upOp: MigrationOperation = { op: "alterField", list, field: nextF };
+      const downOp: MigrationOperation = {
+        op: "alterField",
+        list,
+        field: prevF,
+      };
+      up.push(upOp);
+      down.push(downOp);
+      const upLoss = alterFieldDataLoss(spFieldTypeOf(prevF), nextF);
+      if (upLoss !== undefined)
+        warnings.push({ direction: "up", op: upOp, message: upLoss });
+      const downLoss = alterFieldDataLoss(spFieldTypeOf(nextF), prevF);
+      if (downLoss !== undefined)
+        warnings.push({ direction: "down", op: downOp, message: downLoss });
     }
   }
 }

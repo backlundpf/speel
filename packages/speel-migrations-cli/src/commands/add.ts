@@ -1,6 +1,7 @@
 import { writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Model } from "@speel/core";
+import { summarizeOp } from "@speel/migrations";
 import type { ResolvedConfig } from "../config.js";
 import { projectModel, type SnapshotDoc } from "../snapshot.js";
 import { diffSnapshots } from "../diff.js";
@@ -23,12 +24,22 @@ export function migrationIds(dir: string): string[] {
     .sort();
 }
 
-/** `speel-migrations add <Name>` — diff model vs snapshot, write migration + snapshot + index. */
+const toStderr = (message: string): void => {
+  process.stderr.write(`${message}\n`);
+};
+
+/**
+ * `speel-migrations add <Name>` — diff model vs snapshot, write migration + snapshot + index.
+ * Each generated step that may lose data (a narrowing type change, such as
+ * Note → Text) is reported through `warn` — stderr by default — and marked
+ * with a comment in the generated file.
+ */
 export async function runAdd(
   name: string,
   cfg: ResolvedConfig,
   getModel: () => Model,
   clock: () => Date = () => new Date(),
+  warn: (message: string) => void = toStderr,
 ): Promise<string> {
   const prev = readSnapshot(cfg.snapshot);
   const next = projectModel(getModel());
@@ -54,5 +65,8 @@ export async function runAdd(
     renderIndex(migrationIds(cfg.migrationsDir)),
     "utf8",
   );
+  for (const w of diff.warnings ?? []) {
+    warn(`Warning: ${id} (${w.direction}) ${summarizeOp(w.op)} — ${w.message}`);
+  }
   return id;
 }

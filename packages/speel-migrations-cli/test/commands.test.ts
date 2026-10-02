@@ -138,3 +138,44 @@ describe("runRemove", () => {
     expect(index).toContain("export const migrations = [m0];");
   });
 });
+
+describe("runAdd data-loss warnings", () => {
+  class Setting {
+    Id?: number;
+    Title?: string;
+    Value?: string;
+  }
+  const model = (multiline: boolean) => (): Model => {
+    const mb = new ModelBuilder();
+    mb.entity(Setting, (b) => {
+      b.toList("Settings");
+      b.property((e) => e.Title).isText();
+      if (multiline) b.property((e) => e.Value).isNote();
+      else b.property((e) => e.Value).isText();
+    });
+    return mb.build();
+  };
+
+  it("reports a generated step that may lose data, once per step", async () => {
+    const quiet: string[] = [];
+    await runAdd("Initial", cfg, model(false), at(2026, 0, 1, 0, 0), (m) =>
+      quiet.push(m),
+    );
+    expect(quiet).toEqual([]);
+
+    const warnings: string[] = [];
+    const id = await runAdd(
+      "WidenValue",
+      cfg,
+      model(true),
+      at(2026, 0, 2, 0, 0),
+      (m) => warnings.push(m),
+    );
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain(id);
+    expect(warnings[0]).toContain("down");
+    expect(warnings[0]).toMatch(/255 characters/);
+    const src = readFileSync(join(cfg.migrationsDir, `${id}.ts`), "utf8");
+    expect(src).toContain("// May lose data:");
+  });
+});

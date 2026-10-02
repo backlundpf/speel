@@ -39,10 +39,19 @@ export function renderFieldSpec(spec: FieldSpec): string {
 
 /** Render the full migration module source. */
 export function renderMigrationFile(id: string, diff: SnapshotDiff): string {
+  const lossOf = new Map(
+    (diff.warnings ?? []).map((w) => [w.op, w.message] as const),
+  );
+  const line = (o: MigrationOperation): string => {
+    const loss = lossOf.get(o);
+    return (
+      (loss !== undefined ? `    // May lose data: ${loss}\n` : "") +
+      "    " +
+      renderOp(o)
+    );
+  };
   const body = (ops: MigrationOperation[]): string =>
-    ops.length === 0
-      ? ""
-      : "\n" + ops.map((o) => "    " + renderOp(o)).join("\n") + "\n  ";
+    ops.length === 0 ? "" : "\n" + ops.map(line).join("\n") + "\n  ";
   return `import { defineMigration } from '@speel/migrations';
 
 export default defineMigration('${id}', {
