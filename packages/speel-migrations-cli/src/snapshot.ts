@@ -52,11 +52,20 @@ function listSpecFor(et: EntityType): ListSpec {
 }
 
 /**
+ * SharePoint built-ins SpeelEntity declares WRITABLE — so `readOnly` cannot be
+ * what keeps them out of the snapshot — that every list and library already has.
+ * FileLeafRef is writable because writing it renames the row's file or folder.
+ */
+const WRITABLE_BUILT_INS: ReadonlySet<string> = new Set(["FileLeafRef"]);
+
+/**
  * Which columns are provisionable: everything except the key and the server-managed
  * members. `readOnly` — not a list of names — is the test. It covers SpeelEntity's
  * system columns (Created/Modified/FSObjType/File*) and the Author/Editor navs, which
  * carry it, and it lets a model read any other SharePoint built-in (say
  * `File_x0020_Size`) by declaring it read-only without provisioning over it.
+ * The one exception is {@link WRITABLE_BUILT_INS}: system columns a caller may
+ * write (FileLeafRef renames) yet every list already has.
  * The key needs no name check of its own: both key paths in EntityTypeBuilder build the
  * `ID` column, and a second property claiming that column fails the duplicate-column check.
  */
@@ -77,7 +86,13 @@ function fieldsFor(et: EntityType): FieldSpec[] {
   );
 
   for (const p of et.properties) {
-    if (p.key || p.readOnly || fkColumns.has(p.columnName)) continue;
+    if (
+      p.key ||
+      p.readOnly ||
+      fkColumns.has(p.columnName) ||
+      WRITABLE_BUILT_INS.has(p.columnName)
+    )
+      continue;
     fields.push(fieldConfigToSpec(p));
   }
   for (const nav of selfFkNavs) {

@@ -133,9 +133,10 @@ requires; TypeScript maps that to the `.ts` file under `bundler`, `node16`/`node
 
 The snapshot holds only the columns a migration should create: every property and
 relationship the model declares, minus the key (`ID`) and minus anything marked
-read-only. `readOnly` is the whole rule — it covers the columns `SpeelEntity` /
-`SpeelDocument` inject (`Created`, `Modified`, `FSObjType`, `FileDirRef`, `FileLeafRef`,
-`FileRef`) and the `Author` / `Editor` navigations, and it is how you surface any other
+read-only. `readOnly` is the rule — it covers the columns `SpeelEntity` /
+`SpeelDocument` inject (`Created`, `Modified`, `FSObjType`, `FileDirRef`, `FileRef`) and
+the `Author` / `Editor` navigations; `FileLeafRef` is writable but a built-in, so it is
+excluded by name. It is how you surface any other
 SharePoint built-in: declare it read-only
 (`@TextField({ columnName: 'File_x0020_Type', readOnly: true })`) and the model reads
 the column without a migration trying to create it. Read-only navigations are skipped the

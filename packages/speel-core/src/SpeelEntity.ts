@@ -38,9 +38,11 @@ export abstract class SpeelEntity {
   /** Server-relative parent folder URL. */
   @TextField({ readOnly: true, visible: false }) readonly FileDirRef?: string =
     undefined;
-  /** Row leaf name (a folder row's is the folder name). */
-  @TextField({ readOnly: true, visible: false }) readonly FileLeafRef?: string =
-    undefined;
+  /**
+   * Row leaf name (a folder row's is the folder name). Writable like any text
+   * column: a changed value saves through the normal update, which renames.
+   */
+  @TextField({ visible: false }) FileLeafRef?: string = undefined;
   /** Server-relative URL of the row. */
   @TextField({ readOnly: true, visible: false }) readonly FileRef?: string =
     undefined;

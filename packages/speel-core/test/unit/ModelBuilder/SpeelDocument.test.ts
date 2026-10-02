@@ -67,7 +67,7 @@ describe("SpeelDocument class", () => {
 });
 
 describe("file system columns on SpeelEntity", () => {
-  it("every SpeelEntity subclass gets FSObjType, FileDirRef, FileLeafRef and FileRef, read-only and invisible", () => {
+  it("every SpeelEntity subclass gets FSObjType, FileDirRef, FileLeafRef and FileRef, invisible; all but FileLeafRef read-only", () => {
     const et = buildModel().findEntityType(Task)!;
     const fso = et.findProperty("FSObjType")!;
     expect(fso.config.kind).toBe("Number");
@@ -78,7 +78,8 @@ describe("file system columns on SpeelEntity", () => {
     for (const name of ["FileDirRef", "FileLeafRef", "FileRef"]) {
       const p = et.findProperty(name)!;
       expect(p.config.kind).toBe("Text");
-      expect(p.readOnly).toBe(true);
+      // FileLeafRef is the one writable system column: writing it renames.
+      expect(p.readOnly).toBe(name !== "FileLeafRef");
       expect(p.visible).toBe(false);
     }
     // The document-only member stays document-only.
@@ -111,12 +112,12 @@ describe("file system columns on SpeelEntity", () => {
     expect(folders[0]!.FSObjType).toBe(1);
   });
 
-  it("a SpeelDocument subclass additionally gets FileLeafRef + FileRef (Text, read-only, invisible)", () => {
+  it("a SpeelDocument subclass gets FileLeafRef (writable) + FileRef (read-only), Text and invisible", () => {
     const et = buildModel().findEntityType(Report)!;
     for (const name of ["FileLeafRef", "FileRef"]) {
       const p = et.findProperty(name)!;
       expect(p.config.kind).toBe("Text");
-      expect(p.readOnly).toBe(true);
+      expect(p.readOnly).toBe(name === "FileRef");
       expect(p.visible).toBe(false);
     }
   });

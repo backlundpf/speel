@@ -1451,6 +1451,19 @@ export class FakeStorageProvider
             });
             break;
           }
+          // Like SharePoint, a FileLeafRef write on a file-backed row renames
+          // the file in its folder: FileRef moves with it.
+          const currentUrl = existing.FileRef;
+          if (
+            typeof next.FileLeafRef === "string" &&
+            next.FileLeafRef !== existing.FileLeafRef &&
+            typeof currentUrl === "string"
+          ) {
+            const destUrl = `${parentUrlOf(currentUrl)}/${next.FileLeafRef}`;
+            next.FileRef = destUrl;
+            const files = this.filesByUrl.get(listKey(op.list));
+            if (files?.delete(currentUrl)) files.set(destUrl, op.id);
+          }
           m.set(op.id, { ...next, ID: op.id });
           this.bump(op.list, op.id);
           out.push({ kind: "success", clientToken: op.clientToken });

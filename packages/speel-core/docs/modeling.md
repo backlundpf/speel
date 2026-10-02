@@ -200,6 +200,7 @@ core's canonical site-user entity, with `AuthorId`/`EditorId`) and SharePoint's 
 plumbing, `FSObjType` (0 item, 1 folder), `FileDirRef` (parent folder URL), `FileLeafRef`
 (leaf name) and `FileRef` (the row's URL) — with the same decorators any entity uses
 (`@DateTimeField({ readOnly: true })`, `@ManyToOne(() => SiteUser, { readOnly: true })`, …).
+All are read-only except `FileLeafRef`, which is writable: assigning it renames at the next save.
 The builder reads decorator metadata up the constructor chain on every registration path, so
 a fluent `builder.entity(Task, …)` and a decorated `@Entity` subclass both inherit every level,
 and `SiteUser` joins the model by reference — a core-only context gets `Author`/`Editor` with
