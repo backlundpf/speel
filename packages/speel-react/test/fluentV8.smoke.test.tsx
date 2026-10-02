@@ -308,6 +308,21 @@ describe("v8 surface chrome", () => {
     expect(screen.getByTestId("resize-handle")).toBeInTheDocument();
   });
 
+  it("V8Dialog's corner handle is a named tab stop the arrow keys resize", () => {
+    render(
+      <V8Dialog open onOpenChange={() => {}} title="Sized" size="medium">
+        body
+      </V8Dialog>,
+    );
+    const handle = screen.getByRole("button", { name: "Resize dialog" });
+    expect(handle).toHaveAttribute("tabindex", "0");
+    expect(handle).not.toHaveAttribute("aria-hidden");
+    const main = handle.closest(".ms-Dialog-main") as HTMLElement;
+    const before = parseFloat(main.style.width);
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    expect(parseFloat(main.style.width)).toBe(before + 16);
+  });
+
   it("V8Panel mounts with a resize handle without throwing", () => {
     render(
       <V8Panel open onOpenChange={() => {}} title="Side">

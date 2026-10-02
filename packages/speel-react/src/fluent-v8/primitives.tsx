@@ -295,6 +295,21 @@ const FOCUSABLE =
   'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 const DIALOG_MIN = { w: 360, h: 260 };
 
+/** The modal's size caps (its CSS 96vw x 92vh) and the viewport it must stay inside.
+ *  Read at render, like the panel's max; empty outside a browser. */
+function viewportBounds(): {
+  max?: { w: number; h: number };
+  bounds?: { w: number; h: number };
+} {
+  if (typeof window === "undefined") return {};
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  return {
+    max: { w: Math.floor(w * 0.96), h: Math.floor(h * 0.92) },
+    bounds: { w, h },
+  };
+}
+
 /**
  * Centered modal on Fluent `Modal` (not `Dialog`, which imposes its own header +
  * a second scroll container). The content is a flex column that fills the modal:
@@ -313,8 +328,17 @@ export function V8Dialog(p: DialogProps): JSX.Element {
   const presetW = DIALOG_WIDTH[p.size ?? "medium"];
   const presetH = DIALOG_HEIGHT[p.size ?? "medium"];
   const { size, transform, dragHandleProps, resizeHandleProps } = useDragResize(
-    { min: DIALOG_MIN, initial: { w: presetW, h: presetH } },
+    {
+      min: DIALOG_MIN,
+      initial: { w: presetW, h: presetH },
+      // The same caps the frame's CSS applies (96vw x 92vh), and the viewport as the box
+      // a drag or resize cannot carry the modal out of.
+      ...viewportBounds(),
+      label: "Resize dialog",
+    },
   );
+  const [gripLit, setGripLit] = React.useState(false);
+  const grip = gripLit ? "3px solid #0078d4" : "2px solid #c8c6c4";
 
   const width = fullscreen ? "96vw" : resizable ? size.w : presetW;
   const height = fullscreen ? "92vh" : resizable ? size.h : presetH;
@@ -374,6 +398,8 @@ export function V8Dialog(p: DialogProps): JSX.Element {
           className="speel-modal-bar"
           {...(draggable && !fullscreen ? dragHandleProps : {})}
           style={{
+            // A touch-drag on the bar moves the modal rather than scrolling.
+            ...(draggable && !fullscreen ? { touchAction: "none" } : {}),
             flex: "0 0 auto",
             display: "flex",
             alignItems: "center",
@@ -445,18 +471,39 @@ export function V8Dialog(p: DialogProps): JSX.Element {
         {resizable && !fullscreen ? (
           <div
             {...resizeHandleProps}
-            aria-hidden
             data-testid="resize-handle"
+            onPointerEnter={() => setGripLit(true)}
+            onPointerLeave={() => setGripLit(false)}
+            onFocus={() => setGripLit(true)}
+            onBlur={() => setGripLit(false)}
             style={{
               position: "absolute",
-              right: 2,
-              bottom: 2,
-              width: 16,
-              height: 16,
+              right: 0,
+              bottom: 0,
+              width: 18,
+              height: 18,
               cursor: "nwse-resize",
               zIndex: 1,
+              outline: "none",
+              // Claim the gesture, or a touch-drag scrolls instead of resizing.
+              touchAction: "none",
             }}
-          />
+          >
+            {/* The corner it resizes, drawn quietly; it speaks up on hover or focus. */}
+            <span
+              style={{
+                position: "absolute",
+                right: 3,
+                bottom: 3,
+                width: gripLit ? 10 : 8,
+                height: gripLit ? 10 : 8,
+                borderRight: grip,
+                borderBottom: grip,
+                transition:
+                  "width 120ms ease, height 120ms ease, border-color 120ms ease",
+              }}
+            />
+          </div>
         ) : null}
       </div>
     </Modal>
