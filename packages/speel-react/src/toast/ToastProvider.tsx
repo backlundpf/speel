@@ -11,7 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import { useSpeelUI } from "../context.js";
 import { useHostFontFamily } from "../overlay/useHostFont.js";
-import { Z } from "../layers.js";
+import { ABOVE_BLOCKING_ATTR, Z } from "../layers.js";
 
 export type ToastIntent = "info" | "success" | "warning" | "error";
 export type ToastPosition =
@@ -223,6 +223,7 @@ function ToastContainer({
         <div
           key={position}
           data-position={position}
+          {...{ [ABOVE_BLOCKING_ATTR]: "" }}
           style={{
             position: "fixed",
             zIndex: Z.toasts,

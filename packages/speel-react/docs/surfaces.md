@@ -173,9 +173,17 @@ is clamped to the viewport less a visible strip — a panel dragged past the edg
 its own handle with it. Panel width is per-mount state: it survives an open/close cycle
 while the component stays mounted, and resets on reload.
 
-`useResizable` is exported if you are building your own skin's chrome — `min`, `max`,
-`step`, `invertX` and `label` shape it, and the `handleProps` it returns carry the role,
-the tab stop, and both handlers.
+A modal's corner grip works the same way: it lights up on hover or focus, is a named tab
+stop the arrow keys resize, and takes touch and pen as well as a mouse. The title bar drags
+the modal by pointer only; there is no keyboard move, since repositioning a centered modal
+is cosmetic and the keyboard already has resize and the fullscreen toggle. Both the drag
+and the resize stop at the viewport edges, so a modal cannot be pushed off screen or grown
+past it.
+
+`useResizable` (panel edge) and `useDragResize` (modal corner + title bar) are exported if
+you are building your own skin's chrome — `min`, `max`, `step` and `label` shape both, and
+the handle props they return carry the role, the tab stop, and the pointer and key
+handlers.
 
 > Stability: still settling. Chrome defaults (which features are on by default) are
 > implemented in the `fluentV8Adapter` skin and may be adjusted before 1.0.

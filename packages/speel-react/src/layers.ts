@@ -9,3 +9,9 @@ export const Z = {
   runningTasks: 3_000_000,
   toasts: 4_000_000,
 } as const;
+
+/** Marks a body-level layer that stacks above the blocking scrim (toasts, the running-task
+ *  stack), so a blocking task leaves it reachable instead of making it inert. */
+export const ABOVE_BLOCKING_ATTR = "data-speel-above-blocking";
+/** Marks a blocking overlay's own root (one per provider), which a block never seals. */
+export const BLOCKING_OVERLAY_ATTR = "data-speel-blocking-overlay";

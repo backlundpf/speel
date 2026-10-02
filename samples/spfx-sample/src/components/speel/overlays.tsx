@@ -35,6 +35,21 @@ import { iconFor } from "./icons";
 const DIALOG_WIDTH = { small: 480, medium: 640, large: 840 } as const;
 const DIALOG_HEIGHT = { small: 440, medium: 560, large: 640 } as const;
 const DIALOG_MIN = { w: 360, h: 260 };
+
+/** The dialog's size caps (its CSS 96vw x 92vh) and the viewport it must stay inside.
+ *  Read at render; empty outside a browser. */
+function viewportBounds(): {
+  max?: { w: number; h: number };
+  bounds?: { w: number; h: number };
+} {
+  if (typeof window === "undefined") return {};
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  return {
+    max: { w: Math.floor(w * 0.96), h: Math.floor(h * 0.92) },
+    bounds: { w, h },
+  };
+}
 const SHEET_WIDTH = { small: 420, medium: 640, large: 880 } as const;
 
 /**
@@ -103,6 +118,8 @@ export function ShadDialog(p: DialogProps): ReactElement {
     {
       min: DIALOG_MIN,
       initial: { w: presetW, h: presetH },
+      ...viewportBounds(),
+      label: "Resize dialog",
     },
   );
 
@@ -154,7 +171,7 @@ export function ShadDialog(p: DialogProps): ReactElement {
           {...(draggable && !fullscreen ? dragHandleProps : {})}
           className={cn(
             "flex flex-none items-center gap-2 border-b px-5 py-3",
-            draggable && !fullscreen && "cursor-move",
+            draggable && !fullscreen && "cursor-move touch-none",
           )}
         >
           {/* DialogTitle always rendered for a11y; renders empty string when title is undefined */}
@@ -200,12 +217,14 @@ export function ShadDialog(p: DialogProps): ReactElement {
           </div>
         ) : null}
         {resizable && !fullscreen ? (
+          // The corner it resizes, drawn quietly; it speaks up on hover or keyboard focus.
           <div
             {...resizeHandleProps}
-            aria-hidden
             data-testid="resize-handle"
-            className="absolute right-0.5 bottom-0.5 z-10 size-4 cursor-nwse-resize"
-          />
+            className="group absolute right-0 bottom-0 z-10 size-[18px] touch-none cursor-nwse-resize outline-none"
+          >
+            <span className="absolute right-[3px] bottom-[3px] size-2 border-r-2 border-b-2 border-border transition-[width,height,border-color] duration-150 group-hover:size-2.5 group-hover:border-r-[3px] group-hover:border-b-[3px] group-hover:border-primary group-focus:size-2.5 group-focus:border-r-[3px] group-focus:border-b-[3px] group-focus:border-primary" />
+          </div>
         ) : null}
       </DialogContent>
     </Dialog>

@@ -135,8 +135,10 @@ destructive `Button` in the error color; render `MessageBarProps.actions` (array
 Two hooks in `@speel/react` exist specifically to help skin authors implement dialog and
 drawer chrome without duplicating the resize/drag logic:
 
-- **`useDragResize`** — manages drag-to-reposition and corner/edge resize for a dialog
-  element. Returns position and size state plus event handlers to attach.
+- **`useDragResize`** — manages drag-to-reposition and corner resize for a dialog
+  element. Returns size and transform state, pointer handlers for the title bar, and
+  props for the corner handle (a named tab stop the arrow keys resize). Pass `max` and
+  `bounds` (the viewport) to keep the dialog on screen.
 - **`useResizable`** — manages single-edge resize (typically the leading edge of a
   drawer). Returns width state and the handle props: pointer and keyboard handlers plus
   the `separator` role and tab stop that make the edge reachable without a mouse.

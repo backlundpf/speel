@@ -224,6 +224,7 @@ export type {
 // Skin-support hooks — drag/resize behaviors shared by Dialog/Drawer skin implementations
 export { useDragResize } from "./surface/useDragResize.js";
 export type {
+  CornerResizeHandleProps,
   DragResizeOptions,
   DragResizeState,
 } from "./surface/useDragResize.js";

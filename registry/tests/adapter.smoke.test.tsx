@@ -475,6 +475,27 @@ describe("shadcnAdapter smoke", () => {
     expect(content!.className).toContain("transition-none");
   });
 
+  it("Dialog's corner handle is a named tab stop the arrow keys resize", () => {
+    render(
+      <shadcnAdapter.Dialog open onOpenChange={noop} title="sized">
+        body
+      </shadcnAdapter.Dialog>,
+    );
+    const handle = document.querySelector<HTMLElement>(
+      '[data-testid="resize-handle"]',
+    )!;
+    expect(handle).toHaveAttribute("role", "button");
+    expect(handle).toHaveAttribute("aria-label", "Resize dialog");
+    expect(handle).toHaveAttribute("tabindex", "0");
+    expect(handle).not.toHaveAttribute("aria-hidden");
+    const content = document.querySelector<HTMLElement>(
+      '[data-slot="dialog-content"]',
+    )!;
+    const before = parseFloat(content.style.width);
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    expect(parseFloat(content.style.width)).toBe(before + 16);
+  });
+
   it("portaled surfaces self-tag with speel-shadcn for scoped base styles", () => {
     render(
       <shadcnAdapter.Dialog open onOpenChange={noop} title="t">
