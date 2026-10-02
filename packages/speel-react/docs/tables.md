@@ -118,27 +118,12 @@ field so it keeps that field's Choice select, and point `render`, `sortValue`, a
 filtering and sorting as another — unfindable by the status the user can actually see. The
 side-map idiom under Boundaries shows the shape.
 
-### Opening pre-filtered
+### Opening pre-filtered, sorting, filtering, and searching
 
-`defaultTableState` seeds the same state the header controls write to, so a surface that should
-open on "pending" shows filters the user can see and clear rather than a silently narrowed
-list:
-
-```tsx
-defaultTableState={{
-  columns: [],
-  filters: {
-    Status: { kind: 'select', selected: ['Pending'] },
-    DueDate: { kind: 'dateRange', preset: 'thisFiscalQuarter' },
-  },
-  sort: { key: 'DueDate', direction: 'asc' },
-}}
-```
-
-It seeds once, and carries sort, columns, and page size in the same value. A key that names
-nothing, or a criteria whose `kind` the filter cannot interpret, throws at mount rather than
-leaving the table quietly unfiltered — the same guarantee `scope` carries. With views in play,
-author `defaultViews` instead: see [table views](table-views.md).
+Every model-backed column sorts and filters by its field type with no configuration;
+`defaultTableState` opens the table on filters the user can see and clear, and `search` adds
+a toolbar search over the visible text. All of it is on
+[table sort, filter, and search](table-filtering.md).
 
 ### Row emphasis
 
@@ -162,7 +147,7 @@ exists are ignored, and columns it does not mention are appended — so adding a
 model reaches users who have already customised their table. For saved views over that state,
 shareable links, and the `scope` layer, see [table views](table-views.md).
 
-### Paging, export, and print
+### Paging
 
 `pageSize` switches on a pager over the filtered-and-sorted set, with a rows-per-page picker
 (`pageSizeOptions`, defaulting to 10/25/50/100). Omitted, every row renders. Paging is
@@ -170,82 +155,11 @@ client-side: it makes a long list navigable, but the fetch still pulls everythin
 reads `‹ Page [2] of 7 ›` — the page is a picker, so a distant page is one pick away rather
 than five clicks — with the item count at the other end of the same line.
 
-`exportCsv` adds an Export button to the toolbar; `toolbar` puts your own controls beside it.
-Both components also expose `exportCsv()` on their `ref`, which works whether or not the prop
-was passed. Either way the file covers every matched row, not just the visible page — and only
-the visible columns. Each cell exports the text it displays; `exportValue` overrides that, and
-is how you emit a raw number or ISO date for a file something else will parse.
+### Export and print
 
-`exportXlsx` is the spreadsheet sibling: the same matched rows and visible columns as the
-CSV, written as a real `.xlsx` workbook — one sheet, a bold header row, and columns sized to
-their content. The difference that matters is that cells are **typed**: a column with an
-`exportValue` returning a number arrives as a number Excel can sum, a `Date` as a real date
-cell, a boolean as Yes/No, and an empty value as a genuinely blank cell. Columns without an
-`exportValue` still export their displayed text, exactly as the CSV does. Name the file and
-the sheet with `exportXlsx={{ fileNamePrefix: 'requests', sheetName: 'Open requests' }}`, or
-fire it yourself with `ref.current.exportXlsx()`.
-
-`print` is the paper sibling: it adds a Print button that opens a plain black-on-white report
-— title, generated-at stamp, and the same matched rows and visible columns the export covers —
-and sends it to the browser's print dialog. `print` titles the report after the entity,
-`print={{ title: 'Request Status Report' }}` names it yourself, and `ref.current.print()` fires
-it from your own control. Cells read exactly as they do in the CSV, `exportValue` included.
-
-### Type-driven sort and filter
-
-Every model-backed column gets a per-header filter control and a clickable sort affordance
-without configuration. While any filter is active, the bar of clearable chips above the table
-also reports `12 of 340 items`, so it is never ambiguous that rows are being omitted. The
-filter kind is inferred from the field type:
-
-| Field type                    | Filter kind                                                 |
-| ----------------------------- | ----------------------------------------------------------- |
-| `Text`, `MultiLine`, `Url`, … | text contains                                               |
-| `Number`, `Currency`          | numeric range                                               |
-| `DateTime`                    | date range (from/to pickers)                                |
-| `Boolean`                     | three-way (yes / no / any)                                  |
-| `Choice`, `MultiChoice`       | multi-select of the declared options; text for an open list |
-
-Date columns can additionally offer a preset dropdown (`today`, `thisWeek`, `thisMonth`,
-`thisQuarter`, `thisYear`, `yearToDate`, `last7Days`, `last30Days`, `thisFiscalYear`,
-`thisFiscalQuarter`) — presets are opt-in: declare them on the model with
-`.useTableFilter({ kind: 'dateRange', presets: [...] })`. Fiscal-year presets resolve from
-`SpeelProvider`'s `fiscalYearStartMonth` config (default October). Sort order is type-aware:
-numeric, date, and choice fields sort naturally (a choice by declared position, or by text
-when its list is open); text falls back to `localeCompare`; empty values sort last. Pass
-`sortable={false}` or `filterable={false}` to disable globally; pass
-`tableFilter={{ kind: 'none' }}` in a `ColumnDescriptor` to suppress the filter for a
-specific column.
-
-**A filter or sort key does not need a column.** Keys resolve against the columns first and
-then against the model itself, deriving the same accessor, comparator, and filter an automatic
-column would — so a view that filters on `FiscalYear` works whether or not that column is
-displayed, and its chip is labelled with the field's display name. Defining a column purely to
-make a saved filter true is never necessary.
-
-**A `Json` column is the one field type left out of the table above.** It renders and exports
-(the shape's first visible property, joined across elements for a `multi` value — the same
-headline `formatFieldValue` gives a Json cell everywhere) but it never sorts or filters, even
-with an override — there is no honest comparator for a shape and no per-scalar filter kind for
-one. A **custom** column sorts instead: give it a `key` that names no model field, and its own
-`sortValue` gets a natural comparator rather than being ignored:
-
-```tsx
-{ key: 'StepCount', header: 'Steps', render: (r) => r.Tasks?.length ?? 0,
-  sortValue: (r) => r.Tasks?.length ?? 0 }
-```
-
-### Search
-
-`search` adds a search box to the toolbar — `search={{ placeholder: 'Find a request' }}` names
-it. It reads **what you see**: the text of every visible column, exactly as export and print
-read it, so a masked column is found by its mask and a hidden column is not searched. Every
-whitespace-separated term must appear somewhere in the row, in any order and any case —
-`smith 2026` finds Smith's 2026 rows. The search narrows the same set the column filters do,
-so the footer reads `12 of 340 items`, export and print follow it, and the chip bar's Clear
-clears it along with the chips; it works whether or not `filterable` is on. The text is part
-of `tableState` (`search`), so a link carries it and a view can save it: see
-[table views](table-views.md).
+`exportCsv`, `exportXlsx`, and `print` add toolbar actions that write out every matched row
+and the visible columns — as CSV, as a typed Excel workbook, or as a print report. See
+[table export](table-export.md).
 
 ### Row actions
 
@@ -276,19 +190,10 @@ rowActions={{ onEdit, custom: [
   back at a parent) are not auto-loaded — they would be an N+1 per row and are not
   typical table columns. Use `SpeelTable` with a manual query if you need them.
 
-- **`sortValue` on a field-keyed column keeps the field's comparator.** That is the point —
-  a masked `Choice` value still sorts in declared option order rather than alphabetically,
-  and a masked value still matches the same filter control — but the value you return has to
-  belong to the field's domain. If you need a sort key of a different type, key the column to
-  a name of its own: a custom column gets a natural comparator instead.
-
 - **Entity must be registered.** `SpeelTable` (and by extension `SpeelEntityTable`)
   throws immediately if the `of` constructor is not registered in the model. Check
   `onModelCreating` in your context class.
 
-- **A `Json` column never sorts, even with `sortable: true` or a `sortValue`.** There is no
-  honest comparator for a shape, so a field-keyed column ignores both — see Type-driven sort
-  and filter above for the custom-column workaround.
 
 - **Derived values live in a side map.** `items` must be model entities, since columns
   resolve against `EntityType` metadata. When a row's display values come from elsewhere — a
@@ -309,10 +214,6 @@ rowActions={{ onEdit, custom: [
   ]}
   ```
 
-- **Hiding a column keeps its sort and its filter.** Both resolve from the full column set, not
-  the visible one — and from the model when no column carries the key at all — so hiding a
-  filtered column narrows nothing; the chip above the table stays the way to clear it. Sort has
-  no chip, so a table sorted by a hidden column looks unsorted.
 
 - **Columns keep their widths; the table scrolls.** Every rendered column is laid out at the
   width it holds — a live drag, else a view or descriptor width, else a readable default — and
@@ -322,23 +223,3 @@ rowActions={{ onEdit, custom: [
   still session-only: it never enters the lifted state and is gone on refresh. A header label
   never truncates either: it wraps and the header row grows, with the full label as the hover
   tooltip. Only a single word wider than the whole column breaks mid-word — the cue to widen it.
-
-- **Print mirrors the screen too.** The report carries the filtered rows and the visible
-  columns — the whole matched set, not the rendered page — so a filter narrows what prints and
-  a hidden column stays off the paper. Printing needs a popup window: if the browser blocks it,
-  the action is a silent no-op rather than an error.
-
-- **Export mirrors the screen.** A cell's text is read from what the column renders, so a
-  masked column exports the masked value and a currency column exports `$1,234.00` rather than
-  `1234`. Two consequences: a cell whose text lives inside a custom component
-  (`<StatusPill value={x} />`) has no readable text until it renders, so give those columns an
-  `exportValue`; and in the CSV, values beginning with `=`, `+`, `-`, or `@` are prefixed with
-  an apostrophe, since Excel would otherwise execute them as formulas. The xlsx writer needs
-  no such guard — it writes inline strings, which Excel never evaluates — so the apostrophe
-  appears in the CSV only.
-
-- **`$1,234.00` is text in a spreadsheet too.** A typed xlsx cell is only as typed as its
-  source: without an `exportValue` the writer receives the rendered string, and a column of
-  formatted currency lands as text Excel will not sum. If the workbook is meant to be
-  calculated on rather than read, give those columns an `exportValue` returning the raw
-  number or `Date`.

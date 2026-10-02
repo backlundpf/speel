@@ -122,10 +122,16 @@ navigation expands.
   Fluent v8 skin, or understanding how the layer stack fits together.
 - [Forms](docs/forms.md) — read when building entity forms with `useEntityForm`, `SpeelForm`,
   `SpeelField`, or `EntityFields`.
+- [Fields](docs/fields.md) — read when composing a form field by field, rendering a field
+  outside a form, picking people, or editing a JSON shape.
 - [Selection fields](docs/selection.md) — read when a Choice or lookup picker offers the wrong
   rows, loads too much, should add what the user typed, or renders radios with "Other".
 - [Tables](docs/tables.md) — read when displaying entity data with `SpeelTable` or
   `SpeelEntityTable`, customising columns, or using the reload handle.
+- [Table sort, filter, and search](docs/table-filtering.md) — read when a table should open
+  pre-filtered, a column should sort or filter on a derived value, or users need to search rows.
+- [Table export](docs/table-export.md) — read when getting rows out of a table as CSV, Excel, or
+  print.
 - [Surfaces](docs/surfaces.md) — read when opening modal/panel overlays imperatively with
   `useSurfaces` / `useOverlays`, or declaratively with `SpeelModal` / `SpeelPanel`.
 - [Feedback](docs/feedback.md) — read when showing toasts, notifications, or progress for
