@@ -1287,16 +1287,20 @@ export function V8Combobox(p: ComboboxProps): JSX.Element {
   // false, so that refocus lands here while `openRef.current` is still true and is a
   // no-op, rather than reopening the list the pick just closed.
   //
-  // Opening via the caret button re-enters this once, by design, not a bug: the caret
-  // click bubbles here while the input is not yet focused, so `.focus(true)` below
-  // both focuses it (firing a real focus event, which bubbles back into this same
-  // handler) and asks to open. That nested call finds the input already focused, so
-  // its own `.focus(true)` is a plain no-op focus call — the recursion is one level
-  // deep and stops there.
+  // A caret click bubbles here after Fluent's own `_onComboBoxClick` has toggled the
+  // list open in the same batch; `.focus(true)` asks for the same `isOpen: true`, so the
+  // two merge into one open. It also moves focus to the input, whose focus event bubbles
+  // into `openOnFocus` and lands here once more as a no-op focus call.
   const openIfClosed = (): void => {
     if (!openRef.current) comboRef.current?.focus(true);
   };
-  const openOnFocus = (): void => {
+  const openOnFocus = (e: React.FocusEvent<HTMLElement>): void => {
+    // Only focus landing on the input opens the list. The caret button (tabIndex -1,
+    // but still mouse-focusable) takes focus on mousedown; opening there let the click
+    // on release run Fluent's toggle against an already-open list and shut it again, so
+    // a caret press held the list open only while held down (#34). The caret's click
+    // opens it instead, through Fluent's toggle and `openIfClosed`.
+    if (e.target instanceof Element && e.target.closest("button")) return;
     // Not while a create is out: a create that opened a surface (`createsByForm`'s
     // modal) took focus away, and the surface hands it back when it closes — before the
     // create has landed. Nor inside the window after one lands, and for every focus
