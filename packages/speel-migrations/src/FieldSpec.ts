@@ -5,6 +5,16 @@ export interface FieldSpecBase {
   required?: boolean;
   indexed?: boolean;
   default?: unknown;
+  /**
+   * Create the column hidden from forms and views. Creation only — `alterField`
+   * does not toggle it. A hidden column never joins the default view.
+   */
+  hidden?: boolean;
+  /**
+   * Add the new column to the list's default view. Default true; pass `false`
+   * for system or tracking columns. Creation only.
+   */
+  addToDefaultView?: boolean;
 }
 
 export type FieldSpec =

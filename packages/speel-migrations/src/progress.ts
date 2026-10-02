@@ -14,7 +14,13 @@ export type MigrationEvent =
   // then narrow each away, which a shared member would not allow.
   | { kind: "migration-start"; migrationId: string; direction: "up" | "down" }
   | { kind: "migration-done"; migrationId: string; direction: "up" | "down" }
-  | { kind: "step-start"; migrationId: string; summary: string }
+  | {
+      kind: "step-start";
+      migrationId: string;
+      summary: string;
+      /** Why this step may lose data — see `PlanStep.warning`. It runs anyway. */
+      warning?: string;
+    }
   | {
       kind: "step-done";
       migrationId: string;
@@ -22,6 +28,8 @@ export type MigrationEvent =
       status: "applied" | "skipped" | "failed";
       /** The failure message — present only on `status: 'failed'`. */
       error?: string;
+      /** Why this step may lose data — repeated from its `step-start`. */
+      warning?: string;
     };
 
 export interface MigrateOptions {

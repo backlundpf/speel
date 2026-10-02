@@ -22,6 +22,11 @@ export interface PlanStep {
   willRun: boolean;
   /** Data loss if it runs: dropField, dropList. */
   destructive: boolean;
+  /**
+   * Set when an alterField changes the column's type in a way that may lose
+   * data (Note → Text truncates to 255 characters). The step still runs.
+   */
+  warning?: string;
   presence: StepPresence;
   /** Custom code — effects cannot be previewed. */
   opaque: boolean;

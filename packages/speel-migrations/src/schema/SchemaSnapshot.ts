@@ -1,4 +1,5 @@
 import type { SchemaOperation } from "../operations/operations.js";
+import { spFieldTypeOf } from "../plan/dataLoss.js";
 
 export interface FieldInfo {
   internalName: string;
@@ -103,7 +104,7 @@ export function applyResultToSnapshot(
       if (!l) return;
       l.fields.set(op.field.internalName, {
         internalName: op.field.internalName,
-        typeAsString: op.field.kind,
+        typeAsString: spFieldTypeOf(op.field),
         required: op.field.required ?? false,
         indexed: op.field.indexed ?? false,
       });
@@ -112,6 +113,7 @@ export function applyResultToSnapshot(
     case "alterField": {
       const f = lists.get(op.list)?.fields.get(op.field.internalName);
       if (!f) return;
+      f.typeAsString = spFieldTypeOf(op.field);
       f.required = op.field.required ?? false;
       if (op.field.indexed !== undefined) f.indexed = op.field.indexed;
       return;

@@ -28,6 +28,11 @@ export type { OpFence, RunOperation } from "./plan/waves.js";
 
 export { summarizeOp, isDestructive, buildSteps } from "./plan/buildSteps.js";
 export { annotateSteps } from "./plan/presence.js";
+export {
+  spFieldTypeOf,
+  alterFieldDataLoss,
+  annotateDataLoss,
+} from "./plan/dataLoss.js";
 export type {
   MigrationPlan,
   PlanStep,
