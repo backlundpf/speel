@@ -143,12 +143,12 @@ if (report.status === "drift") {
 `diffSecurable`/`planOperations` are pure: the actual state arrives ON the securable (an
 entity carrying the snapshot, or anything structurally `ISecurable` built from a raw read),
 and desired state is one options-bag (`DesiredPermissions`) of ordinary `RoleAssignment`s —
-roles compared as exact sets, `SYSTEM_ROLES` ("Limited Access", …) filtered everywhere. What
-a confirmation dialog renders from the plan is exactly what runs. `applySecurables` stages
-EVERY entry's plan on the one queue and saves once — cross-resource batching with
-per-securable honesty: results align with the input, and a securable with failed operations
-reports `ok: false` with its partial count while its batchmates stay `ok: true`.
-`applySecurable` is one-entry sugar.
+roles compared as exact sets, `SYSTEM_ROLES` ("Limited Access", …) filtered everywhere. The
+plan is what runs, plus one thing: SharePoint gives the caller Full Control on a `break`, and
+apply revokes it after the grants unless the plan grants it. `applySecurables` stages EVERY
+plan on one queue and saves once (plus that follow-up) — results align with the input; a
+securable with failed operations reports `ok: false` with its partial count and keeps the
+caller's Full Control, so a re-run converges it. `applySecurable` is one-entry sugar.
 
 **Testing.** `@speel/identity/testing` ships `seedSecurable(provider, list, id, { unique,
 assignments })`, stating a row's snapshot on `FakeStorageProvider` in the simple shape

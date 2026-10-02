@@ -81,6 +81,28 @@ as `Principal`, the same type a Person/Group field materializes into, so a searc
 assigned straight to a field value. This is the natural implementation for `@speel/react`'s
 `peopleSearch` prop, replacing the per-app resolver.
 
+The people picker alone misses reordered or partial names. Give `useSharePointIdentity` a
+`graph` source and search also asks Microsoft Graph (Entra ID users): every typed word must
+start a word of the person's name, in any order — "John Smith", "Smith, John", "Smi Jo" — and
+a single word may also start their login or email ("smithj@…"). Picker hits keep their ranking
+first; Graph hits it missed follow, de-duplicated by login, `maxResults` capping the merge.
+`graph` is any function that performs a Graph GET and returns the JSON body, so SPFx's
+`MSGraphClientV3` adapts in one line:
+
+```ts
+const client = await this.context.msGraphClientFactory.getClient("3");
+useSharePointIdentity({
+  spfxContext: this.context,
+  graph: ({ path, query, headers }) =>
+    client.api(path).headers(headers).query(query).get(),
+});
+```
+
+It needs delegated **`User.ReadBasic.All`**: request it in `config/package-solution.json`
+(`"webApiPermissionRequests": [{ "resource": "Microsoft Graph", "scope": "User.ReadBasic.All" }]`)
+and have a tenant admin approve it under API access in the SharePoint admin center. Until
+then the Graph call fails and search quietly falls back to the picker.
+
 **Groups.** `groups.getByName(title)` and `all()` read the `siteGroups` set — the one place a
 group's `Description` and `OwnerTitle` come from.
 
