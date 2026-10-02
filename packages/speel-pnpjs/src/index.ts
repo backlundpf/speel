@@ -13,3 +13,8 @@ export { fieldSpecToUpdate } from "./schema/fieldSpecToUpdate.js";
 export { useSharePointIdentity } from "./identity/useSharePointIdentity.js";
 export type { IUseSharePointIdentityOptions } from "./identity/useSharePointIdentity.js";
 export { SharePointIdentityProvider } from "./identity/SharePointIdentityProvider.js";
+export type {
+  SharePointIdentityProviderOptions,
+  GraphGet,
+  GraphGetRequest,
+} from "./identity/SharePointIdentityProvider.js";
