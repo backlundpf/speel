@@ -28,6 +28,7 @@ import type {
 } from "@speel/identity";
 import { KIND } from "./kindMap.js";
 import { maskFor, withKinds } from "./permissionMask.js";
+import { searchDirectoryUsers, type GraphGet } from "./graphPeopleSearch.js";
 
 type Rec = Record<string, unknown>;
 
@@ -76,8 +77,28 @@ function fromPickerEntity(entity: PickerEntity): Rec {
   return rec;
 }
 
+export type { GraphGet, GraphGetRequest } from "./graphPeopleSearch.js";
+
+export interface SharePointIdentityProviderOptions {
+  /**
+   * A second people-search source: Microsoft Graph (Entra ID users), merged after the
+   * people picker. Omit it and search is the people picker alone.
+   */
+  graph?: GraphGet;
+}
+
+const loginKey = (rec: Rec): string | undefined =>
+  typeof rec.LoginName === "string" ? rec.LoginName.toLowerCase() : undefined;
+
 export class SharePointIdentityProvider implements IIdentityProvider {
-  constructor(private readonly sp: SPFI) {}
+  readonly #graph: GraphGet | undefined;
+
+  constructor(
+    private readonly sp: SPFI,
+    options: SharePointIdentityProviderOptions = {},
+  ) {
+    this.#graph = options.graph;
+  }
 
   async getCurrentUserAsync(): Promise<Rec> {
     return await this.sp.web.currentUser();
@@ -200,15 +221,45 @@ export class SharePointIdentityProvider implements IIdentityProvider {
     return { ...created };
   }
 
+  /**
+   * The people picker, plus — when a Graph source is configured — a directory search that
+   * finds a person by every word typed, in any order ("Smith, John", "Smi Jo"), or by the
+   * start of their login or address. The picker's ranking comes first; directory hits it
+   * did not return follow, de-duplicated by login, and `maxResults` caps the merge.
+   *
+   * The sources run concurrently. A failed directory search (most often the Graph permission
+   * not yet approved) leaves the picker's answer standing rather than breaking the picker.
+   */
   async searchPrincipalsAsync(
     query: string,
     maxResults: number,
   ): Promise<Rec[]> {
-    const results = await this.sp.profiles.clientPeoplePickerSearchUser({
-      QueryString: query,
-      MaximumEntitySuggestions: maxResults,
-    });
-    return (results as PickerEntity[]).map(fromPickerEntity);
+    const picker = this.sp.profiles
+      .clientPeoplePickerSearchUser({
+        QueryString: query,
+        MaximumEntitySuggestions: maxResults,
+      })
+      .then((results) => (results as PickerEntity[]).map(fromPickerEntity));
+    if (this.#graph === undefined) return await picker;
+
+    const directory = searchDirectoryUsers(
+      this.#graph,
+      query,
+      maxResults,
+    ).catch((): Rec[] => []);
+    const [fromPicker, fromDirectory] = await Promise.all([picker, directory]);
+
+    const seen = new Set(
+      fromPicker.map(loginKey).filter((k): k is string => k !== undefined),
+    );
+    const merged = [...fromPicker];
+    for (const rec of fromDirectory) {
+      const key = loginKey(rec);
+      if (key === undefined || seen.has(key)) continue;
+      seen.add(key);
+      merged.push(rec);
+    }
+    return merged.slice(0, maxResults);
   }
 
   // ---- permissions -------------------------------------------------------------------
