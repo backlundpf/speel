@@ -23,8 +23,11 @@ packages/speel-core/
   docs/
     modeling.md        # ModelBuilder, entity/property/field configs, validations
     querying.md        # filter builder, operators, ordering, paging, asNoTracking
+    loading.md         # include / thenInclude / expand, round-trip cost
     saving.md          # change tracking, add/update/delete, saveChangesAsync
-    relationships.md   # navs, FK inference, fixup, inverse collections, loading
+    files.md           # folders, file uploads, direct file/folder operations
+    relationships.md   # navs, FK inference, fixup, inverse collections, explicit loading
+    shapes.md          # @JsonShape values stored inside a column
     forms.md           # form-state surface: field state, options, validation
     permissions.md     # PermissionsBuilder, RoleAssignments, principals
     caching.md         # list caching + incremental sync
@@ -45,8 +48,11 @@ packages/speel-react/
   README.md
   docs/
     setup.md           # SpeelProvider, SpeelConfiguration, layers, fluent-v8 skin
-    forms.md           # useEntityForm, SpeelForm, SpeelField/EntityFields
-    tables.md          # SpeelTable vs SpeelEntityTable, columns, sort/filter, reload handle
+    forms.md           # useEntityForm, SpeelForm, sections, validation surfacing
+    fields.md          # SpeelField/EntityFields, headless fields, people picker, shape editing
+    tables.md          # SpeelTable vs SpeelEntityTable, columns, paging, reload handle
+    table-filtering.md # type-driven sort/filter, pre-filtered opening, search
+    table-export.md    # CSV, xlsx, print, exportValue
     surfaces.md        # SpeelModal/SpeelPanel, useSurfaces/useOverlays, disclosure
     feedback.md        # toasts, notifications, active tasks
     migrations-ui.md   # migrations admin surface

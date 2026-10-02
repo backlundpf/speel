@@ -194,7 +194,6 @@ rowActions={{ onEdit, custom: [
   throws immediately if the `of` constructor is not registered in the model. Check
   `onModelCreating` in your context class.
 
-
 - **Derived values live in a side map.** `items` must be model entities, since columns
   resolve against `EntityType` metadata. When a row's display values come from elsewhere — a
   parent loaded in the same pass, a computed count, a value masked by business rules — derive
@@ -213,7 +212,6 @@ rowActions={{ onEdit, custom: [
       filterValue: (r) => view.get(r.Id)!.masked },
   ]}
   ```
-
 
 - **Columns keep their widths; the table scrolls.** Every rendered column is laid out at the
   width it holds — a live drag, else a view or descriptor width, else a readable default — and

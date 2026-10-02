@@ -41,7 +41,7 @@ class Employee extends SiteUser {
 // Re-point the inherited Author (typed SiteUser) at Employee; subclasses inherit it.
 abstract class AppEntity extends SpeelEntity {
   @ManyToOne(() => Employee, { readOnly: true, foreignKey: "AuthorId" })
-  readonly Author?: Employee = undefined;
+  override readonly Author?: Employee = undefined;
 }
 
 @Entity({ list: "Projects" })
@@ -130,7 +130,7 @@ provider source, which is what every layer keys on: `@speel/migrations` provisio
 SharePoint User field, `@speel/react` renders it as the people picker (an identity in context
 adds group suggestions and provisioning), and the query pipeline loads it with `.expand()`
 (inline; `Id`/`Title`/`LoginName`/`Email` only) or `.include()` (one extra request on the
-target's own source; `PrincipalType` populated). Details in [querying.md](querying.md) and
+target's own source; `PrincipalType` populated). Details in [loading.md](loading.md) and
 [relationships.md](relationships.md).
 
 ### Everything about _who_ lives in `@speel/identity`
