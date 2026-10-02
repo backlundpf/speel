@@ -129,10 +129,16 @@ Props:
 - **`fields`** — an explicit ordered list of field/nav names (overrides the
   model-derived default set).
 - **`exclude`** — names to drop from the default set without listing everything else.
-- **`actions`** — a `SpeelFormAction[]` that replaces the built-in Save/Cancel footer.
-  Each action specifies `key`, `text`, an optional `primary` flag, a `type`
-  (`'button' | 'submit'`), and an `onClick(form)` callback that receives the
-  `EntityForm` handle.
+- **`actions`** — replaces the built-in Save/Cancel footer. Either an array of
+  `SpeelAction`s — `key`, `text`, an `appearance` (`'primary' | 'secondary' |
+'subtle' | 'danger'`; `primary: true` is shorthand), an optional `align: 'start'`
+  for a split footer, a `type` (`'button' | 'submit'`), and an `onClick(form)` that
+  receives the `EntityForm` handle — or any node, rendered as-is. It is the same
+  `actions` shape surfaces and the `MessageBar` take; `actions={[]}` renders no
+  footer. (`SpeelFormAction` is the deprecated name of the array element.)
+- **`allowEdit`** — `boolean` or `(entity) => boolean`, default `true`. When it is
+  false for the entity, view mode is a read-only display form: the footer drops Edit
+  and the form has no path into edit mode. Close stays on surfaces.
 - **`onSaved`** / **`onCancel`** / **`onError`** — lifecycle callbacks. `onCancel` fires
   from the footer's Cancel, after it has reverted the draft (and, in `'edit'` mode,
   returned to view) — that is where a panel closes itself. Cancel pressed _during_ a
@@ -144,11 +150,13 @@ Props:
   you want context tracking).
 
 After a successful save in `'edit'` mode, `SpeelForm` transitions internally to
-`'view'` mode and the footer changes to an Edit button.
+`'view'` mode and the footer changes to an Edit button (none when `allowEdit` says
+no).
 
 ### `SpeelDocumentForm` — document libraries
 
-For `SpeelDocument` entities, `SpeelDocumentForm` takes the same props plus `accept`
+For `SpeelDocument` entities, `SpeelDocumentForm` takes the same props (`actions` and
+`allowEdit` included) plus `accept`
 and adds the file handling: create mode renders a **required** file input and routes
 the save through `add(entity, { file })` with an upload progress bar; edit/view show
 the stored file as a read-only link (`FileLeafRef` → `FileRef`). A model that

@@ -118,13 +118,13 @@ state. The skin owns header rendering, cell rendering, and sort indicator placem
 column order, widths, and custom cells come from the `TableColumn` spec.
 
 **Menu** — `MenuProps` carries titled sections of items with icons and optional checkmarks.
-Map it to the library's own menu component (Fluent's `ContextualMenu`, radix's dropdown
-menu), not to a popover full of buttons: the roles, arrow-key navigation, and checkmark
-alignment are the point, and a button stack has to fake all three.
+Map it to the library's own menu (Fluent's `ContextualMenu`, radix's dropdown menu), not
+a popover of buttons: roles, arrow keys and checkmark alignment are the point.
 
 **Feedback primitives** — `ButtonProps`, `IconButtonProps`, `MessageBarProps`, and
-`PopoverProps` round out the surface vocabulary. The skin renders these wherever
-`@speel/react` surfaces a generic action or contextual message.
+`PopoverProps` serve every generic action or message. `appearance: "danger"` is a
+destructive `Button` in the error color; render `MessageBarProps.actions` (array or node;
+`multiline` puts it below or beside the text) with the exported `SpeelActionBar`.
 
 **Standalone controls** — `ariaLabel` names an unlabelled `Checkbox`; `indeterminate` shows
 "some selected" (a click reports `true`); `placeholder` explains an empty `Dropdown` or
