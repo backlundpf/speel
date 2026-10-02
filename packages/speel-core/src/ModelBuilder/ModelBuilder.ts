@@ -9,6 +9,7 @@ import {
 } from "../errors.js";
 import { EntityType } from "../Metadata/EntityType.js";
 import { Property } from "../Metadata/Property.js";
+import { resolveReadOnly } from "./fieldTypes/FieldStateBuilder.js";
 import type { JsonFieldConfig } from "../Metadata/FieldConfig.js";
 import type { INavigation, NavigationStorage } from "../Metadata/Navigation.js";
 import type { SpecialExpand } from "../Query/SpecialExpand.js";
@@ -170,7 +171,10 @@ export class ModelBuilder {
             required:
               cfg.fieldState.required === true ||
               typeof cfg.fieldState.required === "function",
-            readOnly: cfg.fieldState.readOnly || (cfg.readOnly ?? false),
+            // The FK column is the navigation's column: it inherits both flags.
+            readOnly:
+              resolveReadOnly(cfg.fieldState) || (cfg.readOnly ?? false),
+            systemGenerated: cfg.fieldState.systemGenerated,
             indexed: cfg.fieldState.indexed,
             key: false,
             ...(cfg.fieldState.hasDefault
@@ -379,7 +383,8 @@ export class ModelBuilder {
           required: navRequired,
           visible: cfg.fieldState.visible,
           enabled: cfg.fieldState.enabled,
-          readOnly: cfg.fieldState.readOnly || (cfg.readOnly ?? false),
+          readOnly: resolveReadOnly(cfg.fieldState) || (cfg.readOnly ?? false),
+          systemGenerated: cfg.fieldState.systemGenerated,
           customValidations: cfg.fieldState.customValidations,
           // `render` is a refinement key, so both `.hasRender()` and a decorator's
           // `{ render }` option write the shared field-state draft — read it there.

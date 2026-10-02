@@ -30,6 +30,8 @@ export interface IPropertyInit {
   config: FieldConfig;
   required: boolean | FieldStateFn<unknown>;
   readOnly: boolean;
+  /** The provider owns this column: never provisioned. Default false. */
+  systemGenerated?: boolean;
   key: boolean;
   indexed?: boolean;
   defaultValue?: unknown;
@@ -55,7 +57,10 @@ export class Property implements IFieldState {
    */
   public readonly codec: IValueCodec | undefined;
   public readonly required: boolean | FieldStateFn<unknown>;
+  /** Never sent to the provider (skipped at save). */
   public readonly readOnly: boolean;
+  /** The provider owns this column (a built-in): migrations never provision it. */
+  public readonly systemGenerated: boolean;
   public readonly key: boolean;
   public readonly indexed: boolean;
   public readonly defaultValue: unknown;
@@ -86,6 +91,7 @@ export class Property implements IFieldState {
       ? [...init.customValidations]
       : [];
     this.readOnly = init.readOnly;
+    this.systemGenerated = init.systemGenerated ?? false;
     this.key = init.key;
     this.indexed = init.indexed ?? false;
     this.defaultValue = init.defaultValue;
