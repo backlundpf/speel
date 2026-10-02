@@ -19,7 +19,6 @@ import {
   DbContext,
   SpeelEntity,
   Entity,
-  Key,
   TextField,
   NoteField,
   ChoiceField,
@@ -32,7 +31,6 @@ import type { FieldContext } from "@speel/core";
 // (`required`, `maxLength`) that mirror the fluent builder's verb methods.
 @Entity({ list: "Tasks" })
 class Task extends SpeelEntity {
-  @Key public Id?: number = undefined;
 
   @TextField({ required: true, maxLength: 120, displayName: "Task Title" })
   public Title: string | null = null;
@@ -75,8 +73,9 @@ Decorators are a thin, deferred replay of the fluent builder, so both paths shar
 mental model: **builder methods are verbs** (`isRequired()`, `hasMaxLength()`),
 **decorator opts are nouns** (`required`, `maxLength`). Decorate the class with
 `@Entity({ list })` (add `cache` to opt into query caching — see [caching.md](caching.md),
-or any provisioning hint from below), mark the key property with `@Key`, and give
-each data property one field decorator:
+or any provisioning hint from below), mark a non-`Id` key property with `@Key` (a
+`SpeelEntity` subclass inherits `Id` as its key — redeclaring it fails under
+`noImplicitOverride`), and give each data property one field decorator:
 
 | Field type       | Decorator           | Fluent equivalent |
 | ---------------- | ------------------- | ----------------- |

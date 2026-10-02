@@ -17,7 +17,6 @@ import {
   SpeelEntity,
   Principal,
   Entity,
-  Key,
   TextField,
   ManyToOne,
   ManyToMany,
@@ -28,7 +27,6 @@ import "@speel/pnpjs";
 
 @Entity({ list: "Programs" })
 class Program extends SpeelEntity {
-  @Key public Id?: number = undefined;
   @TextField({ required: true }) public Title: string | null = null;
 
   // Inverse collection — FK lives on Project.ProgramId, named via `inverse`.
@@ -38,13 +36,11 @@ class Program extends SpeelEntity {
 
 @Entity({ list: "Tags" })
 class Tag extends SpeelEntity {
-  @Key public Id?: number = undefined;
   @TextField({ required: true }) public Title: string | null = null;
 }
 
 @Entity({ list: "Projects" })
 class Project extends SpeelEntity {
-  @Key public Id?: number = undefined;
   @TextField({ required: true }) public Title: string | null = null;
 
   // Lookup nav → Programs; FK inferred as ProgramId, paired with OwnedProjects above.
