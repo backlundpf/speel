@@ -17,10 +17,18 @@ import {
 } from "../src/reconcile.js";
 import { FakeIdentityProvider } from "../src/testing/FakeIdentityProvider.js";
 import { seedSecurable } from "../src/testing/seedSecurable.js";
+import { resourceKey } from "../src/resources.js";
+import type {
+  IdentityBatchOperation,
+  IdentityBatchResult,
+} from "../src/IIdentityProvider.js";
 
 const CONTRACTS = { kind: "title", value: "Contracts" } as const;
 const CONTRIBUTE_ID = 1073741827;
 const READ_ID = 1073741826;
+const FULL_CONTROL_ID = 1073741829;
+/** The fake's default current user. */
+const CALLER_ID = 1;
 
 class Contract extends SpeelEntity {
   Title?: string;
@@ -48,6 +56,90 @@ function build(): {
   const identity = initSpeelIdentity(ctx, (b) => b.useProvider(ids));
   ids.seedRoleDefinition({ Id: CONTRIBUTE_ID, Name: "Contribute" });
   ids.seedRoleDefinition({ Id: READ_ID, Name: "Read" });
+  ids.seedRoleDefinition({
+    Id: FULL_CONTROL_ID,
+    Name: "Full Control",
+    RoleTypeKind: 5,
+  });
+  return { ctx, sp, ids, identity };
+}
+
+/**
+ * SharePoint's own behaviour around a no-copy break, which the plain fake does not model:
+ * `breakRoleInheritance(false, …)` leaves the securable holding exactly ONE assignment — the
+ * caller, with Full Control — and a caller who no longer holds anything on a broken securable
+ * cannot change it further (403), as for a site owner whose rights came by inheritance.
+ */
+class SharePointLikeFake extends FakeIdentityProvider {
+  /** resource key → principal id → role definition ids. Only broken securables appear. */
+  readonly held = new Map<string, Map<number, Set<number>>>();
+  /** Grants to these principals fail regardless, to model a part-applied securable. */
+  readonly failGrantsTo = new Set<number>();
+
+  override executeBatchAsync(
+    ops: readonly IdentityBatchOperation[],
+  ): Promise<readonly IdentityBatchResult[]> {
+    this.batches.push(ops.length);
+    return Promise.resolve(ops.map((op) => this.#one(op)));
+  }
+
+  #one(op: IdentityBatchOperation): IdentityBatchResult {
+    const { clientToken } = op;
+    if (op.kind === "breakInheritance") {
+      if (!op.copyExisting) {
+        this.held.set(
+          resourceKey(op.resource),
+          new Map([[CALLER_ID, new Set([FULL_CONTROL_ID])]]),
+        );
+      }
+      return { kind: "success", clientToken };
+    }
+    if (op.kind !== "grant" && op.kind !== "revoke") {
+      return { kind: "success", clientToken };
+    }
+    const held = this.held.get(resourceKey(op.resource));
+    if (held !== undefined && !held.has(CALLER_ID)) {
+      return { kind: "failure", clientToken, status: 403, body: "Denied" };
+    }
+    if (op.kind === "grant" && this.failGrantsTo.has(op.principalId)) {
+      return { kind: "failure", clientToken, status: 500, body: "Boom" };
+    }
+    if (held !== undefined) {
+      const roles = held.get(op.principalId) ?? new Set<number>();
+      if (op.kind === "grant") roles.add(op.roleDefinitionId);
+      else roles.delete(op.roleDefinitionId);
+      if (roles.size === 0) held.delete(op.principalId);
+      else held.set(op.principalId, roles);
+    }
+    return { kind: "success", clientToken };
+  }
+
+  /** What a securable effectively holds now, as `principalId:roleId` strings. */
+  effective(key: string): string[] {
+    return [...(this.held.get(key) ?? new Map<number, Set<number>>())]
+      .flatMap(([p, roles]) => [...roles].map((r) => `${p}:${r}`))
+      .sort();
+  }
+}
+
+function buildSharePointLike(): {
+  ctx: Ctx;
+  sp: FakeStorageProvider;
+  ids: SharePointLikeFake;
+  identity: ReturnType<typeof initSpeelIdentity>;
+} {
+  const sp = new FakeStorageProvider();
+  const ids = new SharePointLikeFake();
+  const ctx = initSpeelDbContext(Ctx, (b) => b.useProvider(sp));
+  const identity = initSpeelIdentity(ctx, (b) => b.useProvider(ids));
+  ids.seedRoleDefinition({ Id: CONTRIBUTE_ID, Name: "Contribute" });
+  ids.seedRoleDefinition({ Id: READ_ID, Name: "Read" });
+  // A localised site: the caller's automatic role is found by its type, not its name.
+  ids.seedRoleDefinition({
+    Id: FULL_CONTROL_ID,
+    Name: "Contrôle total",
+    RoleTypeKind: 5,
+  });
   return { ctx, sp, ids, identity };
 }
 
@@ -216,12 +308,17 @@ describe("applySecurables", () => {
     ]);
 
     expect(results.map((r) => r.ok)).toEqual([true, false, true]);
-    expect(results[0]).toEqual({ ok: true, applied: 2 }); // break + grant
+    // break + grant, then the revoke of the caller's automatic Full Control
+    expect(results[0]).toEqual({ ok: true, applied: 3 });
     expect(results[1]!.applied).toBe(0);
     expect((results[1] as { message: string }).message).toMatch(/failed/);
 
-    // One save; copyExisting: false rides the break.
-    expect(ids.batches).toHaveLength(1);
+    // The plans' save, then one more for the callers' automatic assignments — which must
+    // land after the grants. copyExisting: false rides the break.
+    expect(ids.batches).toEqual([4, 2]);
+    expect(ids.calls).toContain(
+      `removeRole:item:Contracts:${first.Id}:${CALLER_ID}:${FULL_CONTROL_ID}`,
+    );
     expect(ids.calls).toContain(
       `breakInheritance:item:Contracts:${first.Id}:false:false`,
     );
@@ -254,6 +351,123 @@ describe("applySecurables", () => {
       entity,
       planOperations(entity, wantAdaContribute),
     );
+    expect(result).toEqual({ ok: true, applied: 3 });
+  });
+});
+
+describe("applySecurables after a no-copy break (SharePoint adds the caller)", () => {
+  const me = { Id: CALLER_ID, Title: "Test User", PrincipalType: 1 };
+
+  it("leaves exactly the wanted assignments — the caller's automatic Full Control is revoked last", async () => {
+    const { sp, ctx, ids, identity } = buildSharePointLike();
+    const entity = await seededContract(sp, ctx, { assignments: [] });
+
+    const result = await applySecurable(
+      identity,
+      entity,
+      planOperations(entity, wantAdaContribute),
+    );
+
+    expect(result).toEqual({ ok: true, applied: 3 });
+    expect(ids.effective(`item:Contracts:${entity.Id}`)).toEqual([
+      `${ada.Id}:${CONTRIBUTE_ID}`,
+    ]);
+  });
+
+  it("keeps the caller's wanted roles but still drops the Full Control nobody asked for", async () => {
+    const { sp, ctx, ids, identity } = buildSharePointLike();
+    const entity = await seededContract(sp, ctx, { assignments: [] });
+
+    await applySecurable(
+      identity,
+      entity,
+      planOperations(entity, {
+        inherits: false,
+        assignments: [{ member: me, roles: ["Read"] }],
+      }),
+    );
+
+    expect(ids.effective(`item:Contracts:${entity.Id}`)).toEqual([
+      `${CALLER_ID}:${READ_ID}`,
+    ]);
+  });
+
+  it("leaves the caller's Full Control alone when the policy grants it", async () => {
+    const { sp, ctx, ids, identity } = buildSharePointLike();
+    const entity = await seededContract(sp, ctx, { assignments: [] });
+
+    const result = await applySecurable(
+      identity,
+      entity,
+      planOperations(entity, {
+        inherits: false,
+        assignments: [{ member: me, roles: ["Contrôle total"] }],
+      }),
+    );
+
     expect(result).toEqual({ ok: true, applied: 2 });
+    expect(ids.batches).toHaveLength(1);
+    expect(ids.effective(`item:Contracts:${entity.Id}`)).toEqual([
+      `${CALLER_ID}:${FULL_CONTROL_ID}`,
+    ]);
+  });
+
+  it("does not revoke the caller from a part-applied securable, so a re-run can still converge it", async () => {
+    const { sp, ctx, ids, identity } = buildSharePointLike();
+    const entity = await seededContract(sp, ctx, { assignments: [] });
+    ids.failGrantsTo.add(ada.Id);
+
+    const result = await applySecurable(
+      identity,
+      entity,
+      planOperations(entity, wantAdaContribute),
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.applied).toBe(1); // the break
+    expect(ids.batches).toHaveLength(1);
+    expect(ids.effective(`item:Contracts:${entity.Id}`)).toEqual([
+      `${CALLER_ID}:${FULL_CONTROL_ID}`,
+    ]);
+  });
+
+  it("converges several broken securables with one extra save", async () => {
+    const { sp, ctx, ids, identity } = buildSharePointLike();
+    const a = await seededContract(sp, ctx, { assignments: [] });
+    const b = await seededContract(sp, ctx, { assignments: [] });
+
+    const results = await applySecurables(identity, [
+      { resource: a, plan: planOperations(a, wantAdaContribute) },
+      { resource: b, plan: planOperations(b, wantAdaContribute) },
+    ]);
+
+    expect(results).toEqual([
+      { ok: true, applied: 3 },
+      { ok: true, applied: 3 },
+    ]);
+    expect(ids.batches).toEqual([4, 2]);
+    for (const e of [a, b]) {
+      expect(ids.effective(`item:Contracts:${e.Id}`)).toEqual([
+        `${ada.Id}:${CONTRIBUTE_ID}`,
+      ]);
+    }
+  });
+
+  it("refuses before sending anything when the site has no Full Control role to revoke", async () => {
+    const sp = new FakeStorageProvider();
+    const ids = new SharePointLikeFake();
+    const ctx = initSpeelDbContext(Ctx, (b) => b.useProvider(sp));
+    const identity = initSpeelIdentity(ctx, (b) => b.useProvider(ids));
+    ids.seedRoleDefinition({ Id: CONTRIBUTE_ID, Name: "Contribute" });
+    const entity = await seededContract(sp, ctx, { assignments: [] });
+
+    await expect(
+      applySecurable(
+        identity,
+        entity,
+        planOperations(entity, wantAdaContribute),
+      ),
+    ).rejects.toBeInstanceOf(InvalidOperationException);
+    expect(ids.batches).toHaveLength(0);
   });
 });

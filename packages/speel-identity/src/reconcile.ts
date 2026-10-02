@@ -3,9 +3,9 @@ import { IdentitySaveException } from "./errors.js";
 import { asRoleAssignments } from "./securableExpand.js";
 
 import type { IEntity } from "@speel/core";
-import type { Principal } from "@speel/core";
+import type { Principal, SiteUser } from "@speel/core";
 import type { RoleAssignment } from "./PermissionManager.js";
-import type { ISecurable } from "./permissionTypes.js";
+import type { ISecurable, RoleDefinition } from "./permissionTypes.js";
 import type { ResourceRef } from "./resources.js";
 import type { SpeelIdentity } from "./SpeelIdentity.js";
 import type { IdentityOperation } from "./IdentityChangeQueue.js";
@@ -42,6 +42,11 @@ export interface SecurableReport {
 }
 
 export interface PlannedOperation {
+  /**
+   * A `break` means "break inheritance, leaving only what this plan grants": applying it
+   * also revokes the Full Control SharePoint hands the caller on a no-copy break, unless the
+   * plan grants the caller that role (see `applySecurables`).
+   */
   kind: "break" | "reset" | "revoke" | "grant";
   /** Absent for a break and a reset. */
   principal?: Principal;
@@ -175,7 +180,9 @@ export function diffSecurable(
  * An INHERITING securable plans a break plus the whole desired set: what its snapshot shows
  * is the parent's, and it dies with the break (`copyExisting: false`) — revoking any of it
  * would target assignments that no longer exist, and skipping a grant because inheritance
- * already provided the role would lose that access the moment the break lands.
+ * already provided the role would lose that access the moment the break lands. The caller's
+ * automatic Full Control from the break is not planned here — the plan is pure and does not
+ * know who the caller is — but the `break` op carries it: applying it removes that assignment.
  *
  * An already-UNIQUE securable reconciles by set difference: revokes before grants, and a
  * reset is never mixed with grants (the queue phase-orders resets last, which would discard
@@ -231,7 +238,66 @@ export function planOperations(
 }
 
 /**
- * Stage every securable's plan on the one queue and save once.
+ * SharePoint's `RoleTypeKind` for Full Control. The caller's automatic assignment is found by
+ * type rather than by name, because the name is localised ("Contrôle total", …).
+ */
+const ADMINISTRATOR_ROLE_TYPE = 5;
+
+/** Who SharePoint hands Full Control to on a no-copy break, and the role it hands them. */
+interface AutomaticAssignment {
+  caller: SiteUser;
+  role: RoleDefinition;
+}
+
+/**
+ * Resolved once per apply, and only when some plan breaks — BEFORE anything is sent, so a
+ * site that cannot answer refuses the whole apply instead of half-applying it.
+ */
+async function automaticAssignment(
+  identity: SpeelIdentity,
+  batch: readonly SecurablePlan[],
+): Promise<AutomaticAssignment | undefined> {
+  if (!batch.some((e) => e.plan.some((op) => op.kind === "break"))) {
+    return undefined;
+  }
+  const [caller, role] = await Promise.all([
+    identity.users.me(),
+    identity.roles.getByType(ADMINISTRATOR_ROLE_TYPE),
+  ]);
+  if (caller.Id === undefined) {
+    throw new InvalidOperationException(
+      "The current user has no Id, so the Full Control SharePoint gives them on a break cannot be revoked.",
+    );
+  }
+  if (role === null) {
+    throw new InvalidOperationException(
+      "This site has no Full Control role definition, so the assignment SharePoint gives the caller on a break cannot be revoked.",
+    );
+  }
+  return { caller, role };
+}
+
+/** Per-entry results of one save, attributing failures back by operation identity. */
+async function saveAttributed(
+  identity: SpeelIdentity,
+  staged: readonly (readonly IdentityOperation[])[],
+): Promise<{ applied: number; failed: number }[]> {
+  try {
+    await identity.saveChangesAsync();
+    return staged.map((ops) => ({ applied: ops.length, failed: 0 }));
+  } catch (err) {
+    if (!(err instanceof IdentitySaveException)) throw err;
+    const failed = new Set(err.failures.map((f) => f.operation));
+    return staged.map((ops) => {
+      const failures = ops.filter((op) => failed.has(op)).length;
+      return { applied: ops.length - failures, failed: failures };
+    });
+  }
+}
+
+/**
+ * Stage every securable's plan on the one queue and save once — plus, when any plan breaks
+ * inheritance, one more save for what SharePoint did on its own.
  *
  * The queue already batches across resources ($batch chunks of up to 100), keeps each
  * resource's operations grouped and phase-ordered, and attributes failures per operation —
@@ -239,11 +305,22 @@ export function planOperations(
  * input, a securable with any failed operation reports `ok: false` with its partial count,
  * and its batchmates are unaffected. The save is still not atomic ACROSS securables;
  * SharePoint has no such transaction.
+ *
+ * A no-copy break is not the empty slate the plan assumes: SharePoint gives the CALLER an
+ * explicit Full Control assignment, so nobody is locked out mid-way. Unless the plan grants
+ * the caller that role, it is revoked — in a second save, because the queue orders revokes
+ * before grants, and a caller whose only rights on the securable were that assignment could
+ * grant nothing after losing it. A securable whose own operations did not all land keeps the
+ * caller's assignment: the result already reports the failure, and leaving the caller able
+ * to manage it is what lets a re-run (which then sees a unique securable and revokes the
+ * caller as an extra) converge it.
  */
 export async function applySecurables(
   identity: SpeelIdentity,
   batch: readonly SecurablePlan[],
 ): Promise<ApplyResult[]> {
+  const automatic = await automaticAssignment(identity, batch);
+
   // Stage per entry, snapshotting which queue operations each entry appended so a failure
   // can be attributed back by operation identity.
   const staged: IdentityOperation[][] = [];
@@ -273,24 +350,44 @@ export async function applySecurables(
     return batch.map(() => ({ ok: true, applied: 0 }));
   }
 
-  try {
-    await identity.saveChangesAsync();
-    return staged.map((ops) => ({ ok: true, applied: ops.length }));
-  } catch (err) {
-    if (!(err instanceof IdentitySaveException)) throw err;
-    const failed = new Set(err.failures.map((f) => f.operation));
-    return staged.map((ops) => {
-      const failures = ops.filter((op) => failed.has(op)).length;
-      if (failures === 0) return { ok: true, applied: ops.length };
-      return {
-        ok: false,
-        applied: ops.length - failures,
-        message:
-          `${ops.length - failures} of ${ops.length} operations applied, ${failures} failed. ` +
-          "You may not have permission to change permissions on this resource.",
-      };
+  const outcomes = await saveAttributed(identity, staged);
+
+  if (automatic !== undefined) {
+    const { caller, role } = automatic;
+    const cleanup: IdentityOperation[][] = batch.map((entry, i) => {
+      const breaks = entry.plan.some((op) => op.kind === "break");
+      const wantsIt = entry.plan.some(
+        (op) =>
+          op.kind === "grant" &&
+          op.principal?.Id === caller.Id &&
+          op.role === role.Name,
+      );
+      if (!breaks || wantsIt || outcomes[i]!.failed > 0) return [];
+      const before = identity.pendingChanges.length;
+      identity.permissions.for(entry.resource).revoke(caller, role);
+      return [...identity.pendingChanges.slice(before)];
     });
+    if (cleanup.some((ops) => ops.length > 0)) {
+      const cleaned = await saveAttributed(identity, cleanup);
+      cleaned.forEach((c, i) => {
+        outcomes[i]!.applied += c.applied;
+        outcomes[i]!.failed += c.failed;
+        staged[i]!.push(...cleanup[i]!);
+      });
+    }
   }
+
+  return outcomes.map(({ applied, failed }, i) => {
+    if (failed === 0) return { ok: true, applied };
+    const total = staged[i]!.length;
+    return {
+      ok: false,
+      applied,
+      message:
+        `${applied} of ${total} operations applied, ${failed} failed. ` +
+        "You may not have permission to change permissions on this resource.",
+    };
+  });
 }
 
 /** One-securable convenience over `applySecurables`. */
