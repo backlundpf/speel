@@ -110,9 +110,16 @@ describe("systemGenerated", () => {
       });
       mb.entity(Item, (b) => {
         b.toList("Items");
-        b.property((e) => e.A).isText().isSystemGenerated();
-        b.property((e) => e.B).isText().isSystemGenerated().isReadOnly(false);
-        b.property((e) => e.C).isText().isReadOnly();
+        b.property((e) => e.A)
+          .isText()
+          .isSystemGenerated();
+        b.property((e) => e.B)
+          .isText()
+          .isSystemGenerated()
+          .isReadOnly(false);
+        b.property((e) => e.C)
+          .isText()
+          .isReadOnly();
         b.hasOne(Owner, (e) => e.Owner)
           .withMany()
           .isSystemGenerated();

@@ -133,14 +133,14 @@ requires; TypeScript maps that to the `.ts` file under `bundler`, `node16`/`node
 
 The snapshot holds only the columns a migration should create: every property and
 relationship the model declares, minus the key (`ID`) and minus anything marked
-read-only. `readOnly` is the rule — it covers the columns `SpeelEntity` /
-`SpeelDocument` inject (`Created`, `Modified`, `FSObjType`, `FileDirRef`, `FileRef`) and
-the `Author` / `Editor` navigations; `FileLeafRef` is writable but a built-in, so it is
-excluded by name. It is how you surface any other
-SharePoint built-in: declare it read-only
-(`@TextField({ columnName: 'File_x0020_Type', readOnly: true })`) and the model reads
-the column without a migration trying to create it. Read-only navigations are skipped the
-same way — to provision a field but keep it non-editable in forms, use `enabled: false`.
+`systemGenerated`. `systemGenerated` is the rule — it covers the columns `SpeelEntity` /
+`SpeelDocument` inject (`Created`, `Modified`, `FSObjType`, `FileDirRef`, `FileLeafRef`,
+`FileRef`, …) and the `Author` / `Editor` navigations, and it is how you surface any other
+SharePoint built-in: declare it `systemGenerated`
+(`@TextField({ columnName: 'File_x0020_Type', systemGenerated: true })`) and the model reads
+the column without a migration trying to create it. Navigations are skipped the same way.
+`readOnly` alone does not exclude a column: it is the model's own, provisioned and never
+written (a column a workflow fills).
 
 ### Diff behavior
 
@@ -161,9 +161,10 @@ tests. See [runtime.md](runtime.md) for the full `Migrator` API.
   time you run `add` — the next run depends on it.
 - `remove` only deletes the _latest_ migration. To remove several, run it once per migration in
   reverse order.
-- A SharePoint built-in declared _without_ `readOnly` lands in the snapshot like any other
-  column, and the generated `addField` then collides with the built-in when it runs. Mark
-  built-ins read-only.
+- A SharePoint built-in declared _without_ `systemGenerated` lands in the snapshot like any
+  other column, and the generated `addField` then collides with the built-in when it runs.
+  Mark built-ins `systemGenerated` — `readOnly` no longer keeps a column out (it did through
+  0.1.0-beta.2).
 - The diff never infers renames. A renamed list or field generates a `dropList`/`createList` or
   `dropField`/`addField` pair. Hand-merge into `renameList`/`renameField` _before_ committing if
   you need to preserve data.

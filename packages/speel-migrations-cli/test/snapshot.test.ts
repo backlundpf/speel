@@ -364,7 +364,9 @@ describe("projectModel systemGenerated exclusion", () => {
     });
     mb.entity(Asset, (b) => {
       b.toList("Assets");
-      b.property((e) => e.Title).isText().isReadOnly();
+      b.property((e) => e.Title)
+        .isText()
+        .isReadOnly();
       b.hasOne(Owner, (e) => e.Owner)
         .withMany()
         .hasForeignKey((e) => e.OwnerId)

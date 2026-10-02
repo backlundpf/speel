@@ -199,8 +199,8 @@ every row carries — `Created`/`Modified`, the `Author`/`Editor` navigations (t
 core's canonical site-user entity, with `AuthorId`/`EditorId`) and SharePoint's file-system
 plumbing, `FSObjType` (0 item, 1 folder), `FileDirRef` (parent folder URL), `FileLeafRef`
 (leaf name) and `FileRef` (the row's URL) — with the same decorators any entity uses
-(`@DateTimeField({ readOnly: true })`, `@ManyToOne(() => SiteUser, { readOnly: true })`, …).
-All are read-only except `FileLeafRef`, which is writable: assigning it renames at the next save.
+(`@DateTimeField({ systemGenerated: true })`, `@ManyToOne(() => SiteUser, { systemGenerated: true })`, …).
+All are system-generated and read-only.
 The builder reads decorator metadata up the constructor chain on every registration path, so
 a fluent `builder.entity(Task, …)` and a decorated `@Entity` subclass both inherit every level,
 and `SiteUser` joins the model by reference — a core-only context gets `Author`/`Editor` with
@@ -210,7 +210,9 @@ nothing to register. Plain classes that declare `Id?: number` skip the system me
 a projection of `File/Length`, since SharePoint's computed "File Size" column is unselectable;
 mapping a property to `File_x0020_Size` fails the build) and `CheckedOutBy` (a `SiteUser`, the
 `CheckoutUser` column, with `CheckedOutById`; `undefined` when checked in; loads through
-`.include()`, not an inline `$expand`). The file members are `visible: false`, so they stay
+`.include()`, not an inline `$expand`), and redeclares `FileLeafRef` writable: on a library it
+is the file name, so assigning it renames the file at the next save (on a list item it is
+SharePoint's `{ID}_.000` placeholder and stays read-only). The file members are `visible: false`, so they stay
 out of forms and default table columns until an explicit column spec names them; a model that
 surfaces `FileDirRef` (e.g. `.isText().hasDisplayName('Folder')`) opts its create forms into a
 folder-placement input (`@speel/react` consumes it as the `folder` add-option, never as a write).
@@ -220,15 +222,19 @@ re-declaration of a _property_ layers on the inherited one — `b.property(d => 
 refines it and keeps its position; a decorated re-declaration in a subclass replaces it and
 moves it to the subclass's level. _Navigations_ differ: any re-declaration by name — subclass
 decorator or fluent `hasOne` — replaces the inherited navigation outright and takes the
-re-declaring level's position, so restate `readOnly` and `foreignKey` when re-pointing `Author`
+re-declaring level's position, so restate `systemGenerated` and `foreignKey` when re-pointing `Author`
 ([relationships.md](relationships.md)). Members emit in inheritance-depth order — own before
 inherited — so `@speel/react`'s default columns and fields lead with the entity's own columns.
 
-`readOnly` is also the provisioning marker: `@speel/migrations` never creates a read-only
-column, so a column some other process populates belongs in the model as `readOnly: true` —
-and **a read-only property must initialize to `undefined`**, not the `| null` form writable
-fields use, because `DbSet.add()` rejects a new entity whose read-only property holds any
-other value. `SpeelEntity` declares its own members this way:
+**`readOnly` and `systemGenerated` answer different questions.** `readOnly` means "never
+sent": a save skips the column silently. `systemGenerated` means "the provider owns this
+column": `@speel/migrations` never creates it. `systemGenerated` implies `readOnly` unless
+`readOnly: false` is given explicitly (as `SpeelDocument.FileLeafRef` does). So a SharePoint
+built-in you surface (`File_x0020_Type`) is `systemGenerated: true`, and a model-owned column
+that a workflow or formula fills is `readOnly: true` alone: provisioned, never written. Fluent:
+`.isSystemGenerated()` / `.isReadOnly()`. **A read-only property must initialize to
+`undefined`**, not the `| null` form writable fields use, because `DbSet.add()` rejects a new
+entity whose read-only property holds any other value:
 
 ```ts
 @NumberField({ columnName: 'ReviewScore', readOnly: true })
@@ -282,6 +288,10 @@ so an older client's save never deletes a field a newer model version added.
 - **A fluent re-declaration cannot change an inherited member's type.** `.isText()` on an
   inherited text member layers; a different field kind (`isNumber()` on a text member) throws.
   To change the shape of a system member, re-declare it with a decorator in your own subclass.
+- **`readOnly` no longer keeps a column out of migrations.** Through 0.1.0-beta.2, declaring a
+  SharePoint built-in `readOnly` was how a model read it without provisioning it. Now a
+  `readOnly` column that is not `systemGenerated` is provisioned like any model column; mark
+  such built-ins `systemGenerated: true` (which also keeps them read-only).
 - **`FileSize` is a projection, not a column.** It arrives via `$expand=File`, and
   `$filter`/`$orderby` operate on list columns — sort or filter by size client-side.
 - **Caching config goes here, not in the query.** `b.useCaching(...)` is the model-time opt-in.

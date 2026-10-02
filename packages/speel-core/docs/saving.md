@@ -246,8 +246,8 @@ it stays recoverable — but its contents go with it (see the gotcha below).
 
 `renameFileAsync` leaves the document in its current folder and refreshes
 `FileLeafRef`/`FileRef` on the entity; the item id, version history, and
-permissions survive. To rename as part of a save instead, assign `FileLeafRef`:
-it is a writable column, so it goes out in the normal update and `FileRef` follows.
+permissions survive. To rename as part of a save instead, assign a document's
+`FileLeafRef`: it goes out in the normal update and `FileRef` follows.
 `copyFileToAsync` copies into another library's folder as a
 **new** item, untracked — read it through the destination set to give it metadata.
 
