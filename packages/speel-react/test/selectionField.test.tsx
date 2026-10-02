@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   render,
   screen,
@@ -26,6 +26,7 @@ import { useField } from "../src/form/useField.js";
 import { SpeelField } from "../src/fields/SpeelField.js";
 import type { FieldHandle } from "../src/form/FieldHandle.js";
 import { useSelectionOptions } from "../src/fields/useSelectionOptions.js";
+import { SEARCH_DEBOUNCE_MS } from "../src/fields/useDebouncedResolver.js";
 import type {
   ComboboxProps,
   OptionItem,
@@ -966,6 +967,12 @@ describe("query mode", () => {
   // A slow read for an earlier prefix can land while the newest keystroke is still
   // inside its debounce window. Answering the pending call with it shows the wrong
   // list AND leaves the right one with nobody waiting.
+  //
+  // Fake timers on purpose: "lands while the newest keystroke is still inside its
+  // debounce window" is a timing claim, and on real timers it only holds if the test
+  // outruns the window — a flake waiting for a loaded CI box. Here the window cannot
+  // close until the test says so. (No waitFor/findBy while the clock is faked: their
+  // polling runs on the faked timers.)
   it("waits for the load for the text last typed, not an earlier one that lands first", async () => {
     const gates: { query: string; release: (rows: Office[]) => void }[] = [];
     await renderLookup({
@@ -974,27 +981,41 @@ describe("query mode", () => {
           gates.push({ query, release });
         }),
     });
-    const box = screen.getByLabelText("Office");
-    fireEvent.change(box, { target: { value: "lo" } });
-    // gates[0] is the mount's load; gates[1] is "lo".
-    await waitFor(() => expect(gates).toHaveLength(2));
-    expect(gates[1]!.query).toBe("lo");
+    vi.useFakeTimers();
+    try {
+      const box = screen.getByLabelText("Office");
+      fireEvent.change(box, { target: { value: "lo" } });
+      await act(async () => {
+        vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      });
+      // gates[0] is the first ask's cold load; gates[1] is "lo".
+      expect(gates.map((g) => g.query)).toEqual(["", "lo"]);
 
-    fireEvent.change(box, { target: { value: "lon" } });
-    await act(async () => {
-      gates[1]!.release([
-        Object.assign(new Office(), { Id: 2, Title: "Lisbon" }),
-      ]);
-    });
-    await waitFor(() => expect(gates).toHaveLength(3));
-    expect(gates[2]!.query).toBe("lon");
-    await act(async () => {
-      gates[2]!.release([
-        Object.assign(new Office(), { Id: 1, Title: "London" }),
-      ]);
-    });
-    expect(await screen.findByText("London")).toBeInTheDocument();
-    expect(screen.queryByText("Lisbon")).toBeNull();
+      fireEvent.change(box, { target: { value: "lon" } });
+      // "lon" is now inside its window, and stays there: the clock does not move
+      // while the slower "lo" read lands.
+      await act(async () => {
+        gates[1]!.release([
+          Object.assign(new Office(), { Id: 2, Title: "Lisbon" }),
+        ]);
+      });
+      expect(gates).toHaveLength(2);
+      expect(screen.queryByText("Lisbon")).toBeNull();
+
+      await act(async () => {
+        vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      });
+      expect(gates.map((g) => g.query)).toEqual(["", "lo", "lon"]);
+      await act(async () => {
+        gates[2]!.release([
+          Object.assign(new Office(), { Id: 1, Title: "London" }),
+        ]);
+      });
+      expect(screen.getByText("London")).toBeInTheDocument();
+      expect(screen.queryByText("Lisbon")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("says the load failed rather than that nothing matched", async () => {

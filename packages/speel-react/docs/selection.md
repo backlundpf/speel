@@ -167,7 +167,7 @@ the [skins](skins.md) page.
 - **A creator must resolve a saved row, with its id.** The field derives the FK from it.
 - **A person column is a people picker.** It ignores `options`, `optionsQuery`,
   `optionsFilter` and `optionsCreateAsync`; only `optionsQueryAsync` shapes its suggestions.
-  People are resolved and provisioned by identity — see [forms.md](forms.md).
+  People are resolved and provisioned by identity — see [fields.md](fields.md#the-people-picker).
 - **Explicit `expand` fields must include the target's key.** The default lookup expand
   carries the key and the display field. A held value expanded without its id cannot be
   matched to the picker's rows, so the picker lists it twice.
