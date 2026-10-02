@@ -67,20 +67,32 @@ describe("SpeelDocument class", () => {
 });
 
 describe("file system columns on SpeelEntity", () => {
-  it("every SpeelEntity subclass gets FSObjType, FileDirRef, FileLeafRef and FileRef, invisible; all but FileLeafRef read-only", () => {
+  it("every SpeelEntity subclass gets FSObjType, FileDirRef, FileLeafRef and FileRef, system-generated, read-only and invisible", () => {
     const et = buildModel().findEntityType(Task)!;
     const fso = et.findProperty("FSObjType")!;
     expect(fso.config.kind).toBe("Number");
     expect(fso.readOnly).toBe(true);
+    expect(fso.systemGenerated).toBe(true);
     expect(fso.visible).toBe(false);
     // FileLeafRef/FileRef are valid on every list item — and a folder row's
     // FileLeafRef is its name, which is what makes folders queryable on plain lists.
+    // On a list item FileLeafRef is SharePoint's `{ID}_.000` placeholder: read-only.
     for (const name of ["FileDirRef", "FileLeafRef", "FileRef"]) {
       const p = et.findProperty(name)!;
       expect(p.config.kind).toBe("Text");
-      // FileLeafRef is the one writable system column: writing it renames.
-      expect(p.readOnly).toBe(name !== "FileLeafRef");
+      expect(p.readOnly).toBe(true);
+      expect(p.systemGenerated).toBe(true);
       expect(p.visible).toBe(false);
+    }
+    for (const name of ["Created", "Modified", "AuthorId", "EditorId"]) {
+      const p = et.findProperty(name)!;
+      expect(p.readOnly).toBe(true);
+      expect(p.systemGenerated).toBe(true);
+    }
+    for (const name of ["Author", "Editor"]) {
+      const nav = et.findNavigation(name)!;
+      expect(nav.readOnly).toBe(true);
+      expect(nav.systemGenerated).toBe(true);
     }
     // The document-only member stays document-only.
     expect(et.findProperty("FileSize")).toBeUndefined();
@@ -112,14 +124,19 @@ describe("file system columns on SpeelEntity", () => {
     expect(folders[0]!.FSObjType).toBe(1);
   });
 
-  it("a SpeelDocument subclass gets FileLeafRef (writable) + FileRef (read-only), Text and invisible", () => {
+  it("a SpeelDocument subclass gets FileLeafRef writable (the file name) and FileRef read-only, both system-generated", () => {
     const et = buildModel().findEntityType(Report)!;
     for (const name of ["FileLeafRef", "FileRef"]) {
       const p = et.findProperty(name)!;
       expect(p.config.kind).toBe("Text");
       expect(p.readOnly).toBe(name === "FileRef");
+      expect(p.systemGenerated).toBe(true);
       expect(p.visible).toBe(false);
     }
+    for (const name of ["FileSize", "CheckedOutById"]) {
+      expect(et.findProperty(name)!.systemGenerated).toBe(true);
+    }
+    expect(et.findNavigation("CheckedOutBy")!.systemGenerated).toBe(true);
   });
 
   it("a SpeelDocument subclass gets FileSize, mapped to the expanded File/Length path", () => {

@@ -13,38 +13,44 @@ import { SiteUser } from "./SiteUser.js";
  * The column names are the contract's vocabulary: SharePoint answers them
  * verbatim; another provider translates on its side of the boundary.
  *
+ * Every member is SharePoint's own column, so each is `systemGenerated`: never
+ * provisioned, and (implied) read-only — never sent on save.
+ *
  * Every field initializes to `undefined` (not `null`): DbSet.add() rejects a
  * new entity if any read-only property holds a non-undefined value.
  */
 export abstract class SpeelEntity {
   Id?: number = undefined;
 
-  @DateTimeField({ readOnly: true }) readonly Created?: Date = undefined;
-  @DateTimeField({ readOnly: true }) readonly Modified?: Date = undefined;
+  @DateTimeField({ systemGenerated: true }) readonly Created?: Date = undefined;
+  @DateTimeField({ systemGenerated: true }) readonly Modified?: Date =
+    undefined;
 
   /** Created By — a site user by definition, so the navigation targets SiteUser. */
-  @ManyToOne(() => SiteUser, { readOnly: true, foreignKey: "AuthorId" })
+  @ManyToOne(() => SiteUser, { systemGenerated: true, foreignKey: "AuthorId" })
   readonly Author?: SiteUser = undefined;
   readonly AuthorId?: number = undefined;
 
   /** Modified By. */
-  @ManyToOne(() => SiteUser, { readOnly: true, foreignKey: "EditorId" })
+  @ManyToOne(() => SiteUser, { systemGenerated: true, foreignKey: "EditorId" })
   readonly Editor?: SiteUser = undefined;
   readonly EditorId?: number = undefined;
 
   /** 0 item, 1 folder. */
-  @NumberField({ readOnly: true, visible: false }) readonly FSObjType?: number =
-    undefined;
+  @NumberField({ systemGenerated: true, visible: false })
+  readonly FSObjType?: number = undefined;
   /** Server-relative parent folder URL. */
-  @TextField({ readOnly: true, visible: false }) readonly FileDirRef?: string =
-    undefined;
+  @TextField({ systemGenerated: true, visible: false })
+  readonly FileDirRef?: string = undefined;
   /**
-   * Row leaf name (a folder row's is the folder name). Writable like any text
-   * column: a changed value saves through the normal update, which renames.
+   * Row leaf name (a folder row's is the folder name). On a list item it is
+   * SharePoint's `{ID}_.000` placeholder, so it is read-only here;
+   * SpeelDocument redeclares it writable (there it is the file name).
    */
-  @TextField({ visible: false }) FileLeafRef?: string = undefined;
+  @TextField({ systemGenerated: true, visible: false })
+  readonly FileLeafRef?: string = undefined;
   /** Server-relative URL of the row. */
-  @TextField({ readOnly: true, visible: false }) readonly FileRef?: string =
-    undefined;
+  @TextField({ systemGenerated: true, visible: false })
+  readonly FileRef?: string = undefined;
   // Item-level permission members are @speel/identity's (module augmentation).
 }
