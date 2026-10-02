@@ -19,8 +19,8 @@ Execution: inline, TDD per task (write failing test → implement → green).
       SpeelDocumentForm, `SurfaceFormVariantProps`, `SurfaceForm`, `FormRequest` /
       `SurfaceManager`. Tests: no Edit, Close works, predicate sees entity.
 - [ ] **7. shadcn skin.** `registry/src/speel-shadcn/fields.tsx`: danger → `destructive`;
-      MessageBar actions + multiline. Registry smoke tests, `npm --prefix registry run
-      registry:build`, `npm run sync:skin`.
+      MessageBar actions + multiline. Registry smoke tests,
+      `npm --prefix registry run registry:build`, `npm run sync:skin`.
 - [ ] **8. Gates.** `npm run verify`; sample builds.
 - [ ] **9. Document step.** `forms.md`, `surfaces.md`, `feedback.md`, `skins.md` Capabilities.
 - [ ] **10. Changeset (minor), push, PR.**
