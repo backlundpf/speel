@@ -231,32 +231,6 @@
     },
     {
       "list": {
-        "title": "Speel User Settings",
-        "template": "genericList",
-        "readSecurity": "own",
-        "writeSecurity": "own"
-      },
-      "fields": [
-        {
-          "internalName": "Title",
-          "displayName": "Title",
-          "kind": "Text",
-          "multiline": false,
-          "maxLength": 255
-        },
-        {
-          "internalName": "Value",
-          "displayName": "Value",
-          "kind": "Text",
-          "multiline": true,
-          "richText": false,
-          "appendOnly": false,
-          "numberOfLines": 6
-        }
-      ]
-    },
-    {
-      "list": {
         "title": "Tags",
         "template": "genericList"
       },
