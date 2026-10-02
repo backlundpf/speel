@@ -26,7 +26,6 @@ import {
   SiteUser,
   Principal,
   Entity,
-  Key,
   TextField,
   ManyToOne,
   initSpeelDbContext,
@@ -47,7 +46,6 @@ abstract class AppEntity extends SpeelEntity {
 
 @Entity({ list: "Projects" })
 class Project extends AppEntity {
-  @Key public Id?: number = undefined;
   @TextField({ required: true }) public Title: string | null = null;
 
   // A person column: a lookup whose target lives on a provider source. Principal
