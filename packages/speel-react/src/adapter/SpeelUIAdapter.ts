@@ -51,6 +51,8 @@ export interface DropdownProps extends FieldChrome {
    * whose caption already reads inline beside it, like the footer's `Page [1] of 3`.
    */
   ariaLabel?: string;
+  /** Shown while nothing is picked — what an empty pick means ("None = all"). */
+  placeholder?: string;
 }
 
 export interface RadioGroupProps extends FieldChrome {
@@ -84,6 +86,13 @@ export interface RadioGroupOther {
 export interface CheckboxProps extends FieldChrome {
   checked: boolean;
   onChange: (v: boolean) => void;
+  /** Names the box for screen readers when it has no visible label — a table row's select box. */
+  ariaLabel?: string;
+  /**
+   * Shows the mixed state ("some selected") over `checked`. A click on a mixed box
+   * reports `true`; the caller then clears `indeterminate`.
+   */
+  indeterminate?: boolean;
 }
 
 export interface DatePickerProps extends FieldChrome {
@@ -133,6 +142,8 @@ export interface ComboboxProps extends FieldChrome {
    * there are none). Absent, the skin behaves exactly as without it.
    */
   create?: ComboboxCreate;
+  /** Shown in the empty box while nothing is picked. The skin's own hint otherwise. */
+  placeholder?: string;
 }
 
 /** The create lifecycle a {@link ComboboxProps} hands its skin. */
@@ -171,6 +182,11 @@ export interface ButtonProps {
   ariaLabel?: string;
   /** Skin icon name (Fluent icon name in the v8 skin), rendered before the text. */
   iconName?: string;
+  /**
+   * Hover/focus hint, also the button's accessible description. Shows while the button
+   * is disabled too — the place to say why ("Tick rows first").
+   */
+  tooltip?: string;
 }
 
 export interface IconButtonProps {

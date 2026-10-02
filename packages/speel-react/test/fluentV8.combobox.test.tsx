@@ -280,6 +280,92 @@ describe("V8Combobox", () => {
       ).toBeInTheDocument();
     });
 
+    /**
+     * A real mouse press on the caret, in the order a browser runs it: the button
+     * (tabIndex -1, so still mouse-focusable) takes focus on mousedown, then the click
+     * lands on release. `fireEvent.click` alone skips the focus step that raced Fluent's
+     * own toggle (#34).
+     */
+    const pressCaret = (container: HTMLElement): void => {
+      const caret = container.querySelector<HTMLElement>(
+        ".ms-ComboBox-CaretDown-button",
+      )!;
+      fireEvent.mouseDown(caret);
+      act(() => caret.focus());
+      fireEvent.mouseUp(caret);
+      fireEvent.click(caret);
+    };
+
+    it("stays open after a caret press is released", async () => {
+      const ask = vi.fn(async () => [{ key: "a", text: "Alpha", data: "a" }]);
+      const { container } = render(
+        <V8Combobox
+          label="Status"
+          value={[]}
+          onChange={vi.fn()}
+          onResolveSuggestions={ask}
+        />,
+      );
+      pressCaret(container);
+      expect(
+        await screen.findByRole("option", { name: "Alpha" }),
+      ).toBeInTheDocument();
+      // Still open once everything the press scheduled has run.
+      await act(() => new Promise((r) => setTimeout(r, 50)));
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+      expect(screen.getByRole("combobox")).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+    });
+
+    it("closes on a second caret press", async () => {
+      const { container } = render(
+        <V8Combobox
+          label="Status"
+          value={[]}
+          onChange={vi.fn()}
+          onResolveSuggestions={async () => [
+            { key: "a", text: "Alpha", data: "a" },
+          ]}
+        />,
+      );
+      pressCaret(container);
+      await screen.findByRole("option", { name: "Alpha" });
+      pressCaret(container);
+      await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
+      await act(() => new Promise((r) => setTimeout(r, 50)));
+      expect(screen.queryByRole("listbox")).toBeNull();
+    });
+
+    it("opens on a caret press while the input already has focus", async () => {
+      const { container } = render(
+        <V8Combobox
+          label="Status"
+          value={[]}
+          onChange={vi.fn()}
+          onResolveSuggestions={async () => [
+            { key: "a", text: "Alpha", data: "a" },
+          ]}
+        />,
+      );
+      // Focused, then closed with Escape: the input holds focus, the list is shut.
+      fireEvent.focus(screen.getByLabelText("Status"));
+      await screen.findByRole("option", { name: "Alpha" });
+      fireEvent.keyDown(screen.getByRole("combobox"), {
+        key: "Escape",
+        keyCode: 27,
+        which: 27,
+      });
+      await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
+      pressCaret(container);
+      expect(
+        await screen.findByRole("option", { name: "Alpha" }),
+      ).toBeInTheDocument();
+      await act(() => new Promise((r) => setTimeout(r, 50)));
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+    });
+
     it("does not reopen after a single pick returns focus to the input", async () => {
       const onChange = vi.fn();
       const { container } = render(

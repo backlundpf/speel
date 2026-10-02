@@ -83,14 +83,14 @@ shape: a `value` array, an `onChange`, and an `onResolveSuggestions(query)` the 
 the user types. `Combobox` is **every selection field** — Choice, lookup, inverse collection
 and the table filter bar's select ([selection.md](selection.md)) — and its `value` is always an
 array, so a single-value field passes zero or one `OptionItem` and reads `v[0]` back, which
-keeps one code path in every skin. Its list **opens on focus** (and on click), in both skins.
-Typed text is a query and never a value: only a pick may call `onChange`, and what it hands
-back is the caller's own `OptionItem`, `data` and all. `noResultsText` is the message to show
-under a query that came back with nothing. The held `value` rides along in the list so a page
-that omits it still shows it, but on a typed search a skin lists it only when its text
-contains what was typed. A search that matches nothing shows the message alone, never beside
-the held row. The `Dropdown` slot remains for fixed micro-lists
-(the boolean and date-preset filters, the pager) — it is no longer a field control.
+keeps one code path in every skin. Its list **opens on focus** (and on click; a caret toggles
+it), in both skins. Typed text is a query and never a value: only a pick may call `onChange`,
+and what it hands back is the caller's own `OptionItem`, `data` and all. `noResultsText` is
+the message to show under a query that came back with nothing. The held `value` rides along
+in the list so a page that omits it still shows it, but on a typed search a skin lists it
+only when its text contains what was typed. A search that matches nothing shows the message
+alone, never beside the held row. The `Dropdown` slot remains for fixed micro-lists (the
+boolean and date-preset filters, the pager) — it is no longer a field control.
 
 **Creating and "Other"** — two optional members are what a skin implements for values not in
 the list; absent, the skin behaves as without them. `ComboboxProps.create` asks for an **Add
@@ -125,6 +125,10 @@ alignment are the point, and a button stack has to fake all three.
 **Feedback primitives** — `ButtonProps`, `IconButtonProps`, `MessageBarProps`, and
 `PopoverProps` round out the surface vocabulary. The skin renders these wherever
 `@speel/react` surfaces a generic action or contextual message.
+
+**Standalone controls** — `ariaLabel` names an unlabelled `Checkbox`; `indeterminate` shows
+"some selected" (a click reports `true`); `placeholder` explains an empty `Dropdown` or
+`Combobox`; a `Button`'s `tooltip` is its description and shows even while it is disabled.
 
 ### Skin-support hooks
 

@@ -388,6 +388,78 @@ describe("shadcnAdapter smoke", () => {
     expect(onChange).toHaveBeenLastCalledWith([]);
   });
 
+  it("Checkbox takes an ariaLabel and a mixed state; a click on mixed reports checked", () => {
+    const onChange = vi.fn();
+    const { getByRole } = render(
+      <shadcnAdapter.Checkbox
+        ariaLabel="Select all"
+        checked={false}
+        indeterminate
+        onChange={onChange}
+      />,
+    );
+    const box = getByRole("checkbox", { name: "Select all" });
+    expect(box).toBePartiallyChecked();
+    fireEvent.click(box);
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it("Button tooltip describes the button and stays reachable while disabled", () => {
+    const onClick = vi.fn();
+    const { getByRole } = render(
+      <shadcnAdapter.Button
+        text="Bulk edit"
+        disabled
+        tooltip="Tick rows first"
+        onClick={onClick}
+      />,
+    );
+    const button = getByRole("button", { name: "Bulk edit" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription("Tick rows first");
+    // A disabled button takes no pointer or focus events, so the tooltip trigger is a
+    // focusable wrapper around it.
+    expect(button.parentElement).toHaveAttribute("tabindex", "0");
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("Dropdown and Combobox show their placeholder while empty", () => {
+    const opts = [{ key: "a", text: "A", data: "a" }];
+    const { getByText, getByRole } = render(
+      <>
+        <shadcnAdapter.Dropdown
+          label="single"
+          value={undefined}
+          onChange={noop}
+          options={opts}
+          placeholder="Pick one"
+        />
+        <shadcnAdapter.Dropdown
+          label="multi"
+          value={[]}
+          onChange={noop}
+          options={opts}
+          multiselect
+          placeholder="None = all"
+        />
+        <shadcnAdapter.Combobox
+          label="combo"
+          value={[]}
+          onChange={noop}
+          onResolveSuggestions={async () => []}
+          placeholder="Any office"
+        />
+      </>,
+    );
+    expect(getByText("Pick one")).toBeInTheDocument();
+    expect(getByText("None = all")).toBeInTheDocument();
+    expect(getByRole("combobox", { name: "combo" })).toHaveAttribute(
+      "placeholder",
+      "Any office",
+    );
+  });
+
   it("Dialog content suppresses implicit CSS transitions (smooth drag/resize)", () => {
     // Stock DialogContent ships `duration-200` with transition-property left at
     // its initial value `all` — without transition-none, every inline
