@@ -17,7 +17,7 @@ Each task: failing test first, then code, then the package's tests.
    `warning?`. Tests: plan + progress.
 5. **@speel/pnpjs — provider.** `fieldSpecToXml` takes optional identity attrs
    (ID, SourceID, Name, StaticName) and emits `Hidden`; `retypeFieldXml(current,
-   spec, snapshot)`; addField Options |= AddFieldToDefaultView unless opted out or
+spec, snapshot)`; addField Options |= AddFieldToDefaultView unless opted out or
    hidden; alterField with a type change reads SchemaXml and updates it unbatched
    after `execute()`. Tests: fieldSpecToXml, provider (both directions, ordering,
    failure isolation, options flag).

@@ -64,8 +64,8 @@ as `schema` to the `Migrator`.
   the new list's `listId`, which is what lets a later wave resolve a Lookup's
   target GUID without a second read.
 
-The provider makes no reads of its own during apply: the snapshot supplies every
-GUID it needs. Deciding _whether_ an operation should run belongs to
+The snapshot supplies every GUID and current column type the provider needs; the
+only read it makes during apply is a type-changing `alterField`'s (below). Deciding _whether_ an operation should run belongs to
 `@speel/migrations`, not here — the provider only ever receives work that the
 snapshot says is outstanding.
 
@@ -73,8 +73,8 @@ snapshot says is outstanding.
 
 Field creation goes through `fields.createFieldAsXml` with the whole spec in the
 CAML, which is one write per column. Every field carries `Name`, `StaticName`,
-`DisplayName`, `Required`, `Indexed`, and `Description`; `fieldSpecToXml` adds the
-type-specific attributes:
+`DisplayName`, `Required`, `Indexed`, `Description`, and `Hidden` when set;
+`fieldSpecToXml` adds the type-specific attributes:
 
 | FieldSpec `kind`     | CAML `Type`   | Attributes                                           |
 | -------------------- | ------------- | ---------------------------------------------------- |
@@ -91,13 +91,23 @@ type-specific attributes:
 | `User`               | `User`        | `UserSelectionMode`                                  |
 | `User` (multi)       | `UserMulti`   | Adds `Mult`                                          |
 
-`alterField` is the one path that still uses `field.update()`, via
-`fieldSpecToUpdate` — a MERGE of the attributes SharePoint accepts after
-creation.
+Creation passes `Options: AddFieldInternalNameHint | AddFieldToDefaultView`. The
+first makes SharePoint treat the CAML's `Name` as the internal name (see the
+gotcha below — not optional); the second puts the column in the list's default
+view, and is dropped for a spec with `addToDefaultView: false` or `hidden: true`.
 
-Creation passes `Options: AddFieldOptions.AddFieldInternalNameHint`, which is
-what makes SharePoint treat the CAML's `Name` as the internal name. See the
-gotcha below — this is not optional.
+### `alterField`: attributes and type changes
+
+When the spec's SharePoint type matches the column's live `TypeAsString`,
+`alterField` is a `field.update()` MERGE of the attributes SharePoint accepts after
+creation (`fieldSpecToUpdate`). When the type differs — `Text` → `Note`, `Note` →
+`Text`, `Choice` → `MultiChoice` — a MERGE cannot move `FieldTypeKind`, so the
+provider reads the column's `SchemaXml`, rebuilds it from the spec while keeping
+its `ID`, `SourceID`, `Name`, and `StaticName` (and its `DisplayName` / `Indexed`
+when the spec leaves them unset), and writes it back. That read cannot ride the
+`$batch`, so a type change goes out on its own after the wave's batch; results
+still come back in op order. Narrowing conversions may lose data — `@speel/migrations`
+warns about them; SharePoint truncates Note → Text values to 255 characters.
 
 ### Idempotency
 
@@ -158,6 +168,7 @@ the site recycle bin (recoverable for ~90 days). Field drops are permanent.
   guessing. A list created earlier in the same migration is available, because the
   Migrator folds each wave's results back into the snapshot before the next.
 
-- **Field alter does not change type or cardinality.** You cannot change a
-  Lookup's target list or a User field's cardinality in place; those require a
-  drop + add.
+- **Type changes go through SchemaXml, and SharePoint decides what converts.**
+  A Lookup's target list cannot be changed in place, and a conversion SharePoint
+  refuses (Lookup → Text, say) fails that op with SharePoint's message; drop + add
+  instead. A column the snapshot does not hold is sent as a plain MERGE.
