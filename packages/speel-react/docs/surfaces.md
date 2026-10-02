@@ -166,8 +166,8 @@ the tab stop, and both handlers.
 When `entity` is passed, both `SpeelModal` and `SpeelPanel` delegate to `SurfaceForm`
 internally, which mounts one `useEntityForm` feeding the body and footer slots. The form
 body, field set, sections, and submit/cancel/edit-mode footer are the same as inline
-`SpeelForm` — see [forms.md](forms.md) for field rendering, `EntityFields`, `sections`,
-and `beforeSubmit`. The `onSaved` callback (declarative variant) is called after a
+`SpeelForm` — see [forms.md](forms.md) for `sections` and `beforeSubmit`, and
+[fields.md](fields.md) for field rendering and `EntityFields`. The `onSaved` callback (declarative variant) is called after a
 successful save; `closeOnSave` (default `true`) closes the surface automatically.
 
 ## Boundaries & gotchas

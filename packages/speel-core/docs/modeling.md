@@ -264,7 +264,7 @@ property's `codec` (above). Keys the shape doesn't declare round-trip untouched 
 so an older client's save never deletes a field a newer model version added.
 
 > Stability: still settling — the first cycle of an editing surface. See `@speel/react`'s
-> [forms](../../speel-react/docs/forms.md) and [tables](../../speel-react/docs/tables.md).
+> [fields](../../speel-react/docs/fields.md) and [tables](../../speel-react/docs/table-filtering.md).
 
 ## Boundaries & gotchas
 
