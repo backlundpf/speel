@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ModelBuilder, SpeelDocument } from "@speel/core";
+import { ModelBuilder, SpeelDocument, SpeelEntity } from "@speel/core";
 import { projectModel } from "../src/snapshot.js";
 
 class Program {
@@ -28,10 +28,10 @@ function model() {
     b.property((e) => e.Title)
       .isText()
       .isRequired();
-    // a SharePoint built-in surfaced for reading — read-only, so never provisioned
+    // a SharePoint built-in surfaced for reading — systemGenerated, so never provisioned
     b.property((e) => e.Created)
       .isDateTime()
-      .isReadOnly();
+      .isSystemGenerated();
     b.hasOne(Program, (e) => e.Program)
       .withMany()
       .hasForeignKey((e) => e.ProgramId);
@@ -52,7 +52,7 @@ describe("projectModel", () => {
     expect(names).toContain("Title"); // user field kept
     expect(names).toContain("Program"); // relationship field, named by the nav
     expect(names).not.toContain("ProgramId"); // FK-id companion is SharePoint-generated, not provisioned
-    expect(names).not.toContain("Created"); // read-only → server-managed, excluded
+    expect(names).not.toContain("Created"); // systemGenerated → provider-owned, excluded
     expect(names).not.toContain("ID"); // key excluded
     // entities sorted by title, fields sorted by internalName (stable diffs)
     expect(snap.entities.map((e) => e.list.title)).toEqual([
@@ -102,6 +102,9 @@ class Contract extends SpeelDocument {
   Summary?: string;
   FileType?: string;
 }
+class Memo extends SpeelEntity {
+  Title?: string;
+}
 class Owner {
   Id?: number;
   Title?: string;
@@ -136,7 +139,7 @@ function documentModel() {
     b.property((e) => e.FileType)
       .isText()
       .hasColumnName("File_x0020_Type")
-      .isReadOnly();
+      .isSystemGenerated();
   });
   return mb.build();
 }
@@ -300,7 +303,7 @@ describe("projectModel Json fields", () => {
   });
 });
 
-describe("projectModel read-only exclusion", () => {
+describe("projectModel systemGenerated exclusion", () => {
   it("never provisions SpeelEntity's system columns or the Author/Editor navs", () => {
     const snap = projectModel(documentModel());
     const contracts = snap.entities.find((e) => e.list.title === "Contracts")!;
@@ -328,13 +331,52 @@ describe("projectModel read-only exclusion", () => {
     expect(names).toContain("Title");
   });
 
-  it("excludes a read-only column and keeps the writable ones", () => {
+  it("excludes a custom systemGenerated column and keeps the model's own", () => {
     const contracts = projectModel(documentModel()).entities.find(
       (e) => e.list.title === "Contracts",
     )!;
     const names = contracts.fields.map((f) => f.internalName);
     expect(names).not.toContain("File_x0020_Type");
     expect(names).toEqual(["Summary", "Title"]);
+  });
+
+  it("never provisions a plain SpeelEntity's built-ins either", () => {
+    const mb = new ModelBuilder();
+    mb.entity(Person, (b) => {
+      b.toProviderSource({ kind: "provider", key: "principals" });
+      b.property((p) => p.Title).isText();
+    });
+    mb.entity(Memo, (b) => {
+      b.toList("Memos");
+      b.property((e) => e.Title).isText();
+    });
+    const memos = projectModel(mb.build()).entities.find(
+      (e) => e.list.title === "Memos",
+    )!;
+    expect(memos.fields.map((f) => f.internalName)).toEqual(["Title"]);
+  });
+
+  it("provisions a readOnly column that is not systemGenerated (model-owned, never sent)", () => {
+    const mb = new ModelBuilder();
+    mb.entity(Owner, (b) => {
+      b.toList("Owners");
+      b.property((e) => e.Title).isText();
+    });
+    mb.entity(Asset, (b) => {
+      b.toList("Assets");
+      b.property((e) => e.Title).isText().isReadOnly();
+      b.hasOne(Owner, (e) => e.Owner)
+        .withMany()
+        .hasForeignKey((e) => e.OwnerId)
+        .isReadOnly();
+    });
+    const assets = projectModel(mb.build()).entities.find(
+      (e) => e.list.title === "Assets",
+    )!;
+    expect(assets.fields.map((f) => f.internalName)).toEqual([
+      "Owner",
+      "Title",
+    ]);
   });
 
   it("carries a navigation's index onto its provisioned lookup column", () => {
@@ -386,7 +428,7 @@ describe("projectModel read-only exclusion", () => {
     ).not.toHaveProperty("indexed");
   });
 
-  it("excludes a read-only navigation", () => {
+  it("excludes a systemGenerated navigation", () => {
     const mb = new ModelBuilder();
     mb.entity(Owner, (b) => {
       b.toList("Owners");
@@ -398,7 +440,7 @@ describe("projectModel read-only exclusion", () => {
       b.hasOne(Owner, (e) => e.Owner)
         .withMany()
         .hasForeignKey((e) => e.OwnerId)
-        .isReadOnly();
+        .isSystemGenerated();
     });
     const assets = projectModel(mb.build()).entities.find(
       (e) => e.list.title === "Assets",
