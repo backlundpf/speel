@@ -33,6 +33,7 @@ export type FormRequest<T extends IEntity = IEntity> = {
     | "sections"
     | "fields"
     | "exclude"
+    | "allowEdit"
     | "beforeSubmit"
     | "onSubmit"
   >;
@@ -147,6 +148,7 @@ export function SurfaceManager({
           ...(o.sections ? { sections: o.sections } : {}),
           ...(o.fields ? { fields: o.fields } : {}),
           ...(o.exclude ? { exclude: o.exclude } : {}),
+          ...(o.allowEdit !== undefined ? { allowEdit: o.allowEdit } : {}),
           ...(o.beforeSubmit ? { beforeSubmit: o.beforeSubmit } : {}),
           ...(o.onSubmit ? { onSubmit: o.onSubmit } : {}),
           ...(r.variant === "document" ? { variant: "document" as const } : {}),

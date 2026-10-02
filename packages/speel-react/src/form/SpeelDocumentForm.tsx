@@ -8,7 +8,7 @@ import {
   useDocumentFormParts,
   DocumentFileBlock,
 } from "./documentFormParts.js";
-import type { SpeelFormProps } from "./SpeelForm.js";
+import { resolveAllowEdit, type SpeelFormProps } from "./SpeelForm.js";
 
 export interface SpeelDocumentFormProps<
   T extends SpeelDocument,
@@ -27,10 +27,21 @@ export interface SpeelDocumentFormProps<
 export function SpeelDocumentForm<T extends SpeelDocument>(
   props: SpeelDocumentFormProps<T>,
 ): JSX.Element {
-  const [mode, setMode] = useState<FormMode>(props.mode ?? "edit");
+  const [mode, setRawMode] = useState<FormMode>(props.mode ?? "edit");
+  const canEdit = resolveAllowEdit(props.allowEdit, props.entity);
+  const setMode = (m: FormMode): void => {
+    if (m === "edit" && !canEdit) return;
+    setRawMode(m);
+  };
   // Remount on mode change so useEntityForm's onSubmit closure never goes stale.
   return (
-    <DocumentFormInner key={mode} {...props} mode={mode} setMode={setMode} />
+    <DocumentFormInner
+      key={mode}
+      {...props}
+      mode={mode}
+      setMode={setMode}
+      canEdit={canEdit}
+    />
   );
 }
 
@@ -38,6 +49,7 @@ function DocumentFormInner<T extends SpeelDocument>(
   props: SpeelDocumentFormProps<T> & {
     mode: FormMode;
     setMode: (m: FormMode) => void;
+    canEdit: boolean;
   },
 ): JSX.Element {
   const {
@@ -48,6 +60,7 @@ function DocumentFormInner<T extends SpeelDocument>(
     exclude,
     sections,
     actions,
+    canEdit,
     accept,
     onSaved,
     onCancel,
@@ -104,7 +117,8 @@ function DocumentFormInner<T extends SpeelDocument>(
           ef={ef}
           mode={mode}
           setMode={setMode}
-          {...(actions ? { actions } : {})}
+          canEdit={canEdit}
+          {...(actions !== undefined ? { actions } : {})}
           {...(onCancel ? { onCancel } : {})}
         />
       </div>

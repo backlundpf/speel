@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { IEntity, FormMode } from "@speel/core";
-import type { SpeelFormAction } from "../form/formFooter.js";
+import type { SpeelActions } from "../actions.js";
 import type { FormSection } from "../form/EntityFormBody.js";
 import type { EntityFormOptions } from "../form/useEntityForm.js";
 
@@ -45,6 +45,8 @@ export interface SurfaceFormVariantProps<T extends IEntity = IEntity> {
   fields?: string[];
   exclude?: string[];
   sections?: FormSection[];
+  /** Whether view mode offers Edit — see SpeelFormProps.allowEdit. Default true. */
+  allowEdit?: boolean | ((entity: T) => boolean);
   beforeSubmit?: () => void | Promise<void>;
   /** Caller-owned persistence — see EntityFormOptions.onSubmit. */
   onSubmit?: EntityFormOptions["onSubmit"];
@@ -59,5 +61,6 @@ export interface SurfaceFormVariantProps<T extends IEntity = IEntity> {
 /** The content variant: the surface hosts whatever you put in it. */
 export interface SurfaceContentVariantProps {
   children: ReactNode;
-  actions?: SpeelFormAction[];
+  /** The footer: an action array rendered as skin buttons, or any node rendered as-is. */
+  actions?: SpeelActions;
 }

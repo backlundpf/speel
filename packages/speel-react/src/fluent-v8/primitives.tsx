@@ -46,12 +46,15 @@ import type {
   IDetailsRowProps,
   IDetailsHeaderProps,
   IContextualMenuItem,
+  IButtonStyles,
+  Theme,
 } from "@fluentui/react";
 import { V8Field, chromeFrom, useFieldAria } from "./Field.js";
 import { useStableId } from "./useStableId.js";
 import { columnBounds, heldWidth } from "./columnBounds.js";
 import { useResizable } from "../surface/useResizable.js";
 import { useDragResize } from "../surface/useDragResize.js";
+import { SpeelActionBar } from "../actions.js";
 import type {
   TextInputProps,
   NumberInputProps,
@@ -221,8 +224,9 @@ export function V8ProgressBar(p: ProgressBarProps): JSX.Element {
 
 export function V8Button(p: ButtonProps): JSX.Element {
   const tooltipId = useStableId();
+  const theme = useTheme();
   const Btn =
-    p.appearance === "primary"
+    p.appearance === "primary" || p.appearance === "danger"
       ? PrimaryButton
       : p.appearance === "subtle"
         ? ActionButton
@@ -230,6 +234,8 @@ export function V8Button(p: ButtonProps): JSX.Element {
   const button = (
     <Btn
       text={p.text}
+      data-appearance={p.appearance ?? "secondary"}
+      {...(p.appearance === "danger" ? { styles: dangerStyles(theme) } : {})}
       type={p.type ?? "button"}
       disabled={!!p.disabled}
       {...(p.iconName !== undefined
@@ -254,6 +260,22 @@ export function V8Button(p: ButtonProps): JSX.Element {
       {button}
     </TooltipHost>
   );
+}
+
+/** A filled button in the theme's error red — Fluent v8 has no danger variant. */
+function dangerStyles(theme: Theme): IButtonStyles {
+  const { red, redDark, white } = theme.palette;
+  const fill = (bg: string) => ({
+    backgroundColor: bg,
+    borderColor: bg,
+    color: white,
+  });
+  return {
+    root: fill(redDark),
+    rootHovered: fill(red),
+    rootPressed: fill(red),
+    rootFocused: fill(redDark),
+  };
 }
 
 export function V8IconButton(p: IconButtonProps): JSX.Element {
@@ -295,6 +317,16 @@ export function V8MessageBar(p: MessageBarProps): JSX.Element {
   return (
     <MessageBar
       messageBarType={MSG_BAR_TYPE[p.intent]}
+      {...(p.actions !== undefined
+        ? {
+            actions: (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <SpeelActionBar actions={p.actions} />
+              </div>
+            ),
+          }
+        : {})}
+      {...(p.multiline !== undefined ? { isMultiline: p.multiline } : {})}
       styles={{ iconContainer: { alignSelf: "center" } }}
       {...(p.onDismiss
         ? { onDismiss: p.onDismiss, dismissButtonAriaLabel: "Dismiss" }

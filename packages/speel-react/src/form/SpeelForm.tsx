@@ -2,9 +2,21 @@ import { useState } from "react";
 import type { IEntity, FormMode, IAddOptions } from "@speel/core";
 import { useEntityForm, type EntityFormOptions } from "./useEntityForm.js";
 import { EntityFormBody, type FormSection } from "./EntityFormBody.js";
-import { FormFooter, type SpeelFormAction } from "./formFooter.js";
+import { FormFooter } from "./formFooter.js";
+import type { EntityForm } from "./useEntityForm.js";
+import type { SpeelActions } from "../actions.js";
 
 export type { SpeelFormAction } from "./formFooter.js";
+
+/** `allowEdit` as given → whether this entity may enter edit mode. */
+export function resolveAllowEdit<T>(
+  allowEdit: boolean | ((entity: T) => boolean) | undefined,
+  entity: T,
+): boolean {
+  return typeof allowEdit === "function"
+    ? allowEdit(entity)
+    : (allowEdit ?? true);
+}
 
 export interface SpeelFormProps<T extends IEntity = IEntity> {
   entity: T;
@@ -12,7 +24,13 @@ export interface SpeelFormProps<T extends IEntity = IEntity> {
   fields?: string[];
   exclude?: string[];
   sections?: FormSection[];
-  actions?: SpeelFormAction[];
+  /** Replaces the built-in footer: an action array (each `onClick` gets the form) or
+   *  any node rendered as-is. */
+  actions?: SpeelActions<EntityForm>;
+  /** Whether view mode offers Edit. False (or a predicate returning false for the
+   *  entity) makes a read-only display form: no Edit button, no path into edit
+   *  mode. Default true. */
+  allowEdit?: boolean | ((entity: T) => boolean);
   /** Runs after validation, before persistence. Throw to abort and keep the form open. */
   beforeSubmit?: () => void | Promise<void>;
   /** Caller-owned persistence — see EntityFormOptions.onSubmit. */
@@ -29,13 +47,30 @@ export interface SpeelFormProps<T extends IEntity = IEntity> {
 export function SpeelForm<T extends IEntity>(
   props: SpeelFormProps<T>,
 ): JSX.Element {
-  const [mode, setMode] = useState<FormMode>(props.mode ?? "edit");
+  const [mode, setRawMode] = useState<FormMode>(props.mode ?? "edit");
+  const canEdit = resolveAllowEdit(props.allowEdit, props.entity);
+  const setMode = (m: FormMode): void => {
+    if (m === "edit" && !canEdit) return;
+    setRawMode(m);
+  };
   // Remount on mode change so useEntityForm's onSubmit closure never goes stale.
-  return <SpeelFormInner key={mode} {...props} mode={mode} setMode={setMode} />;
+  return (
+    <SpeelFormInner
+      key={mode}
+      {...props}
+      mode={mode}
+      setMode={setMode}
+      canEdit={canEdit}
+    />
+  );
 }
 
 function SpeelFormInner<T extends IEntity>(
-  props: SpeelFormProps<T> & { mode: FormMode; setMode: (m: FormMode) => void },
+  props: SpeelFormProps<T> & {
+    mode: FormMode;
+    setMode: (m: FormMode) => void;
+    canEdit: boolean;
+  },
 ): JSX.Element {
   const {
     entity,
@@ -45,6 +80,7 @@ function SpeelFormInner<T extends IEntity>(
     exclude,
     sections,
     actions,
+    canEdit,
     onSaved,
     onCancel,
     onError,
@@ -80,7 +116,8 @@ function SpeelFormInner<T extends IEntity>(
           ef={ef}
           mode={mode}
           setMode={setMode}
-          {...(actions ? { actions } : {})}
+          canEdit={canEdit}
+          {...(actions !== undefined ? { actions } : {})}
           {...(onCancel ? { onCancel } : {})}
         />
       </div>

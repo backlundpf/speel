@@ -7,6 +7,7 @@ import type {
   TableSort,
 } from "../src/adapter/SpeelUIAdapter.js";
 import { useStableId } from "../src/fluent-v8/useStableId.js";
+import { SpeelActionBar } from "../src/actions.js";
 
 // A headless plain-HTML adapter for tests. Layout/styling is irrelevant — it exists
 // only to drive the logic in field components and the form controller without Fluent.
@@ -499,7 +500,16 @@ export const fakeAdapter: SpeelUIAdapter = {
     </div>
   ),
 
-  Button: ({ text, onClick, type, disabled, ariaLabel, iconName, tooltip }) => (
+  Button: ({
+    text,
+    onClick,
+    type,
+    disabled,
+    ariaLabel,
+    iconName,
+    tooltip,
+    appearance,
+  }) => (
     <button
       type={type ?? "button"}
       disabled={disabled}
@@ -507,6 +517,7 @@ export const fakeAdapter: SpeelUIAdapter = {
       aria-description={tooltip}
       title={tooltip}
       data-icon={iconName}
+      data-appearance={appearance}
       onClick={onClick}
     >
       {text}
@@ -525,9 +536,14 @@ export const fakeAdapter: SpeelUIAdapter = {
     />
   ),
 
-  MessageBar: ({ intent, children, onDismiss }) => (
-    <div role="alert" data-intent={intent}>
+  MessageBar: ({ intent, children, onDismiss, actions, multiline }) => (
+    <div role="alert" data-intent={intent} data-multiline={multiline}>
       {children}
+      {actions !== undefined ? (
+        <div data-testid="message-actions">
+          <SpeelActionBar actions={actions} />
+        </div>
+      ) : null}
       {onDismiss ? (
         <button aria-label="Dismiss" onClick={onDismiss}>
           ×

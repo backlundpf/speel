@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
+import type { SpeelActions } from "../actions.js";
 
 /** The label/validation/disabled chrome shared by every field primitive. */
 export interface FieldChrome {
@@ -175,7 +176,8 @@ export interface FileInputProps extends FieldChrome {
 export interface ButtonProps {
   text: string;
   onClick?: () => void;
-  appearance?: "primary" | "secondary" | "subtle";
+  /** `danger` marks a destructive action (the skin renders it in its error color). */
+  appearance?: "primary" | "secondary" | "subtle" | "danger";
   type?: "button" | "submit";
   disabled?: boolean;
   /** Accessible name, when the visible text is not one — a status glyph, a bare view name. */
@@ -211,6 +213,11 @@ export interface MessageBarProps {
   children: ReactNode;
   /** When set, the bar shows a native dismiss control (styled to match the bar). */
   onDismiss?: () => void;
+  /** The bar's action slot — an action array or any node; render it with `SpeelActionBar`. */
+  actions?: SpeelActions;
+  /** Long messages wrap with the actions below (true) or stay on one line with the
+   *  actions beside the text (false). Unset = the skin's default. */
+  multiline?: boolean;
 }
 
 export interface DialogProps {

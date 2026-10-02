@@ -63,6 +63,14 @@ export type { SpeelFormProps, SpeelFormAction } from "./form/SpeelForm.js";
 export { SpeelDocumentForm } from "./form/SpeelDocumentForm.js";
 export type { SpeelDocumentFormProps } from "./form/SpeelDocumentForm.js";
 
+// Actions — the one `actions` shape (forms, surfaces, MessageBar)
+export { SpeelActionBar, isActionArray } from "./actions.js";
+export type {
+  SpeelAction,
+  SpeelActions,
+  SpeelActionAppearance,
+} from "./actions.js";
+
 // Surfaces (modal / panel) — require the Fluent v8 skin (Dialog/Drawer primitives)
 export { SpeelModal } from "./surface/SpeelModal.js";
 export type { SpeelModalProps } from "./surface/SpeelModal.js";
