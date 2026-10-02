@@ -32,7 +32,9 @@ function RequestReport({ rows }: { rows: Request[] }) {
       exportCsv
       exportXlsx={{ fileNamePrefix: "requests", sheetName: "Open requests" }}
       print={{ title: "Request Status Report" }}
-      toolbar={<button onClick={() => tableRef.current?.print()}>Print now</button>}
+      toolbar={
+        <button onClick={() => tableRef.current?.print()}>Print now</button>
+      }
     />
   );
 }

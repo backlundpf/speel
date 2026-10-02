@@ -153,8 +153,8 @@ missing target, FK-owning side only ([selection.md](selection.md)).
 Navigations are never loaded automatically. **Lookup navs** load with `.include(e => e.Nav)`
 on the query. **Person navs** take either: `.expand(e => e.Nav)` resolves inline on the same
 request (`Id`, `Title`, `LoginName`, `Email` only); `.include(e => e.Nav)` costs one request
-more but reads the target's own source, `PrincipalType` included. See [querying.md](querying.md)
-for nested `thenInclude` and current limits.
+more but reads the target's own source, `PrincipalType` included. See [loading.md](loading.md)
+for nested `thenInclude`, round-trip cost, and current limits.
 
 ### Explicit loading: `ctx.entry(entity)`
 
