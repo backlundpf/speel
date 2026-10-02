@@ -108,6 +108,17 @@ dark overlay instead, with the task label centered — preventing all user inter
 until the work completes. Both show a progress bar only when `progress` has been set
 via `handle.update`.
 
+**What blocking holds still.** Not just the pointer: while any blocking task runs, the
+rest of the page is `inert` (with `aria-hidden` standing in where a browser lacks
+`inert`), key events aimed at it are stopped, and focus moves into the overlay's status
+region, so Enter on the button that started a save cannot start a second one. The
+overlay is an `alertdialog` with `aria-busy`, labelled by that status region. When the
+last blocking task ends, focus returns to the element that held it — if it is still on
+the page. The scope is every layer on `document.body`, not only your component tree, so
+an open modal or panel (Fluent and Radix both portal to the body) is covered too, and a
+layer opened mid-task is sealed as it appears. Toasts and the running-task stack sit
+above the scrim and stay reachable.
+
 ### Provider nesting and `SpeelProvider`
 
 `ToastProvider` and `ActiveTasksProvider` are mounted **unconditionally inside
@@ -130,6 +141,12 @@ via `handle.update`.
   `Z.blockingTasks` (2 000 000), which sits above Fluent v8's Layer portal (~1 000 000)
   and above modals/panels. If you open a surface and then trigger a blocking task,
   the overlay covers the surface. See [setup.md](setup.md) for the full layer stack.
+
+- **A blocking task blocks the whole page.** The inert scope is the body, so in a host
+  with several Speel apps (several web parts on one page) a blocking task in one holds
+  the others still too — as its full-screen scrim already does for the pointer. Keep
+  `blocking` for work the user must wait on. Progress updates inside a blocking overlay
+  are not announced live (`aria-busy`); the label is read when focus lands on it.
 
 - **Overlays portal to `document.body` and adopt the host font by measurement.**
   Toast stacks and task surfaces render outside your styled containers, on a body the
