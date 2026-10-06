@@ -119,7 +119,7 @@ has never seen is provisioned through `identity.users.ensure`.
 ### Editing a shape
 
 A `Json` field (`@JsonField`/`@MultiJsonField` in the model — see
-[core modeling.md](../../speel-core/docs/modeling.md)) is an ordinary field in the caller's
+[core shapes.md](../../speel-core/docs/shapes.md)) is an ordinary field in the caller's
 code — `<SpeelField name="Tasks" />` inside a form, same as any other — but renders as a
 fieldset rather than an input:
 

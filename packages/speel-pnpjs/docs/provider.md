@@ -30,7 +30,7 @@ class Project extends SpeelEntity {
 class AppContext extends DbContext {
   public projects = this.set(Project);
 
-  protected onModelCreating(b: ModelBuilder): void {
+  protected override onModelCreating(b: ModelBuilder): void {
     b.entity(Project, (eb) => {
       eb.toList("Projects");
       eb.property((e) => e.Title)

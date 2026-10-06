@@ -39,7 +39,7 @@ class TaskContext extends DbContext {
   public tasks = this.set(Task);
   public programs = this.set(Program);
 
-  protected onModelCreating(builder: ModelBuilder): void {
+  protected override onModelCreating(builder: ModelBuilder): void {
     builder.entity(Program, (b) => {
       b.toList("Programs");
       b.property((e) => e.Title)

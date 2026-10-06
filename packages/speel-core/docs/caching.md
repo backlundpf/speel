@@ -34,7 +34,7 @@ class Tag extends SpeelEntity {
 class TagContext extends DbContext {
   public tags = this.set(Tag);
 
-  protected onModelCreating(builder: ModelBuilder): void {
+  protected override onModelCreating(builder: ModelBuilder): void {
     builder.entity(Tag, (b) => {
       b.toList("Tags");
       b.property((e) => e.Title)

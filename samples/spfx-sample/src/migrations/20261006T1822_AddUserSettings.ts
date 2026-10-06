@@ -1,6 +1,6 @@
 import { defineMigration } from "@speel/migrations";
 
-export default defineMigration("20261002T1254_AddUserSettings", {
+export default defineMigration("20261006T1822_AddUserSettings", {
   up(b) {
     b.createList("Speel User Settings", {
       template: "genericList",

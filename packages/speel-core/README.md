@@ -29,7 +29,7 @@ class Blog {
 class BlogContext extends DbContext {
   public blogs = this.set(Blog);
 
-  protected onModelCreating(builder: ModelBuilder): void {
+  protected override onModelCreating(builder: ModelBuilder): void {
     builder.entity(Blog, (b) => {
       b.toList("Blogs");
       b.property((e) => e.Title)
