@@ -126,3 +126,63 @@ it("does not overwrite a navigation the user already assigned", async () => {
   expect(values().Program).toBe(chosen);
   expect((values().Program as Program).Title).toBe("User pick");
 });
+
+it("hydrates a bare reference stub into the tracked target", async () => {
+  const provider = makeFakeProvider({ Programs: [{ ID: 9, Title: "Alpha" }] });
+  const ctx = new Ctx({ provider } as never);
+  const stub = Object.assign(new Program(), { Id: 9 });
+  const proj = Object.assign(new Project(), {
+    Title: "Draft",
+    ProgramId: 9,
+    Program: stub,
+  });
+
+  const values = renderForm(ctx, proj);
+
+  await waitFor(() => {
+    expect((values().Program as Program).Title).toBe("Alpha");
+  });
+  expect(proj.Program).toBe(stub); // the entity is untouched until submit
+});
+
+it("hydrates bare collection stubs, keeping the draft's membership", async () => {
+  const provider = makeFakeProvider({
+    Projects: [
+      { ID: 1, Title: "A", ProgramId: 9 },
+      { ID: 2, Title: "B", ProgramId: 9 },
+    ],
+  });
+  const ctx = new Ctx({ provider } as never);
+  const prog = Object.assign(new Program(), {
+    Id: 9,
+    OwnedProjects: [Object.assign(new Project(), { Id: 2 })], // draft dropped 1
+  });
+
+  const values = renderForm(ctx, prog);
+
+  await waitFor(() => {
+    expect((values().OwnedProjects as Project[]).map((p) => p.Title)).toEqual([
+      "B",
+    ]);
+  });
+});
+
+it("keeps a stub whose target no longer exists", async () => {
+  const provider = makeFakeProvider({ Programs: [{ ID: 1, Title: "S" }] });
+  const ctx = new Ctx({ provider } as never);
+  const stub = Object.assign(new Program(), { Id: 404 });
+  const proj = Object.assign(new Project(), {
+    Title: "Draft",
+    ProgramId: 404,
+    Program: stub,
+    SponsorId: 1,
+  });
+
+  const values = renderForm(ctx, proj);
+
+  // Sponsor is declared after Program, so its arrival proves Program was handled.
+  await waitFor(() =>
+    expect((values().Sponsor as Program | undefined)?.Title).toBe("S"),
+  );
+  expect(values().Program).toBe(stub);
+});
