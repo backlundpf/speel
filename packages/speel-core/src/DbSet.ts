@@ -27,6 +27,12 @@ import type { IFileContent } from "./Save/fileUpload.js";
 import { SpeelDocument } from "./SpeelDocument.js";
 import { cloneEntity } from "./Entities/cloneEntity.js";
 import { readOnlyMembersWithValues } from "./Entities/readOnlyMembers.js";
+import { serializeEntity, deserializeEntity } from "./Entities/serialize.js";
+import type {
+  NavigationMode,
+  ISerializeOptions,
+  SerializedEntity,
+} from "./Entities/SerializedEntity.js";
 
 /**
  * SharePoint's checked-out-to column. The model member is `CheckedOutById`
@@ -302,6 +308,35 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
    */
   clone(entity: T): T {
     return cloneEntity(this.entityType, entity);
+  }
+
+  /**
+   * The entity as plain, JSON-safe data — for drafts, storage and postMessage.
+   * Navigations are `{ Id }` stubs unless `navigations: "full"`.
+   */
+  serialize<M extends NavigationMode = "stub">(
+    entity: T,
+    options?: ISerializeOptions<M>,
+  ): SerializedEntity<T, M> {
+    return serializeEntity(
+      this.entityType,
+      entity,
+      options?.navigations ?? "stub",
+    ) as SerializedEntity<T, M>;
+  }
+
+  /**
+   * Serialized data → an untracked entity. A navigation target this context
+   * already tracks resolves to the tracked instance; otherwise a stub becomes a
+   * bare instance carrying only its Id.
+   */
+  deserialize(data: SerializedEntity<T, NavigationMode>): T {
+    return deserializeEntity(this.entityType, data, (ctor, id) => {
+      const entry = this.tracker.findEntry(ctor, id);
+      return entry && entry.state !== EntityState.Detached
+        ? (entry.entity as object)
+        : undefined;
+    }) as T;
   }
 
   update(entity: T): EntityEntry<T> {
