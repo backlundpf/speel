@@ -25,6 +25,7 @@ import { normalizeFolderPath, normalizeLeafName } from "./Save/folderPath.js";
 import { resolveStagedFile, fileFactsPatch } from "./Save/fileUpload.js";
 import type { IFileContent } from "./Save/fileUpload.js";
 import { SpeelDocument } from "./SpeelDocument.js";
+import { cloneEntity } from "./Entities/cloneEntity.js";
 
 /**
  * SharePoint's checked-out-to column. The model member is `CheckedOutById`
@@ -292,6 +293,15 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
     return this.tracker.track(entity, EntityState.Unchanged, snap);
   }
 
+  /**
+   * A complete, untracked copy of `entity`: every property, key and read-only
+   * ones included, values deep-copied; navigation targets shared. Delete its Id
+   * and add() it to duplicate the row, or edit it and update() it to apply back.
+   */
+  clone(entity: T): T {
+    return cloneEntity(this.entityType, entity);
+  }
+
   update(entity: T): EntityEntry<T> {
     this.assertNotDisposed?.();
     const id = persistedId(entity);
@@ -300,6 +310,14 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
     let entry: EntityEntry<T>;
     if (existing) {
       entry = existing as EntityEntry<T>;
+      if (entry.entity !== entity) {
+        // A different instance for a tracked row — a clone or a deserialized
+        // draft. Its values are what the caller means to save; marking the
+        // tracked entry alone would diff it against itself and send nothing.
+        if (entry.state === EntityState.Deleted)
+          entry.state = EntityState.Modified;
+        entry.setValues(entity);
+      }
     } else {
       // Attach with an empty snapshot — so every configured non-key property is "dirty".
       entry = this.tracker.track(
