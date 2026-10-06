@@ -179,3 +179,20 @@ Capabilities gains the `add`/`update` behaviour and `setValues`, Boundaries gain
 otherwise a new `docs/entities.md` with a README TOC line. `speel-react/docs/forms.md`
 notes the load rule if it covers loading. One `minor` changeset for `@speel/core` and
 `@speel/react`.
+
+## Refinements made during planning and implementation
+
+1. **Unloaded navigation rule.** A navigation value is _unloaded_ when it is `undefined`;
+   `null` on an `inverse-fk` navigation; or `null` while its self-side FK holds a value.
+   `setValues` (and so `update(copy)`) skips unloaded navigations; `[]` and
+   null-with-empty-FK are explicit empties.
+2. **The form hydrates bare stubs instead of reloading.** Reloading would replace a
+   draft's membership with server state. `useEntityForm` swaps each _bare_ stub
+   (untracked, nothing but `Id` set) for `ctx.set(ctor).findAsync(id)`, keeping the stub
+   if that fails. Untracked targets carrying data (a full deserialized target, a
+   hand-assigned pick) are left alone.
+3. **`add()` warns on `!= null`** read-only properties and navigations; the insert clears
+   them to `undefined`.
+4. **`update(copy)` on a `Deleted` original** revives it before applying values.
+5. **Docs:** `saving.md` was already over 250 lines, so clone/serialize live in a new
+   `entities.md` topic page.

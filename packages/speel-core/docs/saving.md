@@ -76,8 +76,9 @@ with a snapshot of its loaded values. You do not need to call anything to start 
 
 When you call `add(entity)`, the entity enters tracking at `EntityState.Added`
 (no snapshot — the item does not yet exist on the server). New items must have `Id` unset
-and must not have any read-only property (`Created`, `Modified`, `AuthorId`) set to a
-non-`undefined` value; `add()` throws `InvalidOperationException` if either guard fires.
+(`add()` throws `InvalidOperationException` otherwise). Read-only values (`Created`,
+`AuthorId`, …) are allowed — a duplicate carries them for display — but `add()` warns, they
+are never written, and the insert clears them afterwards.
 
 Calling `saveChangesAsync` runs `detectChanges` before flushing. Change detection walks
 every `Unchanged` or `Modified` entry and **compares current property values against the
@@ -155,9 +156,13 @@ to place the item in a folder. Returns the `EntityEntry<T>` so you can inspect i
 
 **`update(entity)`** forces an entity into `Modified` state. Use this when you construct
 or receive an entity instance outside the context (e.g. from a form submission) and want
-to write it without loading it first. If the entity is already tracked, `update()` just
-marks it dirty. If it is not tracked, it is attached with an empty-snapshot baseline so
-that every configured non-key property is treated as changed.
+to write it without loading it first. If that instance is already tracked, `update()` just
+marks it dirty. If a _different_ instance with the same `Id` is tracked — a clone or a
+deserialized draft — its writable values are copied onto the tracked one
+(`entry.setValues`) and only real differences are sent. If nothing with that `Id` is
+tracked, it is attached with an empty-snapshot baseline so that every configured non-key
+property is treated as changed. Copying, duplicating and serializing entities:
+[entities.md](entities.md).
 
 **`attach(entity)`** enters an already-loaded entity into tracking at `Unchanged` with a
 snapshot of its current values. Use this when you hold an instance that was loaded
@@ -192,13 +197,11 @@ the rest stays dirty for a clean retry.
 
 ## Boundaries & gotchas
 
-- **`add()` throws on set `Id` or read-only fields.** SharePoint assigns `Id` on insert;
-  do not set it before calling `add()`. Likewise, never pre-fill `Created`, `Modified`,
-  `AuthorId`, or `EditorId` on a new entity — `add()` throws `InvalidOperationException` if
-  any read-only property holds a non-`undefined` value. Use `SpeelEntity` (which initializes
-  these to `undefined`) rather than classes that zero-initialize them; a read-only field you
-  declare yourself must follow suit — `?: number = undefined`, never `| null = null`
-  ([modeling.md](modeling.md)).
+- **`add()` throws on a set `Id` and warns on read-only values.** SharePoint assigns `Id`
+  on insert — delete it from a clone before `add()`. Read-only values (`Created`,
+  `AuthorId`, …) are never written; `add()` logs a warning naming them and the insert
+  clears them to `undefined` (they are not re-read). Initialize read-only fields you
+  declare to `undefined` to keep ordinary adds quiet ([modeling.md](modeling.md)).
 
 - **Delete is a SharePoint recycle, not an EF Core hard delete.** `remove()` +
   `saveChangesAsync()` moves the item to the site recycle bin by default; there is no
@@ -217,10 +220,10 @@ the rest stays dirty for a clean retry.
   (e.g. for a "dirty" indicator), call `ctx.changeTracker.detectChanges()` first to
   ensure the state is current.
 
-- **`update()` marks every non-key column as dirty.** When you attach an outside entity
-  via `update()`, the save sends all non-key columns to SharePoint, not just the ones you
-  changed. Load first with `findAsync` and mutate in-place if you only want to write the
-  delta.
+- **`update()` of an untracked row marks every non-key column as dirty.** When nothing
+  with that `Id` is tracked, the save sends all non-key columns, not just the ones you
+  changed. Load first with `findAsync` (then `update()` a clone, or mutate in place) if you
+  only want to write the delta.
 
 - **Tracking is per context instance.** Each `initSpeelDbContext` call constructs a new
   context — call it once in `onInit()` and store the result. A second context instance
