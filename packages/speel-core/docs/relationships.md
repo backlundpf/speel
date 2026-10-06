@@ -17,7 +17,6 @@ import {
   SpeelEntity,
   Principal,
   Entity,
-  Key,
   TextField,
   ManyToOne,
   ManyToMany,
@@ -28,7 +27,6 @@ import "@speel/pnpjs";
 
 @Entity({ list: "Programs" })
 class Program extends SpeelEntity {
-  @Key public Id?: number = undefined;
   @TextField({ required: true }) public Title: string | null = null;
 
   // Inverse collection — FK lives on Project.ProgramId, named via `inverse`.
@@ -38,13 +36,11 @@ class Program extends SpeelEntity {
 
 @Entity({ list: "Tags" })
 class Tag extends SpeelEntity {
-  @Key public Id?: number = undefined;
   @TextField({ required: true }) public Title: string | null = null;
 }
 
 @Entity({ list: "Projects" })
 class Project extends SpeelEntity {
-  @Key public Id?: number = undefined;
   @TextField({ required: true }) public Title: string | null = null;
 
   // Lookup nav → Programs; FK inferred as ProgramId, paired with OwnedProjects above.
@@ -157,8 +153,8 @@ missing target, FK-owning side only ([selection.md](selection.md)).
 Navigations are never loaded automatically. **Lookup navs** load with `.include(e => e.Nav)`
 on the query. **Person navs** take either: `.expand(e => e.Nav)` resolves inline on the same
 request (`Id`, `Title`, `LoginName`, `Email` only); `.include(e => e.Nav)` costs one request
-more but reads the target's own source, `PrincipalType` included. See [querying.md](querying.md)
-for nested `thenInclude` and current limits.
+more but reads the target's own source, `PrincipalType` included. See [loading.md](loading.md)
+for nested `thenInclude`, round-trip cost, and current limits.
 
 ### Explicit loading: `ctx.entry(entity)`
 

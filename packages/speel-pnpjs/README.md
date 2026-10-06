@@ -47,7 +47,7 @@ class Task extends SpeelEntity {
 class TaskContext extends DbContext {
   public tasks = this.set(Task);
 
-  protected onModelCreating(builder: ModelBuilder): void {
+  protected override onModelCreating(builder: ModelBuilder): void {
     builder.entity(Task, (b) => {
       b.toList("Tasks");
       b.property((e) => e.Title)
@@ -101,6 +101,20 @@ const openTasks = await ctx.tasks
 - **`@pnp/*` peers must be hoisted.** SPFx bundles `@pnp/sp` as a shared
   singleton; ensure `@pnp/sp`, `@pnp/queryable`, and `@pnp/logging` resolve to
   the same instance across your project.
+
+- **`file:` links bundle a second `@pnp/sp`.** Consuming speel from a local
+  checkout (`"@speel/pnpjs": "file:../speel/packages/speel-pnpjs"`) installs a
+  symlink. Webpack resolves symlinks to their real path, so `@pnp/sp` imported
+  from inside speel resolves against the checkout's own `node_modules`, not
+  yours — two `@pnp/sp` copies in one bundle. PnP registers its selectors
+  (`sp.web`, `.lists`, …) per copy, so a selector import applied to one copy
+  is missing on the other, and the failure surfaces far from its cause. Fix
+  it either way: align the `@pnp/*` versions and leave one copy on disk
+  (remove the checkout's `node_modules/@pnp`, or `npm dedupe`), or stop
+  webpack following the link with `resolve.symlinks: false` (in a Heft-based
+  SPFx project, `config/spfx-customize-webpack.js`; in a gulp-based one,
+  `build.configureWebpack` in `gulpfile.js`). Installing from the registry
+  has neither problem.
 
 ---
 

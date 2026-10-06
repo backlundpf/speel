@@ -25,7 +25,7 @@ class Task {
 class TaskContext extends DbContext {
   public tasks = this.set(Task);
 
-  protected onModelCreating(builder: ModelBuilder): void {
+  protected override onModelCreating(builder: ModelBuilder): void {
     builder.entity(Task, (b) => {
       b.toList("Tasks");
       b.property((e) => e.Title)
@@ -240,8 +240,7 @@ at version 2 and deletes stores written by earlier versions on upgrade — they 
 records nothing coerces any more; the next `cacheAsync()` re-syncs from an empty token.
 
 **Batch atomicity is provider-defined.** Core assembles the operation list and inspects the result
-array. SharePoint's `$batch` applies operations independently — a partial failure leaves earlier
-operations committed.
+array. SharePoint's `$batch` applies operations independently: a partial failure leaves earlier ones committed.
 
 **No provider-side joins.** `IExpandClause` asks a provider to include related data from a
 navigation column as a sub-query or OData `$expand`, not a SQL join; cross-list relationships are

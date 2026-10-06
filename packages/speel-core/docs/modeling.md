@@ -19,7 +19,6 @@ import {
   DbContext,
   SpeelEntity,
   Entity,
-  Key,
   TextField,
   NoteField,
   ChoiceField,
@@ -32,8 +31,6 @@ import type { FieldContext } from "@speel/core";
 // (`required`, `maxLength`) that mirror the fluent builder's verb methods.
 @Entity({ list: "Tasks" })
 class Task extends SpeelEntity {
-  @Key public Id?: number = undefined;
-
   @TextField({ required: true, maxLength: 120, displayName: "Task Title" })
   public Title: string | null = null;
 
@@ -75,8 +72,9 @@ Decorators are a thin, deferred replay of the fluent builder, so both paths shar
 mental model: **builder methods are verbs** (`isRequired()`, `hasMaxLength()`),
 **decorator opts are nouns** (`required`, `maxLength`). Decorate the class with
 `@Entity({ list })` (add `cache` to opt into query caching — see [caching.md](caching.md),
-or any provisioning hint from below), mark the key property with `@Key`, and give
-each data property one field decorator:
+or any provisioning hint from below), mark a non-`Id` key property with `@Key` (a
+`SpeelEntity` subclass inherits `Id` as its key — redeclaring it fails under
+`noImplicitOverride`), and give each data property one field decorator:
 
 | Field type       | Decorator           | Fluent equivalent |
 | ---------------- | ------------------- | ----------------- |
@@ -104,9 +102,9 @@ and a fluent `entity(Sub, …)` on a decorated base class inherits the base's de
 
 Call `b.toList('ListName')` to bind the entity to a SharePoint list by its display title. The
 second argument takes provisioning hints `@speel/migrations` uses when creating the list:
-`template`, `url`, `description`, `onQuickLaunch`, and `readSecurity`/`writeSecurity`. The same keys sit alongside `list` on the decorator —
-`@Entity({ list: 'Contracts', template: 'documentLibrary' })` — so neither authoring path
-can express more than the other. Provisioning metadata has no effect at runtime.
+`template`, `url`, `description`, `onQuickLaunch`, and `readSecurity`/`writeSecurity`. The same
+keys sit alongside `list` on the decorator — `@Entity({ list: 'Contracts', template:
+'documentLibrary' })`. Provisioning metadata has no effect at runtime.
 
 A list is one kind of source. `b.toProviderSource(source)` is the general form (`toList` is
 shorthand for `toProviderSource({ kind: 'list', list, provisioning })`); the other kind,
@@ -123,17 +121,16 @@ what lets `@speel/identity`'s `UserSetting` be a per-user store
 and neither expresses "only _these people_ may write" — that is list permissions, which
 no migration operation sets ([table views](../../speel-react/docs/table-views.md) depend on it).
 
-**An entity extending `SpeelDocument` is provisioned as a document library without saying
-so** — `template` is inferred as `documentLibrary`; pass `template` explicitly to override it.
+**An entity extending `SpeelDocument` is provisioned as a document library** — `template` is
+inferred; pass it explicitly to override.
 
 The key is `Id` by convention; `b.hasKey(e => e.CustomKey)` names another. `b.useCaching(...)`
 opts the entity into query caching ([caching.md](caching.md)).
 
 ### Typed field builders
 
-Call `b.property(e => e.FieldName)` and then immediately chain one `Is*` method to
-declare the SharePoint field type. Every `Is*` returns a type-specific builder with
-refinements relevant to that field:
+Call `b.property(e => e.FieldName)`, then chain one `Is*` method to declare the field type;
+each returns a type-specific builder with that field's refinements:
 
 - **`isText()`** — single-line text; `hasMinLength`/`hasMaxLength` (capped at 255).
 - **`isNote()`** — multi-line text; `asRichText()`, `asAppendOnly()`, `hasLines`.
@@ -144,9 +141,8 @@ refinements relevant to that field:
 - **`isChoice()`** — single-select; declare where its options come from immediately after —
   `.hasOptions([...])`, a `.hasOptions(({ db }) => …)` thunk, or `.hasOptionsQueryAsync(…)` —
   or the model throws at construction. Object-valued choices add `hasOptionsValue` (picker
-  key), `hasOptionsRender` (label) and `hasCodec` (to and from the column's `string`).
-  Every Choice renders as a searchable combobox; `asRadioButtons()` (`radioButtons: true`)
-  is the only other rendering, and `allowFillIn()` (`fillIn: true`) accepts write-ins.
+  key), `hasOptionsRender` (label) and `hasCodec`. `asRadioButtons()` swaps the combobox for
+  radios; `allowFillIn()` (`fillIn: true`) accepts write-ins.
 - **`isMultiChoice()`** — multi-select; same options contract as `isChoice()`.
 
 A thunk reads a Choice list at runtime — the one route a decorated Choice has to data — and
@@ -168,11 +164,9 @@ decorator opt (`isReadOnly()` ↔ `readOnly: true`, `hasColumnName('X')` ↔ `co
 the property name), `hasDescription`, `hasDefaultValue`, `isIndexed`, `isReadOnly`, and
 `hasCodec({ toProvider, fromProvider })` — a model type mapped to and from the field's
 _typed_ value (a `Date`, a choice's `string`, a lookup's `number`; per element for arrays); the
-decorator's `codec` opt takes the same bag. `codec` is one container with four slots: this
-`toProvider`/`fromProvider` pair is the author's own, applied at the column boundary; a
-`toWire`/`fromWire` pair alongside it is speel's own wire — how the value looks inside a `Json`
-column — defaulted per field kind (only `DateTime` has one today) and never touched outside
-one. A `fromProvider` answering `undefined` leaves the property unset.
+decorator's `codec` opt takes the same bag. Its `toWire`/`fromWire` slots are speel's own — how
+a value looks inside a `Json` column ([shapes.md](shapes.md)). A `fromProvider` answering
+`undefined` leaves the property unset.
 
 **Display** — `hasDisplayName` sets the label used by `@speel/react` forms and tables.
 
@@ -199,23 +193,14 @@ every row carries — `Created`/`Modified`, the `Author`/`Editor` navigations (t
 core's canonical site-user entity, with `AuthorId`/`EditorId`) and SharePoint's file-system
 plumbing, `FSObjType` (0 item, 1 folder), `FileDirRef` (parent folder URL), `FileLeafRef`
 (leaf name) and `FileRef` (the row's URL) — with the same decorators any entity uses
-(`@DateTimeField({ systemGenerated: true })`, `@ManyToOne(() => SiteUser, { systemGenerated: true })`, …).
-All are system-generated and read-only.
-The builder reads decorator metadata up the constructor chain on every registration path, so
-a fluent `builder.entity(Task, …)` and a decorated `@Entity` subclass both inherit every level,
-and `SiteUser` joins the model by reference — a core-only context gets `Author`/`Editor` with
-nothing to register. Plain classes that declare `Id?: number` skip the system members entirely.
+(`@DateTimeField({ systemGenerated: true })`, `@ManyToOne(() => SiteUser, { systemGenerated: true })`,
+…); all are system-generated and read-only. Decorator metadata is read up the constructor chain
+on every registration path, so fluent and decorated subclasses both inherit every level, and
+`SiteUser` joins the model by reference — a core-only context gets `Author`/`Editor` with
+nothing to register. A plain class skips them all.
 
-`SpeelDocument extends SpeelEntity` is the document-library shape: it adds `FileSize` (bytes —
-a projection of `File/Length`, since SharePoint's computed "File Size" column is unselectable;
-mapping a property to `File_x0020_Size` fails the build) and `CheckedOutBy` (a `SiteUser`, the
-`CheckoutUser` column, with `CheckedOutById`; `undefined` when checked in; loads through
-`.include()`, not an inline `$expand`), and redeclares `FileLeafRef` writable: on a library it
-is the file name, so assigning it renames the file at the next save (on a list item it is
-SharePoint's `{ID}_.000` placeholder and stays read-only). The file members are `visible: false`, so they stay
-out of forms and default table columns until an explicit column spec names them; a model that
-surfaces `FileDirRef` (e.g. `.isText().hasDisplayName('Folder')`) opts its create forms into a
-folder-placement input (`@speel/react` consumes it as the `folder` add-option, never as a write).
+`SpeelDocument extends SpeelEntity` is the document-library shape — `FileSize`, `CheckedOutBy`,
+and a writable `FileLeafRef`: see [files and folders](files.md#the-speeldocument-shape).
 
 **Refining or overriding an inherited member.** Members merge by name. A fluent same-type
 re-declaration of a _property_ layers on the inherited one — `b.property(d => d.FileLeafRef).isText().isVisible(true)`
@@ -243,43 +228,14 @@ public ReviewScore?: number = undefined;     // NOT `: number | null = null`
 
 ### `@JsonShape` — a type that lives inside a column
 
-`@JsonShape()` declares a class with no rows of its own: the shape of a value stored inside a
-`Json` field, serialized into a single Note column. It takes the same field decorators an
-entity does, which is what lets `@speel/react` render one with no adapter of its own; the
-fluent equivalent is `mb.shape(TaskDefinition, …)`.
-
-```ts
-@JsonShape()
-class TaskDefinition {
-  @TextField({ displayName: "Task" }) Title?: string;
-  @DateTimeField({ displayFormat: "DateOnly" }) DueDate?: Date;
-}
-```
-
-`@JsonField({ of: () => TaskDefinition })` on an entity property holds one instance;
-`@MultiJsonField` holds an array — `of` is a thunk, so a shape may be declared after the entity
-referencing it, the same circular-safety a navigation's target gets.
-
-A shape holds field kinds only, no navigations — a `@ManyToOne` inside one is a
-model-construction error, since a relationship has no FK column to expand once it is living in
-a blob rather than a row. It needs a no-argument constructor, the same one a load runs to build
-one from stored JSON, and it is not `set()`-able: there is no rowset to read.
-
-On disk a `Json` column is a Note column underneath; the JSON inside is speel's own business,
-invisible to provisioning and the schema reader. A load returns typed instances of the shape
-class, not parsed JSON — real `Date`s, a Choice's declared option value — through each
-property's `codec` (above). Keys the shape doesn't declare round-trip untouched on every save,
-so an older client's save never deletes a field a newer model version added.
-
-> Stability: still settling — the first cycle of an editing surface. See `@speel/react`'s
-> [forms](../../speel-react/docs/forms.md) and [tables](../../speel-react/docs/tables.md).
+`@JsonShape()` declares a class with no rows of its own, stored as JSON inside one Note column
+through `@JsonField` (one instance) or `@MultiJsonField` (an array). See [JSON shapes](shapes.md).
 
 ## Boundaries & gotchas
 
 - **A Choice with no options source throws at model construction.** Chain `hasOptions` or
   `hasOptionsQueryAsync` after `isChoice()` / `isMultiChoice()`.
-- **Model definition is static.** Decorators and `onModelCreating` both resolve once when
-  the context is constructed — no async I/O, no runtime registration.
+- **Model definition is static.** Decorators and `onModelCreating` resolve once, at construction.
 - **Entity-level validations use `onModelCreating`.** There is no class-level validation
   decorator; attach cross-field rules with `b.hasValidation(predicate, message)` — a
   decorated entity can still add an `onModelCreating` block for them.
@@ -292,15 +248,3 @@ so an older client's save never deletes a field a newer model version added.
   SharePoint built-in `readOnly` was how a model read it without provisioning it. Now a
   `readOnly` column that is not `systemGenerated` is provisioned like any model column; mark
   such built-ins `systemGenerated: true` (which also keeps them read-only).
-- **`FileSize` is a projection, not a column.** It arrives via `$expand=File`, and
-  `$filter`/`$orderby` operate on list columns — sort or filter by size client-side.
-- **Caching config goes here, not in the query.** `b.useCaching(...)` is the model-time opt-in.
-- **A shape's validations are per property; a removed one leaves residue.** There is no
-  shape-level rule spanning two properties (`DueDate` after `StartDate` has nowhere to live
-  this cycle), and preserving unknown keys (above) means a deleted property still rides along
-  in already-stored rows until something rewrites them — the price of not losing a newer
-  client's field.
-- **A shape is not queryable, and its Note column has an unguarded ~64k-character ceiling.**
-  SharePoint cannot filter or sort inside a Note column, so `.filter()`/`.orderBy()` over a
-  shape's properties is impossible by construction; nothing checks a shape's serialized size
-  against the column's limit before a save either.

@@ -29,7 +29,7 @@ class Blog {
 class BlogContext extends DbContext {
   public blogs = this.set(Blog);
 
-  protected onModelCreating(builder: ModelBuilder): void {
+  protected override onModelCreating(builder: ModelBuilder): void {
     builder.entity(Blog, (b) => {
       b.toList("Blogs");
       b.property((e) => e.Title)
@@ -97,14 +97,20 @@ change tracking, `saveChangesAsync()`, navigation properties (`hasOne` / `hasMan
 
 - [Modeling](docs/modeling.md) — read when declaring entity classes, mapping list columns,
   configuring field types, or adding validations.
-- [Querying](docs/querying.md) — read when filtering, ordering, paging, using `include`, or
-  opting out of change tracking with `asNoTracking`.
+- [Querying](docs/querying.md) — read when filtering, ordering, paging, or opting out of
+  change tracking with `asNoTracking`.
+- [Loading related data](docs/loading.md) — read when a query should come back with its
+  navigations (`include`, `thenInclude`, `expand`), or a read takes too many round trips.
 - [Saving](docs/saving.md) — read when adding, updating, or removing items, or when you need
   to understand change tracking and the save cycle.
+- [Files and folders](docs/files.md) — read when an entity lives in a document library, items
+  belong in folders, or a file must be uploaded, renamed, copied, checked in, or deleted.
 - [Scopes](docs/scopes.md) — read when one save must not commit the context's other pending
   changes (`db.createScope()`).
 - [Relationships](docs/relationships.md) — read when declaring `hasOne`/`hasMany` navigations,
   inferring FK columns, or understanding nav fixup on save.
+- [JSON shapes](docs/shapes.md) — read when a structured value belongs inside its row — a
+  checklist, an address — rather than in a list of its own (`@JsonShape`, `@JsonField`).
 - [Forms](docs/forms.md) — read when driving a form from entity metadata: field visibility,
   enabled state, and validation errors.
 - [Selection options](docs/selection.md) — read when a Choice or lookup needs options loaded
