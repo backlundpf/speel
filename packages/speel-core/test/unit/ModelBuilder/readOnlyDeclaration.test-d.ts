@@ -21,9 +21,9 @@ import { TestSiteUser as SiteUser } from "../fakes/testPrincipals.js";
 // is the assertion. vitest does not run *.test-d.ts.
 describe("decorated property declarations", () => {
   it("a readOnly member may be declared `?: T = undefined` on every field kind", () => {
-    // DbSet.add() throws if a read-only property holds a value, so `= undefined` is
-    // the only initializer that both compiles and inserts. Before the context type
-    // was widened this whole class failed with TS1240.
+    // DbSet.add() warns about (and never writes) a read-only property that holds a
+    // value, so `= undefined` is the quiet initializer. Before the context type was
+    // widened this whole class failed with TS1240.
     @Entity({ list: "ReadOnlyDecls" })
     class R extends SpeelEntity {
       @TextField({ readOnly: true }) public Name?: string = undefined;

@@ -26,6 +26,7 @@ import { resolveStagedFile, fileFactsPatch } from "./Save/fileUpload.js";
 import type { IFileContent } from "./Save/fileUpload.js";
 import { SpeelDocument } from "./SpeelDocument.js";
 import { cloneEntity } from "./Entities/cloneEntity.js";
+import { readOnlyMembersWithValues } from "./Entities/readOnlyMembers.js";
 
 /**
  * SharePoint's checked-out-to column. The model member is `CheckedOutById`
@@ -243,13 +244,14 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
         `add() requires Id to be unset on entity ${this.ctor.name}. Use update() instead.`,
       );
     }
-    const e = entity as unknown as Record<string, unknown>;
-    for (const p of this.entityType.properties) {
-      if (p.readOnly && e[p.propertyName] !== undefined) {
-        throw new InvalidOperationException(
-          `add() rejected on ${this.ctor.name}: read-only property '${p.propertyName}' has a value.`,
-        );
-      }
+    const carried = readOnlyMembersWithValues(this.entityType, entity);
+    if (carried.length > 0) {
+      // A duplicate legitimately carries its source's system fields for display.
+      // They are never written (PayloadBuilder skips read-only columns) and are
+      // cleared once the insert lands.
+      console.warn(
+        `add() on ${this.ctor.name}: read-only ${carried.join(", ")} will not be written.`,
+      );
     }
     const targetFolder =
       opts?.folder !== undefined ? normalizeFolderPath(opts.folder) : "";

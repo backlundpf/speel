@@ -127,8 +127,8 @@ describe("field decorators", () => {
     @Entity({ list: "DecReadOnly" })
     class Doc extends SpeelEntity {
       @TextField({ maxLength: 255 }) public Title: string | null = null;
-      // A server-populated column: `= undefined` is the only initializer that both
-      // compiles and survives add(), which rejects a read-only property with a value.
+      // A server-populated column: `= undefined` keeps add() quiet — it warns about
+      // (and never writes) a read-only property that holds a value.
       @NumberField({ columnName: "ReviewScore", readOnly: true })
       public ReviewScore?: number = undefined;
     }
