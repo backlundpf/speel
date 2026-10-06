@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { SpeelEntity } from "../../../src/SpeelEntity.js";
 import { ModelBuilder } from "../../../src/ModelBuilder/ModelBuilder.js";
 import { Materialize } from "../../../src/Query/Materialize.js";
@@ -7,7 +7,6 @@ import { DbSet } from "../../../src/DbSet.js";
 import { ChangeTracker } from "../../../src/ChangeTracker/ChangeTracker.js";
 import { EntityState } from "../../../src/ChangeTracker/EntityEntry.js";
 import { FakeStorageProvider } from "../fakes/FakeStorageProvider.js";
-import { InvalidOperationException } from "../../../src/errors.js";
 import { TestPrincipal as Principal } from "../fakes/testPrincipals.js";
 import { SiteUser } from "../../../src/SiteUser.js";
 
@@ -164,7 +163,8 @@ describe("SpeelEntity end-to-end behavior", () => {
     expect(entry.state).toBe(EntityState.Added);
   });
 
-  it("DbSet.add still rejects an entity whose read-only system field is set", () => {
+  it("DbSet.add warns about (and never writes) a set read-only system field", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const model = buildModel();
     const provider = new FakeStorageProvider();
     const tracker = new ChangeTracker(model);
@@ -172,6 +172,8 @@ describe("SpeelEntity end-to-end behavior", () => {
     const d = new Doc();
     d.Title = "X";
     (d as unknown as { AuthorId?: number }).AuthorId = 3;
-    expect(() => set.add(d)).toThrow(InvalidOperationException);
+    expect(set.add(d).state).toBe(EntityState.Added);
+    expect(String(warn.mock.calls[0]![0])).toContain("AuthorId");
+    warn.mockRestore();
   });
 });
