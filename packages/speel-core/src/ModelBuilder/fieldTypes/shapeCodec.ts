@@ -75,6 +75,27 @@ export function shapeCodec(
 }
 
 /**
+ * A shape instance → the plain object speel's JSON holds, unknown keys merged
+ * back — the object level of the Json codec, for writers that are not a column
+ * (entity serialization).
+ */
+export function shapeToPlain(
+  shape: EntityType,
+  value: unknown,
+): Record<string, unknown> {
+  return toPlain(shape, value);
+}
+
+/** speel's JSON object → a fresh shape instance, unknown keys kept in its bag. */
+export function shapeFromPlain(
+  shape: EntityType,
+  raw: unknown,
+  propertyName: string,
+): unknown {
+  return toInstance(shape, raw, propertyName);
+}
+
+/**
  * A shape instance with `patch` applied, as a NEW instance.
  *
  * An editor cannot mutate in place: dirty detection compares structurally, so an

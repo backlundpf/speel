@@ -25,6 +25,14 @@ import { normalizeFolderPath, normalizeLeafName } from "./Save/folderPath.js";
 import { resolveStagedFile, fileFactsPatch } from "./Save/fileUpload.js";
 import type { IFileContent } from "./Save/fileUpload.js";
 import { SpeelDocument } from "./SpeelDocument.js";
+import { cloneEntity } from "./Entities/cloneEntity.js";
+import { readOnlyMembersWithValues } from "./Entities/readOnlyMembers.js";
+import { serializeEntity, deserializeEntity } from "./Entities/serialize.js";
+import type {
+  NavigationMode,
+  ISerializeOptions,
+  SerializedEntity,
+} from "./Entities/SerializedEntity.js";
 
 /**
  * SharePoint's checked-out-to column. The model member is `CheckedOutById`
@@ -242,13 +250,14 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
         `add() requires Id to be unset on entity ${this.ctor.name}. Use update() instead.`,
       );
     }
-    const e = entity as unknown as Record<string, unknown>;
-    for (const p of this.entityType.properties) {
-      if (p.readOnly && e[p.propertyName] !== undefined) {
-        throw new InvalidOperationException(
-          `add() rejected on ${this.ctor.name}: read-only property '${p.propertyName}' has a value.`,
-        );
-      }
+    const carried = readOnlyMembersWithValues(this.entityType, entity);
+    if (carried.length > 0) {
+      // A duplicate legitimately carries its source's system fields for display.
+      // They are never written (PayloadBuilder skips read-only columns) and are
+      // cleared once the insert lands.
+      console.warn(
+        `add() on ${this.ctor.name}: read-only ${carried.join(", ")} will not be written.`,
+      );
     }
     const targetFolder =
       opts?.folder !== undefined ? normalizeFolderPath(opts.folder) : "";
@@ -292,6 +301,44 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
     return this.tracker.track(entity, EntityState.Unchanged, snap);
   }
 
+  /**
+   * A complete, untracked copy of `entity`: every property, key and read-only
+   * ones included, values deep-copied; navigation targets shared. Delete its Id
+   * and add() it to duplicate the row, or edit it and update() it to apply back.
+   */
+  clone(entity: T): T {
+    return cloneEntity(this.entityType, entity);
+  }
+
+  /**
+   * The entity as plain, JSON-safe data — for drafts, storage and postMessage.
+   * Navigations are `{ Id }` stubs unless `navigations: "full"`.
+   */
+  serialize<M extends NavigationMode = "stub">(
+    entity: T,
+    options?: ISerializeOptions<M>,
+  ): SerializedEntity<T, M> {
+    return serializeEntity(
+      this.entityType,
+      entity,
+      options?.navigations ?? "stub",
+    ) as SerializedEntity<T, M>;
+  }
+
+  /**
+   * Serialized data → an untracked entity. A navigation target this context
+   * already tracks resolves to the tracked instance; otherwise a stub becomes a
+   * bare instance carrying only its Id.
+   */
+  deserialize(data: SerializedEntity<T, NavigationMode>): T {
+    return deserializeEntity(this.entityType, data, (ctor, id) => {
+      const entry = this.tracker.findEntry(ctor, id);
+      return entry && entry.state !== EntityState.Detached
+        ? (entry.entity as object)
+        : undefined;
+    }) as T;
+  }
+
   update(entity: T): EntityEntry<T> {
     this.assertNotDisposed?.();
     const id = persistedId(entity);
@@ -300,6 +347,14 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
     let entry: EntityEntry<T>;
     if (existing) {
       entry = existing as EntityEntry<T>;
+      if (entry.entity !== entity) {
+        // A different instance for a tracked row — a clone or a deserialized
+        // draft. Its values are what the caller means to save; marking the
+        // tracked entry alone would diff it against itself and send nothing.
+        if (entry.state === EntityState.Deleted)
+          entry.state = EntityState.Modified;
+        entry.setValues(entity);
+      }
     } else {
       // Attach with an empty snapshot — so every configured non-key property is "dirty".
       entry = this.tracker.track(

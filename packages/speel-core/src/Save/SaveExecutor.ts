@@ -18,6 +18,7 @@ import { requireFileSystem } from "../providers/capabilities.js";
 import { fileFactsPatch } from "./fileUpload.js";
 import { listKey } from "../Cache/listKey.js";
 import { DbUpdateException, SaveAbortedException } from "../errors.js";
+import { clearReadOnlyMembers } from "../Entities/readOnlyMembers.js";
 
 export interface ISaveChangesOptions {
   batched?: boolean;
@@ -323,6 +324,7 @@ export class SaveExecutor {
       }
       (entry.entity as { Id?: number }).Id = id;
       this.tracker.promoteKey(entry, id);
+      clearReadOnlyMembers(entry.entityType, entry.entity as object);
       entry.refreshSnapshot();
       entry.state = EntityState.Unchanged;
     } else if (p.operation.kind === "update") {
@@ -355,6 +357,7 @@ export class SaveExecutor {
   private reconcileFileAdd(entry: EntityEntry, r: IFileUploadResult): void {
     (entry.entity as { Id?: number }).Id = r.id;
     this.tracker.promoteKey(entry, r.id);
+    clearReadOnlyMembers(entry.entityType, entry.entity as object);
     // Reflect server file facts onto model-mapped properties so the snapshot
     // refresh covers them.
     Object.assign(

@@ -105,6 +105,8 @@ change tracking, `saveChangesAsync()`, navigation properties (`hasOne` / `hasMan
   to understand change tracking and the save cycle.
 - [Files and folders](docs/files.md) — read when an entity lives in a document library, items
   belong in folders, or a file must be uploaded, renamed, copied, checked in, or deleted.
+- [Entities](docs/entities.md) — read when copying, duplicating or serializing entities, or
+  applying an edited copy back onto a tracked row.
 - [Scopes](docs/scopes.md) — read when one save must not commit the context's other pending
   changes (`db.createScope()`).
 - [Relationships](docs/relationships.md) — read when declaring `hasOne`/`hasMany` navigations,

@@ -99,6 +99,8 @@ appears as an error bar between the fields and the footer (see Validation surfac
 value is not already set — self-FK navs resolve their FK IDs against the target set,
 inverse-FK collections query the children that point back at the parent. An edit form
 on a freshly-fetched entity auto-resolves related objects without a manual `expand`.
+A navigation holding bare `{ Id }` stubs (from `deserialize()`) keeps its membership;
+each stub is swapped for the tracked row so it displays.
 
 `EntityFormProvider` and `useEntityFormContext` expose the `EntityForm` handle to
 descendent components. `EntityFormProvider` is used internally by `EntityFormBody`;

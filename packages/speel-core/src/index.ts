@@ -3,6 +3,11 @@ export { initSpeelDbContext } from "./initSpeelDbContext.js";
 export { DbContextOptionsBuilder } from "./DbContextOptionsBuilder.js";
 export { DbSet } from "./DbSet.js";
 export type { IAddOptions } from "./DbSet.js";
+export type {
+  SerializedEntity,
+  NavigationMode,
+  ISerializeOptions,
+} from "./Entities/SerializedEntity.js";
 export type { IFileContent, IStagedFile } from "./Save/fileUpload.js";
 export type {
   IFileUploadProgress,

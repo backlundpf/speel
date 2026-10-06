@@ -1,5 +1,5 @@
 // test/unit/DbSet.write.test.ts
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { DbSet } from "../../src/DbSet.js";
 import { ChangeTracker } from "../../src/ChangeTracker/ChangeTracker.js";
 import { EntityState } from "../../src/ChangeTracker/EntityEntry.js";
@@ -79,11 +79,16 @@ describe("DbSet write API", () => {
     expect(() => set.add(b)).toThrow(InvalidOperationException);
   });
 
-  it("add throws when a read-only property has a non-undefined value", () => {
+  it("add warns about read-only values and tracks the entity anyway", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const b = new Blog();
     b.Title = "x";
     b.Created = new Date();
-    expect(() => set.add(b)).toThrow(InvalidOperationException);
+    const e = set.add(b);
+    expect(e.state).toBe(EntityState.Added);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]![0])).toContain("Created");
+    warn.mockRestore();
   });
 
   it("attach tracks as Unchanged with snapshot of current values", () => {

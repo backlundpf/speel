@@ -10,6 +10,9 @@ import { navIdOf } from "./navId.js";
 import { persistedId } from "./entityKey.js";
 import { captureSelectorName } from "../Metadata/selectorName.js";
 import { ReferenceEntry, CollectionEntry } from "./NavigationEntry.js";
+import { cloneValue } from "../Entities/cloneValue.js";
+import { isUnloadedNavValue } from "../Entities/navValue.js";
+import { markNavLoadedOn } from "../Entities/navLoadState.js";
 
 export enum EntityState {
   Detached = "Detached",
@@ -87,6 +90,7 @@ export class EntityEntry<T extends IEntity = IEntity> {
     const value = await this.navLoader(nav, this.entity as object);
     (this.entity as unknown as Record<string, unknown>)[nav.name] = value;
     this.#loadedNavs.add(nav.name);
+    markNavLoadedOn(this.entity as object, nav.name);
     this.markNavLoaded(nav.name);
   }
 
@@ -144,6 +148,40 @@ export class EntityEntry<T extends IEntity = IEntity> {
     for (const p of this.entityType.properties)
       v[p.propertyName] = e[p.propertyName];
     return v as Partial<T>;
+  }
+
+  /**
+   * Copy another object's values onto this entry's entity — the way a scratch
+   * copy (a clone, a deserialized draft) is applied back. Only keys present on
+   * `source` are copied, so a partial patch works. The key and read-only members
+   * are skipped silently (a clone legitimately carries them), as is a navigation
+   * the source never loaded. Values are cloned on the way in; navigation targets
+   * are rows and stay shared. State is left to detectChanges: if nothing actually
+   * differs, nothing is sent.
+   */
+  setValues(source: Partial<T>): void {
+    if (this.state === EntityState.Deleted) {
+      throw new InvalidOperationException(
+        `setValues() on ${this.entityType.ctor.name}: the entity is marked Deleted.`,
+      );
+    }
+    const src = source as unknown as Record<string, unknown>;
+    const e = this.entity as unknown as Record<string, unknown>;
+    for (const p of this.entityType.properties) {
+      if (p.key || p.readOnly || !(p.propertyName in src)) continue;
+      e[p.propertyName] = cloneValue(src[p.propertyName]);
+    }
+    for (const nav of this.entityType.navigations()) {
+      if (nav.readOnly || !(nav.name in src)) continue;
+      if (isUnloadedNavValue(nav, src)) continue;
+      const v = src[nav.name];
+      e[nav.name] = Array.isArray(v) ? [...v] : v;
+      // Nav wins, as at save: a navigation set (or cleared) on the copy decides
+      // this side's FK, whatever FK value the copy still carries.
+      if (nav.storage !== "inverse-fk" && !nav.foreignKey.readOnly)
+        e[nav.foreignKey.propertyName] =
+          nav.storage === "self-fk-array" ? (navIdOf(v) ?? []) : navIdOf(v);
+    }
   }
 
   getDirtyColumns(): string[] {

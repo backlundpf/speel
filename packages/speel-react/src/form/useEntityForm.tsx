@@ -15,6 +15,7 @@ import type {
   EntityCtor,
   FormMode,
   IAddOptions,
+  DbContext,
 } from "@speel/core";
 import { SaveAbortedException } from "@speel/core";
 import { useSpeelContext } from "../context.js";
@@ -24,6 +25,37 @@ import {
   consumeFolderValue,
 } from "./projection.js";
 import { buildFormErrors } from "./validators.js";
+
+/**
+ * Replace bare stubs — untracked targets carrying nothing but an Id — in a
+ * navigation value with the tracked row for that id, loading it if needed.
+ * Anything else (a tracked row, a target with its own data) is left alone, and
+ * a stub whose row cannot be found stays as it is. Answers the same value when
+ * nothing changed.
+ */
+async function hydrateStubs(
+  ctx: DbContext,
+  ctor: EntityCtor,
+  value: unknown,
+): Promise<unknown> {
+  const one = async (t: unknown): Promise<unknown> => {
+    if (t === null || typeof t !== "object") return t;
+    const id = (t as { Id?: number }).Id;
+    if (id == null || id === 0) return t;
+    const bare = Object.entries(t).every(([k, v]) => k === "Id" || v == null);
+    if (!bare || ctx.changeTracker.findEntry(ctor, id)?.entity === t) return t;
+    try {
+      return (await ctx.set(ctor).findAsync(id)) ?? t;
+    } catch {
+      return t;
+    }
+  };
+  if (Array.isArray(value)) {
+    const next = await Promise.all(value.map(one));
+    return next.every((x, i) => x === value[i]) ? value : next;
+  }
+  return one(value);
+}
 
 export interface EntityFormOptions {
   onSaved?: (entity: IEntity) => void;
@@ -211,7 +243,17 @@ export function useEntityForm<T extends IEntity>(
       for (const nav of et.navigations()) {
         // Form-level skip: the user already chose a value in this session. Distinct from the
         // entry's isLoaded, which answers whether stored data was fetched.
-        if (form.store.state.values[nav.name] != null) continue;
+        const current = form.store.state.values[nav.name];
+        if (current != null) {
+          // A bare stub (from deserialize(), say) has nothing to display: swap it
+          // for the tracked row by id. Membership is the draft's and is kept —
+          // reloading the navigation would replace it with server state.
+          const hydrated = await hydrateStubs(ctx, nav.target.ctor, current);
+          if (!live) return;
+          if (hydrated !== current)
+            form.setFieldValue(nav.name, hydrated as never);
+          continue;
+        }
         const handle =
           nav.kind === "collection"
             ? entry.collection(nav.name)

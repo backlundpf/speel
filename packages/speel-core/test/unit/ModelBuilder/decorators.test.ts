@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   Entity,
   SpeelEntity,
@@ -14,7 +14,6 @@ import {
   DbSet,
   ChangeTracker,
   EntityState,
-  InvalidOperationException,
 } from "../../../src/index.js";
 import { ENTITY_REGISTRY } from "../../../src/ModelBuilder/EntityTypeBuilder.js";
 import { FakeStorageProvider } from "../fakes/FakeStorageProvider.js";
@@ -123,12 +122,12 @@ describe("field decorators", () => {
     });
   });
 
-  it("a readOnly field declared `?: T = undefined` inserts; one holding a value still throws", () => {
+  it("a readOnly field declared `?: T = undefined` inserts quietly; one holding a value warns", () => {
     @Entity({ list: "DecReadOnly" })
     class Doc extends SpeelEntity {
       @TextField({ maxLength: 255 }) public Title: string | null = null;
-      // A server-populated column: `= undefined` is the only initializer that both
-      // compiles and survives add(), which rejects a read-only property with a value.
+      // A server-populated column: `= undefined` keeps add() quiet — it warns about
+      // (and never writes) a read-only property that holds a value.
       @NumberField({ columnName: "ReviewScore", readOnly: true })
       public ReviewScore?: number = undefined;
     }
@@ -155,7 +154,10 @@ describe("field decorators", () => {
     const bad = new Doc();
     bad.Title = "other.docx";
     bad.ReviewScore = 5;
-    expect(() => set.add(bad)).toThrow(InvalidOperationException);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(set.add(bad).state).toBe(EntityState.Added);
+    expect(String(warn.mock.calls[0]![0])).toContain("ReviewScore");
+    warn.mockRestore();
   });
 
   it("a non-readOnly field is unaffected — a value on it still inserts", () => {

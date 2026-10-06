@@ -217,9 +217,9 @@ column": `@speel/migrations` never creates it. `systemGenerated` implies `readOn
 `readOnly: false` is given explicitly (as `SpeelDocument.FileLeafRef` does). So a SharePoint
 built-in you surface (`File_x0020_Type`) is `systemGenerated: true`, and a model-owned column
 that a workflow or formula fills is `readOnly: true` alone: provisioned, never written. Fluent:
-`.isSystemGenerated()` / `.isReadOnly()`. **A read-only property must initialize to
-`undefined`**, not the `| null` form writable fields use, because `DbSet.add()` rejects a new
-entity whose read-only property holds any other value:
+`.isSystemGenerated()` / `.isReadOnly()`. **A read-only property should initialize to
+`undefined`**, not the `| null` form writable fields use, because `DbSet.add()` warns about
+(and never writes) a read-only property holding any other value:
 
 ```ts
 @NumberField({ columnName: 'ReviewScore', readOnly: true })
