@@ -157,12 +157,10 @@ to place the item in a folder. Returns the `EntityEntry<T>` so you can inspect i
 **`update(entity)`** forces an entity into `Modified` state. Use this when you construct
 or receive an entity instance outside the context (e.g. from a form submission) and want
 to write it without loading it first. If that instance is already tracked, `update()` just
-marks it dirty. If a _different_ instance with the same `Id` is tracked — a clone or a
-deserialized draft — its writable values are copied onto the tracked one
-(`entry.setValues`) and only real differences are sent. If nothing with that `Id` is
-tracked, it is attached with an empty-snapshot baseline so that every configured non-key
-property is treated as changed. Copying, duplicating and serializing entities:
-[entities.md](entities.md).
+marks it dirty. If a _different_ instance with that `Id` is tracked (a clone, a draft), its
+writable values are copied onto the tracked one and only real differences are sent — see
+[entities.md](entities.md). If nothing with that `Id` is tracked, it is attached with an
+empty-snapshot baseline so that every configured non-key property is treated as changed.
 
 **`attach(entity)`** enters an already-loaded entity into tracking at `Unchanged` with a
 snapshot of its current values. Use this when you hold an instance that was loaded
