@@ -1,5 +1,20 @@
 # @speel/react
 
+## 0.1.0-beta.3
+
+### Minor Changes
+
+- 1f75380: Entities: `DbSet.clone`, `serialize`/`deserialize` with a typed `SerializedEntity<T, M>`, and `EntityEntry.setValues`. `update()` given a different instance for a tracked row now applies its values (previously they were silently dropped). `add()` warns about read-only values instead of throwing, never writes them, and the insert clears them. Forms swap bare navigation stubs for the tracked row.
+
+### Patch Changes
+
+- 74d9aea: Docs: every topic page is back within the 100–250 line budget. New pages: core `loading.md` (include / thenInclude / expand), `files.md` (the `SpeelDocument` shape, folders, uploads, file and folder operations) and `shapes.md` (`@JsonShape`); react `fields.md` (composition, headless fields, people picker, shape editing), `table-filtering.md` (sort, filter, search) and `table-export.md` (CSV, Excel, print). Canonical examples no longer redeclare `Id` on `SpeelEntity` subclasses and mark a re-pointed `Author` and `onModelCreating` `override`, so they compile under `noImplicitOverride`. The pnpjs README explains how a `file:` dependency bundles a second `@pnp/sp` copy and how to avoid it.
+- Updated dependencies [74d9aea]
+- Updated dependencies [1f75380]
+- Updated dependencies [7e20c89]
+  - @speel/core@0.1.0-beta.3
+  - @speel/identity@0.1.0-beta.3
+
 ## 0.1.0-beta.2
 
 ### Minor Changes

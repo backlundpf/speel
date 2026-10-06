@@ -1,6 +1,6 @@
 {
   "name": "@speel/react",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "description": "Model-driven Fluent UI v8 forms, tables, and surfaces for @speel/core in SPFx.",
   "keywords": [
     "sharepoint",
@@ -53,8 +53,8 @@
   },
   "peerDependencies": {
     "@fluentui/react": ">=8",
-    "@speel/core": "^0.1.0-beta.2",
-    "@speel/identity": "^0.1.0-beta.2",
+    "@speel/core": "^0.1.0-beta.3",
+    "@speel/identity": "^0.1.0-beta.3",
     "react": ">=17",
     "react-dom": ">=17"
   },
@@ -78,7 +78,7 @@
   },
   "devDependencies": {
     "@fluentui/react": "^8",
-    "@speel/identity": "0.1.0-beta.2",
+    "@speel/identity": "0.1.0-beta.3",
     "@testing-library/jest-dom": "^6.4.0",
     "@testing-library/react": "^12.1.5",
     "@types/react": "^17.0.2",
