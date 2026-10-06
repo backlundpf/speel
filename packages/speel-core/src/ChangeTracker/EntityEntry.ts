@@ -10,6 +10,8 @@ import { navIdOf } from "./navId.js";
 import { persistedId } from "./entityKey.js";
 import { captureSelectorName } from "../Metadata/selectorName.js";
 import { ReferenceEntry, CollectionEntry } from "./NavigationEntry.js";
+import { cloneValue } from "../Entities/cloneValue.js";
+import { isUnloadedNavValue } from "../Entities/navValue.js";
 
 export enum EntityState {
   Detached = "Detached",
@@ -144,6 +146,35 @@ export class EntityEntry<T extends IEntity = IEntity> {
     for (const p of this.entityType.properties)
       v[p.propertyName] = e[p.propertyName];
     return v as Partial<T>;
+  }
+
+  /**
+   * Copy another object's values onto this entry's entity — the way a scratch
+   * copy (a clone, a deserialized draft) is applied back. Only keys present on
+   * `source` are copied, so a partial patch works. The key and read-only members
+   * are skipped silently (a clone legitimately carries them), as is a navigation
+   * the source never loaded. Values are cloned on the way in; navigation targets
+   * are rows and stay shared. State is left to detectChanges: if nothing actually
+   * differs, nothing is sent.
+   */
+  setValues(source: Partial<T>): void {
+    if (this.state === EntityState.Deleted) {
+      throw new InvalidOperationException(
+        `setValues() on ${this.entityType.ctor.name}: the entity is marked Deleted.`,
+      );
+    }
+    const src = source as unknown as Record<string, unknown>;
+    const e = this.entity as unknown as Record<string, unknown>;
+    for (const p of this.entityType.properties) {
+      if (p.key || p.readOnly || !(p.propertyName in src)) continue;
+      e[p.propertyName] = cloneValue(src[p.propertyName]);
+    }
+    for (const nav of this.entityType.navigations()) {
+      if (nav.readOnly || !(nav.name in src)) continue;
+      if (isUnloadedNavValue(nav, src)) continue;
+      const v = src[nav.name];
+      e[nav.name] = Array.isArray(v) ? [...v] : v;
+    }
   }
 
   getDirtyColumns(): string[] {
