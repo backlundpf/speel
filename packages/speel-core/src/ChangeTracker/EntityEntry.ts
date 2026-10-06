@@ -12,6 +12,7 @@ import { captureSelectorName } from "../Metadata/selectorName.js";
 import { ReferenceEntry, CollectionEntry } from "./NavigationEntry.js";
 import { cloneValue } from "../Entities/cloneValue.js";
 import { isUnloadedNavValue } from "../Entities/navValue.js";
+import { markNavLoadedOn } from "../Entities/navLoadState.js";
 
 export enum EntityState {
   Detached = "Detached",
@@ -89,6 +90,7 @@ export class EntityEntry<T extends IEntity = IEntity> {
     const value = await this.navLoader(nav, this.entity as object);
     (this.entity as unknown as Record<string, unknown>)[nav.name] = value;
     this.#loadedNavs.add(nav.name);
+    markNavLoadedOn(this.entity as object, nav.name);
     this.markNavLoaded(nav.name);
   }
 
@@ -174,6 +176,11 @@ export class EntityEntry<T extends IEntity = IEntity> {
       if (isUnloadedNavValue(nav, src)) continue;
       const v = src[nav.name];
       e[nav.name] = Array.isArray(v) ? [...v] : v;
+      // Nav wins, as at save: a navigation set (or cleared) on the copy decides
+      // this side's FK, whatever FK value the copy still carries.
+      if (nav.storage !== "inverse-fk" && !nav.foreignKey.readOnly)
+        e[nav.foreignKey.propertyName] =
+          nav.storage === "self-fk-array" ? (navIdOf(v) ?? []) : navIdOf(v);
     }
   }
 

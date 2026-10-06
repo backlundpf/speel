@@ -1,5 +1,7 @@
 import type { EntityType } from "../Metadata/EntityType.js";
 import { cloneValue } from "./cloneValue.js";
+import { isUnloadedNavValue } from "./navValue.js";
+import { markNavLoadedOn } from "./navLoadState.js";
 
 /**
  * A complete, untracked copy: every model property (key and read-only included)
@@ -18,6 +20,7 @@ export function cloneEntity<T>(et: EntityType, entity: T): T {
     if (!(nav.name in src)) continue;
     const v = src[nav.name];
     out[nav.name] = Array.isArray(v) ? [...v] : v;
+    if (!isUnloadedNavValue(nav, src)) markNavLoadedOn(out, nav.name);
   }
   return out as unknown as T;
 }

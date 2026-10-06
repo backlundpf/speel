@@ -113,11 +113,13 @@ const restored = db.projects.deserialize(
   clone keeps the `Id` so it can be applied back with `update()`.
 - **Read-only values are cleared after an insert, not refreshed.** Re-query the row
   (`findAsync`) if the form needs the new row's `Created` or `Author` right away.
-- **A `null` navigation is not always empty.** Entities often initialize navigations
-  to `null`, so `setValues` and `update(copy)` treat `null` as "not loaded" on an
-  inverse collection, or when this side's foreign key still holds a value, and skip it.
-  To clear a reference, set it to `null` and also clear its foreign key. To empty a
-  collection, use `[]`.
+- **A `null` navigation is not always a clear.** Entities often initialize navigations
+  to `null`. A `null` counts as "not loaded", and is skipped by `setValues`/`update(copy)`
+  and left out by `serialize`, when the navigation is an inverse collection or this
+  side's foreign key still holds a value, unless the navigation was loaded on that
+  object. A navigation that was loaded (by `loadAsync`, a form, or carried by
+  `clone`/`deserialize`) and then set to `null` is a clear, and the foreign key is
+  cleared with it. Use `[]` to empty a collection.
 - **Only model members are copied or serialized.** Fields the model doesn't declare are
   left out at runtime, even though `SerializedEntity<T>` still lists them.
 - **A Json shape that declares its own `Id` is typed as a navigation.**

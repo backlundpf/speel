@@ -184,8 +184,11 @@ notes the load rule if it covers loading. One `minor` changeset for `@speel/core
 
 1. **Unloaded navigation rule.** A navigation value is _unloaded_ when it is `undefined`;
    `null` on an `inverse-fk` navigation; or `null` while its self-side FK holds a value.
-   `setValues` (and so `update(copy)`) skips unloaded navigations; `[]` and
-   null-with-empty-FK are explicit empties.
+   `setValues` (and so `update(copy)`) skips unloaded navigations, and `serialize`
+   omits them; `[]` and null-with-empty-FK are explicit empties. A navigation known to
+   be loaded on that object (a `loadAsync`, or carried by `clone`/`deserialize`) makes
+   `null` a clear, and `setValues` then sets this side's FK from the navigation ("nav
+   wins"), so clearing a reference through a form-edited clone is saved.
 2. **The form hydrates bare stubs instead of reloading.** Reloading would replace a
    draft's membership with server state. `useEntityForm` swaps each _bare_ stub
    (untracked, nothing but `Id` set) for `ctx.set(ctor).findAsync(id)`, keeping the stub

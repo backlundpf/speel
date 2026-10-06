@@ -159,3 +159,32 @@ it("missing keys stay absent, unknown keys are ignored, bad input throws", async
     ctx.projects.deserialize({ Department: { Title: "no id" } } as never),
   ).toThrow(DataException);
 });
+
+it("a draft that cleared a loaded reference round-trips as a clear", async () => {
+  const { ctx, project } = await setup();
+  await ctx
+    .entry(project)
+    .reference((p) => p.Department)
+    .loadAsync();
+  const draft = ctx.projects.clone(project);
+  draft.Department = null; // DepartmentId still 1
+  const back = ctx.projects.deserialize(
+    JSON.parse(JSON.stringify(ctx.projects.serialize(draft))),
+  );
+  ctx.projects.update(back);
+  expect(project.Department).toBeNull();
+  expect(project.DepartmentId).toBeNull();
+});
+
+it("an unloaded null navigation is omitted, so it cannot clear anything", async () => {
+  const { ctx, project } = await setup();
+  const data = ctx.projects.serialize(project);
+  expect("Department" in data).toBe(false);
+  const back = ctx.projects.deserialize(data);
+  await ctx
+    .entry(project)
+    .reference((p) => p.Department)
+    .loadAsync();
+  ctx.projects.update(back);
+  expect(project.Department!.Title).toBe("Ops");
+});

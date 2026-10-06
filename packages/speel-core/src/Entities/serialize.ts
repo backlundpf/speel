@@ -9,6 +9,8 @@ import {
 } from "../ModelBuilder/fieldTypes/shapeCodec.js";
 import { cloneValue } from "./cloneValue.js";
 import type { NavigationMode } from "./SerializedEntity.js";
+import { isUnloadedNavValue } from "./navValue.js";
+import { markNavLoadedOn } from "./navLoadState.js";
 
 /** The tracked instance for (ctor, id), if the context holds one. */
 export type ResolveTracked = (
@@ -59,8 +61,10 @@ export function serializeEntity(
     if (v !== undefined) out[p.propertyName] = writeValue(p, v);
   }
   for (const nav of et.navigations()) {
+    // An unloaded navigation is left out, so a null in the data always means
+    // a real clear.
+    if (isUnloadedNavValue(nav, src)) continue;
     const v = src[nav.name];
-    if (v === undefined) continue;
     // One level only in full mode: a target's own navigations are stubs, so a
     // cycle (Project → Department → Projects → …) cannot recurse.
     const target = (t: unknown): Record<string, unknown> | undefined => {
@@ -118,6 +122,7 @@ export function deserializeEntity(
     };
     out[nav.name] =
       v === null ? null : Array.isArray(v) ? v.map(target) : target(v);
+    markNavLoadedOn(out, nav.name);
   }
   return out;
 }

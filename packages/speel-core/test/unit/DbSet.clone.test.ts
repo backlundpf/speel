@@ -132,3 +132,30 @@ it("update(clone) revives a Deleted original", async () => {
   expect(ctx.entry(project).state).toBe(EntityState.Modified);
   expect(project.Title).toBe("Back");
 });
+
+it("clearing a reference on a clone the form loaded is applied, FK included", async () => {
+  const { ctx, project } = await setup();
+  const copy = ctx.projects.clone(project); // Program not loaded at copy time
+  await ctx
+    .entry(copy)
+    .reference((p) => p.Program)
+    .loadAsync(); // the form loads it
+  expect(copy.Program!.Title).toBe("P1");
+  copy.Program = null; // the user clears the picker; ProgramId still says 1
+  const entry = ctx.projects.update(copy);
+  expect(project.Program).toBeNull();
+  expect(project.ProgramId).toBeNull();
+  expect(entry.getDirtyColumns()).toContain("ProgramId");
+});
+
+it("a clone of a loaded reference carries the clear through", async () => {
+  const { ctx, project } = await setup();
+  await ctx
+    .entry(project)
+    .reference((p) => p.Program)
+    .loadAsync();
+  const copy = ctx.projects.clone(project);
+  copy.Program = null;
+  ctx.projects.update(copy);
+  expect(project.ProgramId).toBeNull();
+});
