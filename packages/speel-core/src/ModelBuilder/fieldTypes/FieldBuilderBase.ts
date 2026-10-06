@@ -5,6 +5,7 @@ import {
   newFieldStateDraft,
   applyRefinement,
   REFINEMENT_KEYS,
+  resolveReadOnly,
   type IFieldStateDraft,
 } from "./FieldStateBuilder.js";
 import { FieldRefinementBuilder } from "./FieldRefinementBuilder.js";
@@ -55,7 +56,8 @@ export abstract class FieldBuilderBase<TSelf extends FieldBuilderBase<TSelf>>
   build(propertyName: string, key: boolean): Property {
     const s = this._state;
     const displayName = s.displayName ?? s.columnName ?? propertyName;
-    const fieldState = this.buildFieldState(displayName, s.readOnly);
+    const readOnly = resolveReadOnly(s);
+    const fieldState = this.buildFieldState(displayName, readOnly);
     const fieldConfig = this.emitConfig();
     const codec = this.resolveCodec(fieldConfig, propertyName);
     return new Property({
@@ -67,7 +69,8 @@ export abstract class FieldBuilderBase<TSelf extends FieldBuilderBase<TSelf>>
       required: fieldState.required,
       visible: fieldState.visible,
       enabled: fieldState.enabled,
-      readOnly: s.readOnly,
+      readOnly,
+      systemGenerated: s.systemGenerated,
       key,
       indexed: s.indexed,
       ...(s.hasDefault ? { defaultValue: s.defaultValue } : {}),

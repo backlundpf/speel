@@ -40,7 +40,10 @@ export interface FieldOptions {
   required?: boolean | StatePredicate;
   visible?: boolean | StatePredicate;
   enabled?: boolean | StatePredicate;
+  /** Never sent to the provider. Defaults to `systemGenerated`. */
   readOnly?: boolean;
+  /** The provider owns the column (a built-in): never provisioned, and read-only unless `readOnly: false`. */
+  systemGenerated?: boolean;
   indexed?: boolean;
   columnName?: string;
   description?: string;

@@ -52,11 +52,13 @@ function listSpecFor(et: EntityType): ListSpec {
 }
 
 /**
- * Which columns are provisionable: everything except the key and the server-managed
- * members. `readOnly` — not a list of names — is the test. It covers SpeelEntity's
- * system columns (Created/Modified/FSObjType/File*) and the Author/Editor navs, which
- * carry it, and it lets a model read any other SharePoint built-in (say
- * `File_x0020_Size`) by declaring it read-only without provisioning over it.
+ * Which columns are provisionable: everything except the key and the provider-owned
+ * members. `systemGenerated` — not a list of names, and not `readOnly` — is the test.
+ * It covers SpeelEntity's and SpeelDocument's system columns (Created/Modified/
+ * FSObjType/File*, a document's writable FileLeafRef included) and the Author/Editor
+ * navs, which carry it, and it lets a model read any other SharePoint built-in (say
+ * `File_x0020_Type`) by declaring it systemGenerated without provisioning over it.
+ * A `readOnly` column that is not systemGenerated is the model's own: provisioned.
  * The key needs no name check of its own: both key paths in EntityTypeBuilder build the
  * `ID` column, and a second property claiming that column fails the duplicate-column check.
  */
@@ -77,11 +79,11 @@ function fieldsFor(et: EntityType): FieldSpec[] {
   );
 
   for (const p of et.properties) {
-    if (p.key || p.readOnly || fkColumns.has(p.columnName)) continue;
+    if (p.key || p.systemGenerated || fkColumns.has(p.columnName)) continue;
     fields.push(fieldConfigToSpec(p));
   }
   for (const nav of selfFkNavs) {
-    if (nav.readOnly) continue; // server-managed nav (Author/Editor) — never provisioned
+    if (nav.systemGenerated) continue; // provider-owned nav (Author/Editor) — never provisioned
     fields.push(navToSpec(nav));
   }
 

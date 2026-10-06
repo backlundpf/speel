@@ -41,7 +41,7 @@ class Employee extends SiteUser {
 
 // Re-point the inherited Author (typed SiteUser) at Employee; subclasses inherit it.
 abstract class AppEntity extends SpeelEntity {
-  @ManyToOne(() => Employee, { readOnly: true, foreignKey: "AuthorId" })
+  @ManyToOne(() => Employee, { systemGenerated: true, foreignKey: "AuthorId" })
   readonly Author?: Employee = undefined;
 }
 
@@ -121,8 +121,8 @@ are legal (only list sources are uniqueness-checked), so `Employee` builds besid
 Navigations merge by name, so re-declaring `Author` replaces the inherited navigation
 outright and the include reads the new target's source — with a decorator on your own base
 class as above, or per entity in `onModelCreating` with
-`b.hasOne(Employee, "Author").withMany().hasForeignKey("AuthorId").isReadOnly()` (a replacement
-starts clean: restate `readOnly` and the FK). Nothing is read for `Author`/`Editor` unless you
+`b.hasOne(Employee, "Author").withMany().hasForeignKey("AuthorId").isSystemGenerated()` (a replacement
+starts clean: restate `systemGenerated` and the FK). Nothing is read for `Author`/`Editor` unless you
 `.include()` them; an entity that does not extend `SpeelEntity` has no such members.
 
 ### Person columns are lookups

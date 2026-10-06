@@ -93,6 +93,7 @@ function setup() {
     visible: true,
     enabled: true,
     readOnly: false,
+    systemGenerated: false,
     customValidations: [],
     kind: "reference",
     storage: "self-fk-scalar",

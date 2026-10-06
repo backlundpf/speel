@@ -19,7 +19,9 @@ export interface IFieldStateDraft {
   // column / schema refinements (shared by FieldBuilderBase and RelationshipBuilder)
   columnName?: string;
   description?: string;
-  readOnly: boolean;
+  /** Only when set explicitly; unset resolves to `systemGenerated` (see resolveReadOnly). */
+  readOnly?: boolean;
+  systemGenerated: boolean;
   indexed: boolean;
   hasDefault: boolean;
   defaultValue?: unknown;
@@ -33,10 +35,15 @@ export function newFieldStateDraft(): IFieldStateDraft {
     visible: true,
     enabled: true,
     customValidations: [],
-    readOnly: false,
+    systemGenerated: false,
     indexed: false,
     hasDefault: false,
   };
+}
+
+/** The draft's effective readOnly: as given, else implied by systemGenerated. */
+export function resolveReadOnly(state: IFieldStateDraft): boolean {
+  return state.readOnly ?? state.systemGenerated;
 }
 
 /**
@@ -50,6 +57,7 @@ export const REFINEMENT_KEYS = new Set<string>([
   "visible",
   "enabled",
   "readOnly",
+  "systemGenerated",
   "indexed",
   "columnName",
   "description",
