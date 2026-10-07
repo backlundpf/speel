@@ -26,6 +26,49 @@ const headerWidths = (container: HTMLElement): number[] =>
   ).map((el) => parseFloat(el.style.width));
 
 describe("V8Table column widths", () => {
+  /** A last column that overflows the container, so nothing stretches into slack. */
+  const filler: TableColumn = {
+    key: "filler",
+    header: "F",
+    render: () => "",
+    width: 300,
+  };
+
+  it("holds a column with no width at its default hint", () => {
+    const { container } = render(
+      <V8Table
+        columns={[{ ...cols([undefined])[0]!, defaultWidth: 70 }, filler]}
+        items={items}
+        containerWidth={100}
+      />,
+    );
+    expect(headerWidths(container)).toEqual([90, 320]);
+  });
+
+  it("raises a defaulted column to its header floor, and leaves an authored one alone", () => {
+    const long: TableColumn = {
+      key: "c0",
+      header: "Separation Date Confirmed",
+      render: () => "",
+      defaultWidth: 70,
+      sortable: true,
+      headerFilter: { active: false, content: null },
+    };
+    const { container } = render(
+      <V8Table
+        columns={[long, { ...long, key: "authored", width: 60 }, filler]}
+        items={items}
+        onSortChange={() => undefined}
+        containerWidth={100}
+      />,
+    );
+    // jsdom has no canvas: "Separation" estimates at 10 × 0.6 × 14px = 84, plus 8 + 16 + 28.
+    const floor = Math.ceil(84 + 8 + 16 + 28);
+    const widths = headerWidths(container);
+    expect(widths[0]).toBe(floor + 20);
+    expect(widths[1]).toBe(60 + 20);
+  });
+
   it("renders every column at its held width when they overflow the container", () => {
     const { container } = render(
       <V8Table columns={cols([200, 300])} items={items} containerWidth={300} />,

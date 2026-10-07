@@ -85,6 +85,25 @@ const scenarios: Scenario[] = [
     ],
     items: [{ a: "x", b: "x", c: "x", d: "x", e: "x", f: "x" }],
   },
+  {
+    name: "floor",
+    containerWidth: 1200,
+    columns: [
+      col("done", "Done", { defaultWidth: 70 }),
+      col("long", "Separation Date Confirmed", {
+        defaultWidth: 70,
+        sortable: true,
+        headerFilter: filter,
+      }),
+      col("authored", "Separation Date Confirmed", {
+        width: 60,
+        sortable: true,
+        headerFilter: filter,
+      }),
+      col("filler", "Filler", { width: 50 }),
+    ],
+    items: [{ done: "Yes", long: "x", authored: "x", filler: "x" }],
+  },
 ];
 
 function App(): JSX.Element {

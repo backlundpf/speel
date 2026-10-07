@@ -27,6 +27,7 @@ import {
   SelectionMode,
   type IColumn,
   ColumnActionsMode,
+  FontWeights,
   ProgressIndicator,
   Callout,
   Icon,
@@ -52,6 +53,7 @@ import type {
 import { V8Field, chromeFrom, useFieldAria } from "./Field.js";
 import { useStableId } from "./useStableId.js";
 import { columnBounds, heldWidth } from "./columnBounds.js";
+import { headerFloor, textMeasurer } from "./headerFloor.js";
 import { useResizable } from "../surface/useResizable.js";
 import { useDragResize } from "../surface/useDragResize.js";
 import { SpeelActionBar } from "../actions.js";
@@ -796,13 +798,36 @@ export function V8Table(
   };
   if (p.items.length === 0)
     return <div ref={wrapper}>{p.emptyMessage ?? "No items."}</div>;
-  const columns: IColumn[] = p.columns.map((c) => ({
+  // The font DetailsColumn renders a header name in: semibold, at the medium size.
+  const headerFont = theme.fonts.medium;
+  const headerSize =
+    typeof headerFont.fontSize === "number"
+      ? headerFont.fontSize
+      : parseFloat(headerFont.fontSize ?? "14");
+  const measure = textMeasurer(
+    `${FontWeights.semibold} ${headerSize}px ${headerFont.fontFamily ?? "sans-serif"}`,
+    headerSize,
+  );
+  const held = p.columns.map((c) =>
+    heldWidth(
+      c.width,
+      c.defaultWidth,
+      headerFloor(
+        c,
+        c.sortable === true &&
+          p.onSortChange !== undefined &&
+          c.headerContent === undefined,
+        measure,
+      ),
+    ),
+  );
+  const columns: IColumn[] = p.columns.map((c, i) => ({
     key: c.key,
     name: c.header,
     isResizable: true,
     // The held width rides in maxWidth, NOT minWidth: DetailsList clamps a drag to minWidth,
     // so a floor equal to the current width lets a column grow and never shrink.
-    ...columnBounds(c.width),
+    ...columnBounds(held[i]!),
     // We render our own sort/filter affordances, so disable Fluent's clickable-cell hover (the whole
     // header highlighting) — the sort label gets its own hover instead.
     columnActionsMode: ColumnActionsMode.disabled,
@@ -841,10 +866,7 @@ export function V8Table(
   }));
 
   // What the columns need, padding included — the width the table would like to be.
-  const content = p.columns.reduce(
-    (sum, c) => sum + heldWidth(c.width) + CELL_PADDING,
-    0,
-  );
+  const content = held.reduce((sum, w) => sum + w + CELL_PADDING, 0);
   return (
     <div ref={wrapper}>
       <DetailsList

@@ -1,19 +1,25 @@
 /** How narrow a user may drag a column. Below this a header is unreadable, not useful. */
 export const MIN_RESIZE_WIDTH = 40;
 
-/** The width a column that has never been given one is laid out at — enough to read a header. */
+/** The width of a column with neither a width nor a default of its own. */
 const DEFAULT_WIDTH = 100;
 
 /**
- * The width a column is actually held at: a live drag width or a view/descriptor width when
- * there is one, else the default. The table hands the first two in as `width`.
+ * The width a column is actually held at: a live drag or a view/descriptor width when there is
+ * one — the table hands those in as `width`, and they win as given. Otherwise the column's
+ * default (its field kind's, from `TableColumn.defaultWidth`), raised to the header floor so
+ * its longest header word fits.
  */
-export function heldWidth(width: number | undefined): number {
-  return width ?? DEFAULT_WIDTH;
+export function heldWidth(
+  width: number | undefined,
+  defaultWidth: number | undefined,
+  floor: number,
+): number {
+  return width ?? Math.max(defaultWidth ?? DEFAULT_WIDTH, floor);
 }
 
 /**
- * `DetailsList`'s min/max bounds for one column.
+ * `DetailsList`'s min/max bounds for a column held at `held`.
  *
  * `minWidth` must be a genuine floor, never the column's current width: `DetailsList` clamps
  * a resize drag to `minWidth`, so binding it to the current width means every drag raises the
@@ -24,10 +30,9 @@ export function heldWidth(width: number | undefined): number {
  * whatever the container has left over. A column with no `maxWidth` would swallow that slack
  * whole and starve the columns after it.
  */
-export function columnBounds(width: number | undefined): {
+export function columnBounds(held: number): {
   minWidth: number;
   maxWidth: number;
 } {
-  const held = heldWidth(width);
   return { minWidth: Math.min(MIN_RESIZE_WIDTH, held), maxWidth: held };
 }

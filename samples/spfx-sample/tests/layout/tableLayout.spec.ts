@@ -140,3 +140,37 @@ test.describe("header labels", () => {
     await expect(cell.locator('[title="Select"]')).toHaveCount(0);
   });
 });
+
+test.describe("default widths", () => {
+  test("hold a column at its default hint when the header fits", async ({
+    page,
+  }) => {
+    await open(page);
+    expect(
+      await widthOf(headerCells(scenario(page, "floor")).nth(0)),
+    ).toBeCloseTo(90, 0);
+  });
+
+  test("raise a defaulted column until its longest header word fits", async ({
+    page,
+  }) => {
+    await open(page);
+    const cell = headerCells(scenario(page, "floor")).nth(1);
+    const box = cell.locator("[data-header-label]");
+    expect(await box.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+      true,
+    );
+    const lines = await box.evaluate(lineTexts);
+    expect(wordsWhole(lines, "Separation Date Confirmed")).toBe(true);
+    expect(await widthOf(cell)).toBeGreaterThan(90);
+  });
+
+  test("leave an authored width alone, even under the floor", async ({
+    page,
+  }) => {
+    await open(page);
+    expect(
+      await widthOf(headerCells(scenario(page, "floor")).nth(2)),
+    ).toBeCloseTo(80, 0);
+  });
+});
