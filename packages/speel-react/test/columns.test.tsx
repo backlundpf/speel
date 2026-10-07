@@ -106,6 +106,53 @@ describe("resolveColumns", () => {
   it("throws for a non-field key without render", () => {
     expect(() => resolveColumns(et(), [{ key: "nope" }])).toThrow();
   });
+
+  it("p.Field.with(options) resolves as that field's column, options applied", () => {
+    const cols = resolveColumns<Item>(et(), (p) => [
+      p.Name.with({ width: 170, header: "Label" }),
+      p.Qty,
+    ]);
+    expect(cols.map((c) => c.key)).toEqual(["Name", "Qty"]);
+    expect(cols[0]).toMatchObject({
+      header: "Label",
+      width: 170,
+      sortable: true,
+    });
+    // Inherited from the field, exactly as a bare ref would get it.
+    expect(cols[0]!.filter).toBeDefined();
+    expect(cols[0]!.field?.config.kind).toBe("Text");
+  });
+
+  it("a .with() render receives the row and replaces the field's cell", () => {
+    const cols = resolveColumns<Item>(et(), (p) => [
+      p.Name.with({ render: (r) => `<${r.Name ?? ""}>` }),
+    ]);
+    const row = Object.assign(new Item(), { Name: "Ada" });
+    expect(cols[0]!.render(row)).toBe("<Ada>");
+    expect(cols[0]!.header).toBe("Name");
+  });
+
+  it(".with() on a navigation keeps the lookup's header, cell and filter", () => {
+    const [bare] = resolveColumns<Item>(et(), (p) => [p.Program]);
+    const [withWidth] = resolveColumns<Item>(et(), (p) => [
+      p.Program.with({ width: 200 }),
+    ]);
+    expect(withWidth!.width).toBe(200);
+    expect(withWidth!.header).toBe(bare!.header);
+    expect(withWidth!.filter?.config).toEqual(bare!.filter?.config);
+    const row = Object.assign(new Item(), {
+      Program: Object.assign(new Program(), { Id: 1, Title: "Apollo" }),
+    });
+    expect(withWidth!.render(row)).toEqual(bare!.render(row));
+  });
+
+  it("a bare ref still resolves exactly as before", () => {
+    const [viaRef] = resolveColumns<Item>(et(), (p) => [p.Qty]);
+    const [viaString] = resolveColumns<Item>(et(), ["Qty"]);
+    expect(viaRef!.key).toBe(viaString!.key);
+    expect(viaRef!.header).toBe(viaString!.header);
+    expect(viaRef!.sortable).toBe(viaString!.sortable);
+  });
 });
 
 describe("resolveColumns sort/filter metadata", () => {

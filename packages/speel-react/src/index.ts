@@ -117,6 +117,9 @@ export type {
 export type {
   ColumnSpec,
   ColumnDescriptor,
+  ColumnOptions,
+  ColumnRef,
+  ColumnRefs,
   ResolvedColumn,
 } from "./table/columns.js";
 export type { TableFilterConfig, DatePreset } from "@speel/core";

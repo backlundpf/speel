@@ -15,6 +15,8 @@ import {
   resolveColumns,
   type ColumnSpec,
   type ColumnDescriptor,
+  type ColumnRef,
+  type ColumnRefs,
 } from "./columns.js";
 import type { TableColumn, RowIntent } from "../adapter/SpeelUIAdapter.js";
 import { FilterBar, type FilterState } from "./filter/FilterBar.js";
@@ -63,7 +65,9 @@ export interface RowAction<T> {
 export interface SpeelTableProps<T extends IEntity = IEntity> {
   of: EntityCtor<T>;
   items: readonly T[];
-  columns?: ColumnSpec<T>[] | ((p: T) => (ColumnDescriptor<T> | T[keyof T])[]);
+  columns?:
+    | ColumnSpec<T>[]
+    | ((p: ColumnRefs<T>) => (ColumnDescriptor<T> | ColumnRef<T>)[]);
   rowActions?: {
     onView?: (row: T) => void;
     onEdit?: (row: T) => void;
@@ -173,7 +177,8 @@ function SpeelTableInner<T extends IEntity>(
     () =>
       resolveColumns<T>(
         et,
-        columns as ColumnSpec<T>[] | ((p: T) => unknown[]) | undefined,
+        columns as
+          ColumnSpec<T>[] | ((p: ColumnRefs<T>) => unknown[]) | undefined,
       ),
     [et, columns],
   );
