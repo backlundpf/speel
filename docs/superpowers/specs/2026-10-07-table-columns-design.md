@@ -151,8 +151,11 @@ overflow: hidden; text-overflow: ellipsis` — the header's rule: break at space
 - Both skins render it in the label slot in place of the header text; a filter button still
   sits beside it when the column is filterable.
 - `header` (string) keeps every other job: export/print header row, column chooser, filter
-  chips, the filter button's "Filter X" name, the hover title. A custom column with
-  `headerContent` should set `header`; the docs say so.
+  chips, the filter button's "Filter X" name. A custom column with `headerContent` should
+  set `header`; the docs say so.
+- A `headerContent` header has no hover title — the control owns its accessible name and
+  tooltip. The column header is still NAMED by `header`: v8 sets `IColumn.ariaLabel` to it,
+  which Fluent puts on the `columnheader` in place of naming it from the rendered content.
 - A header with `headerContent` is never a sort button — a control inside a `role="button"`
   label would sort on every click and is invalid nested interactive content. The column can
   still be sorted through `tableState` or a view.

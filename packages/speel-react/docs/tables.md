@@ -185,9 +185,14 @@ rowActions={{ onEdit, custom: [
     { key: 'Status',
       render:      (r) => <StatusPill value={view.get(r.Id)!.masked} />,
       sortValue:   (r) => view.get(r.Id)!.masked,
-      filterValue: (r) => view.get(r.Id)!.masked },
+      filterValue: (r) => view.get(r.Id)!.masked,
+      exportValue: (r) => view.get(r.Id)!.masked },
   ]}
   ```
+
+  The masked value goes to all four: search, export, and the hover title read `exportValue`,
+  since the pill's text is inside your component, out of the table's reach — see
+  [table columns](table-columns.md#descriptors-and-custom-columns).
 
 - **Columns keep their widths; the table scrolls.** Every rendered column is laid out at the
   width it holds — a live drag, else a view or descriptor width, else (Fluent v8) a default for

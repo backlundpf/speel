@@ -115,11 +115,25 @@ columns={(p) => [
 ```
 
 That value override is what makes a **masked** display value findable: key the column to the
-model field — `p.Status.with({ ... })` — so it keeps that field's Choice select, and point
-`render`, `sortValue`, and `filterValue` at the masked value. Without all three the row
-displays one status while filtering and sorting as another — unfindable by the status the
-user can actually see. The side-map idiom under [tables](tables.md#boundaries--gotchas) shows
-the shape.
+model field so it keeps that field's Choice select, and point `render`, `sortValue`,
+`filterValue`, and `exportValue` at the masked value (`view` is the side map under
+[tables](tables.md#boundaries--gotchas)):
+
+```tsx
+columns={(p) => [
+  p.Status.with({
+    render:      (r) => <StatusPill value={view.get(r.Id)!.masked} />,
+    sortValue:   (r) => view.get(r.Id)!.masked,
+    filterValue: (r) => view.get(r.Id)!.masked,
+    exportValue: (r) => view.get(r.Id)!.masked,
+  }),
+]}
+```
+
+Leave one out and the row displays one status while sorting, filtering, or exporting as
+another — unfindable by the status the user can actually see. The pill's text lives inside
+your component, where the table cannot read it, so without `exportValue` search, export, and
+the hover title all read the stored status.
 
 ### Widths
 
@@ -147,29 +161,32 @@ column is as wide as its buttons.
 ### Wrapping long values
 
 `wrap: true` lets a column's values break onto more lines, at spaces, and the row grows to
-hold them — the choice for notes, descriptions, and long titles. A single word wider than
-the column still ends in "…" rather than splitting mid-word, the same rule header labels
-follow. Without `wrap` a value stays on one line and is cut off with "…". Both skins honour
-it.
+hold them — the choice for notes, descriptions, and long titles. Both skins honour it. In the
+Fluent v8 skin a single word wider than the column ends in "…" rather than splitting
+mid-word, the same rule header labels follow; the shadcn skin does not cut it, and the word
+overflows the column. Without `wrap` a value stays on one line and is cut off with "…".
 
 ### Hover titles on cut-off cells
 
 When a value is cut off, hovering the cell shows its full text as the browser's tooltip; a
-value that fits shows none. It is on for every data column, in both skins. The text is the
-same text the toolbar search and CSV export read — `exportValue` when the column has one,
-otherwise the cell's rendered text — and it is worked out only when the pointer arrives, so
-it costs nothing per render. `cellTitle: false` turns it off for one column: one whose cell
-brings its own tooltip, or an interactive cell.
+value that fits shows none. It is on for every data column, in both skins, and is worked out
+only when the pointer arrives, so it costs nothing per render. The title is the text the
+toolbar search and CSV export read: `exportValue` when the column has one, otherwise the text
+`render` returns. A cell whose text lives inside your own component — `<StatusPill />` — has
+none the table can read and falls back to the field's stored value, so give such a column an
+`exportValue`. `cellTitle: false` turns the title off for one column: one whose cell brings
+its own tooltip, or an interactive cell with no text to show.
 
 ### A control in the header
 
 `headerContent` renders any node in the header in place of the label — a select-all
 checkbox, an icon, a small menu — and a filter button still sits beside it when the column is
 filterable. `header` keeps naming the column everywhere a string is needed: the export and
-print header row, the column chooser, filter chips, and the filter button's accessible name.
-Give a custom column with `headerContent` a `header` too; without one those places fall back
-to its `key`. The node gets no hover title or name from `header`, so a control in it needs
-its own accessible name — the example's `ariaLabel`.
+print header row, the column chooser, filter chips, the filter button's accessible name, and
+— in the Fluent v8 skin — the column header a screen reader announces. Give a custom column
+with `headerContent` a `header` too; without one those places fall back to its `key`. The
+node itself gets no hover title or name from `header`, so a control in it needs its own
+accessible name — the example's `ariaLabel`.
 
 ## Boundaries & gotchas
 
@@ -192,10 +209,11 @@ its own accessible name — the example's `ariaLabel`.
   single word wider than the label box ends in "…", and the full label is the hover title —
   the cue to widen the column. The shadcn header stays on one line and truncates.
 
-- **Interactive cells sit in a clipping box (v8).** A data column's cell content renders
-  inside a box that clips its overflow — that is how the table tells a cut-off value and
-  draws its "…". An interactive custom cell's focus outline can be clipped at the cell edge;
-  `cellTitle: false` on a column without `wrap` renders the bare cell again.
+- **Data cells sit in a clipping box (v8).** A data column's cell content renders inside a
+  box that clips its overflow — that is how the table tells a cut-off value and draws its
+  "…". The box leaves room around its content for a focus ring, so a link or checkbox in the
+  cell keeps its whole outline, but a control wider than the column is cut at the cell edge
+  like text. `cellTitle: false` on a column without `wrap` renders the bare cell.
 
 - **shadcn sizes to content.** The shadcn skin ignores the per-kind defaults and the header
   floor: a column without a width sizes to its content, the row-actions column included. An
