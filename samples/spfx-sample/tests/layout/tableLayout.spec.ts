@@ -141,6 +141,45 @@ test.describe("header labels", () => {
   });
 });
 
+test.describe("body cells", () => {
+  const content = (page: Page, row: number, col: number): Locator =>
+    rowCells(scenario(page, "cells"), row).nth(col).locator(":scope > div");
+
+  test("a wrap column breaks at spaces and its row grows", async ({ page }) => {
+    await open(page);
+    const lines = await content(page, 0, 0).evaluate(lineTexts);
+    expect(lines.length).toBeGreaterThan(1);
+    expect(wordsWhole(lines, "Alpha Beta Gamma Delta Epsilon")).toBe(true);
+    const rows = scenario(page, "cells").locator(
+      '[data-automationid="DetailsRow"]',
+    );
+    const tall = await rows.nth(0).boundingBox();
+    const short = await rows.nth(1).boundingBox();
+    expect(tall!.height).toBeGreaterThan(short!.height);
+  });
+
+  test("a word wider than a wrap column ends in an ellipsis instead of breaking", async ({
+    page,
+  }) => {
+    await open(page);
+    const el = content(page, 2, 0);
+    expect(await el.evaluate(lineTexts)).toHaveLength(1);
+    expect(await el.evaluate((e) => e.scrollWidth > e.clientWidth)).toBe(true);
+  });
+
+  test("hovering a cut-off cell shows its full text; a cell that fits shows none", async ({
+    page,
+  }) => {
+    await open(page);
+    const cut = content(page, 0, 1);
+    await cut.hover();
+    await expect(cut).toHaveAttribute("title", "Bartholomew Longname");
+    const fits = content(page, 1, 1);
+    await fits.hover();
+    expect(await fits.getAttribute("title")).toBeNull();
+  });
+});
+
 test.describe("default widths", () => {
   test("hold a column at its default hint when the header fits", async ({
     page,

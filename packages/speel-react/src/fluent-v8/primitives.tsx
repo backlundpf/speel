@@ -54,6 +54,7 @@ import { V8Field, chromeFrom, useFieldAria } from "./Field.js";
 import { useStableId } from "./useStableId.js";
 import { columnBounds, heldWidth } from "./columnBounds.js";
 import { headerFloor, textMeasurer } from "./headerFloor.js";
+import { setOverflowTitle } from "../table/overflowTitle.js";
 import { useResizable } from "../surface/useResizable.js";
 import { useDragResize } from "../surface/useDragResize.js";
 import { SpeelActionBar } from "../actions.js";
@@ -745,6 +746,53 @@ const HEADER_ROW_STYLES: NonNullable<IDetailsHeaderProps["styles"]> = {
   cellSizer: { flexShrink: 0 },
 };
 
+/** A single-line cell: cut off with an ellipsis, as DetailsList's own cell style does. */
+const CELL_LINE_STYLE: React.CSSProperties = {
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+/**
+ * A wrapping cell: the header's rule — break only at spaces, and end a word wider than the
+ * column in "…" — rather than Fluent's `isMultiline` `word-break: break-word`.
+ */
+const CELL_WRAP_STYLE: React.CSSProperties = {
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "normal",
+  overflowWrap: "normal",
+  wordBreak: "normal",
+};
+
+/**
+ * A cell's content in a box the skin can measure: on hover, a cut-off cell gets its full text
+ * as a title. Only for columns that wrap or have a title — the rest (the actions column)
+ * render bare, so nothing clips their buttons' focus rings.
+ */
+function V8Cell({
+  column,
+  row,
+}: {
+  column: TableColumn;
+  row: unknown;
+}): JSX.Element {
+  const { cellTitle } = column;
+  return (
+    <div
+      style={column.wrap ? CELL_WRAP_STYLE : CELL_LINE_STYLE}
+      {...(cellTitle
+        ? {
+            onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) =>
+              setOverflowTitle(e.currentTarget, () => cellTitle(row)),
+          }
+        : {})}
+    >
+      {column.render(row)}
+    </div>
+  );
+}
+
 export function V8Table(
   p: TableProps & {
     /** The width to lay out against, instead of measuring. A seam for tests, which have no
@@ -855,7 +903,10 @@ export function V8Table(
       // the far right, and let the label wrap.
       cellName: { flexGrow: 1, width: "100%", whiteSpace: "normal" },
     },
-    onRender: (item: unknown) => c.render(item),
+    // A wrapping column lets DetailsList grow the row; V8Cell sets how the text breaks.
+    ...(c.wrap ? { isMultiline: true } : {}),
+    onRender: (item: unknown) =>
+      c.cellTitle || c.wrap ? <V8Cell column={c} row={item} /> : c.render(item),
     onRenderHeader: () => (
       <V8HeaderCell
         column={c}

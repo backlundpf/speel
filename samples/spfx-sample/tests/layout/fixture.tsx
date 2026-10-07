@@ -104,6 +104,31 @@ const scenarios: Scenario[] = [
     ],
     items: [{ done: "Yes", long: "x", authored: "x", filler: "x" }],
   },
+  {
+    name: "cells",
+    containerWidth: 1200,
+    columns: [
+      col("org", "Organization", {
+        width: 120,
+        wrap: true,
+        cellTitle: (r) => (r as Row)["org"] ?? "",
+      }),
+      col("name", "Name", {
+        width: 80,
+        cellTitle: (r) => (r as Row)["name"] ?? "",
+      }),
+      col("filler", "Filler", { width: 50 }),
+    ],
+    items: [
+      {
+        org: "Alpha Beta Gamma Delta Epsilon",
+        name: "Bartholomew Longname",
+        filler: "",
+      },
+      { org: "Short", name: "Al", filler: "" },
+      { org: "Pneumonoultramicroscopic", name: "Al", filler: "" },
+    ],
+  },
 ];
 
 function App(): JSX.Element {
