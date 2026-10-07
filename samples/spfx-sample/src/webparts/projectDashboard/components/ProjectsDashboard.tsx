@@ -117,6 +117,21 @@ const DashboardBody: React.FC<{ ctx: ProjectDashboardContext }> = ({ ctx }) => {
     void tableRef.current?.reload();
   };
 
+  // The select column: a box per row, and one in the header for every row the table matches.
+  const [matched, setMatched] = React.useState<readonly Project[]>([]);
+  const [selected, setSelected] = React.useState<ReadonlySet<number>>(
+    new Set(),
+  );
+  const idOf = (r: Project): number => r.Id ?? 0; // a loaded row always has its Id
+  const allSelected =
+    matched.length > 0 && matched.every((r) => selected.has(idOf(r)));
+  const toggleRow = (r: Project): void =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(idOf(r))) next.add(idOf(r));
+      return next;
+    });
+
   const uploadArtifact = async (p: Project): Promise<void> => {
     // Pre-set nav + FK: the form's lookup displays it without a fetch, and
     // relationship fixup carries it at save (nav wins).
@@ -199,8 +214,33 @@ const DashboardBody: React.FC<{ ctx: ProjectDashboardContext }> = ({ ctx }) => {
       <SpeelEntityTable
         ref={tableRef}
         of={Project}
+        onMatchedRowsChange={setMatched}
         columns={(p) => [
+          {
+            key: "select",
+            header: "Select",
+            width: 40,
+            headerContent: (
+              <ui.Checkbox
+                ariaLabel="Select all projects"
+                checked={allSelected}
+                onChange={() =>
+                  setSelected(
+                    allSelected ? new Set() : new Set(matched.map(idOf)),
+                  )
+                }
+              />
+            ),
+            render: (r) => (
+              <ui.Checkbox
+                ariaLabel={`Select ${r.Title ?? "project"}`}
+                checked={selected.has(idOf(r))}
+                onChange={() => toggleRow(r)}
+              />
+            ),
+          },
           p.Title,
+          p.Description.with({ wrap: true }),
           p.Status,
           p.Priority,
           p.Budget,
