@@ -648,6 +648,7 @@ export const fakeAdapter: SpeelUIAdapter = {
               <th
                 key={c.key}
                 data-width={c.width}
+                data-default-width={c.defaultWidth}
                 {...(sort && sort.key === c.key
                   ? {
                       "aria-sort":

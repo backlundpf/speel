@@ -261,6 +261,7 @@ function SpeelTableInner<T extends IEntity>(
     render: (row: unknown) => c.render(row as T),
     // `visibleColumns` has already layered any user resize over the descriptor width.
     ...(c.width !== undefined ? { width: c.width } : {}),
+    ...(c.defaultWidth !== undefined ? { defaultWidth: c.defaultWidth } : {}),
     ...(sortable && c.sortable ? { sortable: true } : {}),
     ...(filterable && c.filter
       ? {
@@ -287,11 +288,16 @@ function SpeelTableInner<T extends IEntity>(
 
   const ra = rowActions ?? {};
   const customActions = ra.custom ?? [];
-  if (ra.onView || ra.onEdit || ra.onDelete || customActions.length > 0) {
+  const actionCount =
+    [ra.onView, ra.onEdit, ra.onDelete].filter(Boolean).length +
+    customActions.length;
+  if (actionCount > 0) {
     tableColumns.push({
       key: "__actions",
       header: "",
-      width: 170 + customActions.length * 36,
+      // As wide as the buttons it renders: 32px icon buttons, 4px apart. A hint, not a width,
+      // so a skin that sizes columns to content fits it exactly.
+      defaultWidth: actionCount * 32 + (actionCount - 1) * 4,
       render: (row: unknown) => (
         <div style={{ display: "flex", gap: 4 }}>
           {ra.onView ? (

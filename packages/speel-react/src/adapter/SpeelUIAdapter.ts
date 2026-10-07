@@ -287,6 +287,9 @@ export interface TableColumn {
   header: string;
   render: (row: unknown) => ReactNode;
   width?: number;
+  /** The width to hold the column at when `width` is absent — a hint for skins that need a
+   *  number. A skin that sizes columns to their content ignores it. */
+  defaultWidth?: number;
   sortable?: boolean;
   headerFilter?: { active: boolean; content: ReactNode };
 }

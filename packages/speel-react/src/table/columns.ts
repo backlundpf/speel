@@ -8,6 +8,7 @@ import type {
 import { formatFieldValue } from "../fields/format.js";
 import { comparatorFor, type Comparator } from "./sort.js";
 import { defaultFilterFor } from "./filter/defaults.js";
+import { defaultWidthFor } from "./defaultWidth.js";
 
 /** Every column option except `key` — what `p.Field.with(...)` takes. */
 export interface ColumnOptions<T> {
@@ -55,6 +56,8 @@ export interface ResolvedColumn<T> {
   header: string;
   render: (row: T) => ReactNode;
   width?: number;
+  /** The width to hold the column at when nobody has given it one — `defaultWidthFor`. */
+  defaultWidth?: number;
   sortable: boolean;
   sortAccessor?: (row: T) => unknown;
   comparator?: Comparator;
@@ -172,6 +175,7 @@ function autoColumn<T>(et: EntityType, key: string): ResolvedColumn<T> {
     key,
     header: field.displayName,
     render: cellFor<T>(field, key),
+    defaultWidth: defaultWidthFor(field.config),
     ...fieldMeta<T>(field, key),
   };
 }
@@ -191,6 +195,7 @@ function descriptorColumn<T>(
     key: d.key,
     header: d.header ?? field?.displayName ?? d.key,
     render,
+    defaultWidth: defaultWidthFor(field?.config),
     ...(d.width !== undefined ? { width: d.width } : {}),
     ...(d.exportValue !== undefined ? { exportValue: d.exportValue } : {}),
     sortable: false,
@@ -229,6 +234,7 @@ function defaultColumns<T>(et: EntityType): ResolvedColumn<T>[] {
       key: p.propertyName,
       header: p.displayName,
       render: cellFor<T>(p as Field, p.propertyName),
+      defaultWidth: defaultWidthFor(p.config),
       ...fieldMeta<T>(p as Field, p.propertyName),
     });
   }
@@ -242,6 +248,7 @@ function defaultColumns<T>(et: EntityType): ResolvedColumn<T>[] {
       key: n.name,
       header: n.displayName,
       render: cellFor<T>(nav, n.name),
+      defaultWidth: defaultWidthFor(nav.config),
       ...fieldMeta<T>(nav, n.name),
     });
   }
