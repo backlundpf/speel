@@ -77,6 +77,7 @@ const scenarios: Scenario[] = [
       col("e", "Select", {
         width: 80,
         sortable: true,
+        headerFilter: filter,
         headerContent: (
           <input type="checkbox" readOnly aria-label="Select all" />
         ),
@@ -128,6 +129,53 @@ const scenarios: Scenario[] = [
       { org: "Short", name: "Al", filler: "" },
       { org: "Pneumonoultramicroscopic", name: "Al", filler: "" },
     ],
+  },
+  {
+    // Interactive cells in narrow columns, each with a title as SpeelTable gives every data
+    // column — so each renders inside the skin's clipping cell box.
+    name: "focus",
+    containerWidth: 400,
+    columns: [
+      {
+        key: "link",
+        header: "Link",
+        width: 60,
+        render: () => <a href="#">Open</a>,
+        cellTitle: () => "Open",
+      },
+      {
+        key: "check",
+        header: "Pick",
+        width: 40,
+        render: () => <input type="checkbox" readOnly aria-label="Pick row" />,
+        cellTitle: () => "",
+      },
+      col("filler", "Filler", { width: 50 }),
+    ],
+    items: [{ filler: "" }],
+  },
+  {
+    // Content exactly as wide as an 80px column, and 1px wider.
+    name: "fit",
+    containerWidth: 400,
+    columns: [
+      {
+        key: "exact",
+        header: "Exact",
+        width: 80,
+        render: () => <span style={{ display: "inline-block", width: 80 }} />,
+        cellTitle: () => "Exact",
+      },
+      {
+        key: "over",
+        header: "Over",
+        width: 80,
+        render: () => <span style={{ display: "inline-block", width: 81 }} />,
+        cellTitle: () => "Over",
+      },
+      col("filler", "Filler", { width: 50 }),
+    ],
+    items: [{ filler: "" }],
   },
 ];
 

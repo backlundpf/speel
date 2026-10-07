@@ -96,6 +96,39 @@ describe("V8Table header labels", () => {
     expect(container.querySelector('[title="Response Due Date"]')).toBeNull();
   });
 
+  it("names a headerContent column by its header, not by the control inside it", () => {
+    render(
+      <V8Table
+        columns={[
+          column({
+            headerContent: (
+              <input type="checkbox" readOnly aria-label="Select all" />
+            ),
+          }),
+        ]}
+        items={items}
+        containerWidth={300}
+      />,
+    );
+    const header = screen.getByRole("columnheader");
+    expect(header).toHaveAttribute("aria-label", "Response Due Date");
+    expect(header).not.toHaveAttribute("aria-labelledby");
+    expect(
+      screen.getByRole("columnheader", { name: "Response Due Date" }),
+    ).toBe(header);
+  });
+
+  it("leaves a plain header named by its label", () => {
+    render(
+      <V8Table columns={[column({})]} items={items} containerWidth={300} />,
+    );
+    const header = screen.getByRole("columnheader");
+    expect(header).not.toHaveAttribute("aria-label");
+    expect(
+      screen.getByRole("columnheader", { name: "Response Due Date" }),
+    ).toBe(header);
+  });
+
   it("lets the header row grow past Fluent's fixed height", () => {
     const { container } = render(
       <V8Table columns={[column({})]} items={items} containerWidth={300} />,

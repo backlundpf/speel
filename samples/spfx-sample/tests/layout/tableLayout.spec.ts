@@ -39,12 +39,23 @@ test.beforeAll(async () => {
 });
 
 async function open(page: Page): Promise<void> {
+  // A fixture that throws never sets `ready`: fail on the error itself, not on the timeout.
+  const crashed = new Promise<Error>((resolve) =>
+    page.once("pageerror", resolve),
+  );
   await page.route("**/*", (route) => route.abort()); // offline: nothing leaves the page
   await page.setContent(
     '<!doctype html><html><body style="margin:0"><div id="root"></div></body></html>',
   );
   await page.addScriptTag({ content: bundle });
-  await page.waitForFunction(() => document.body.dataset["ready"] === "1");
+  const error = await Promise.race([
+    page
+      .waitForFunction(() => document.body.dataset["ready"] === "1")
+      .then(() => undefined),
+    crashed,
+  ]);
+  if (error)
+    throw new Error(`The fixture threw: ${error.stack ?? error.message}`);
 }
 const scenario = (page: Page, name: string): Locator =>
   page.locator(`section[data-scenario="${name}"]`);
@@ -128,16 +139,24 @@ test.describe("header labels", () => {
     }
   });
 
-  test("render headerContent in place of the label, with no sort button", async ({
+  test("render headerContent in place of the label, with no sort button, beside the filter button", async ({
     page,
   }) => {
     await open(page);
     const cell = headerCells(scenario(page, "headers")).nth(4);
-    await expect(
-      cell.getByRole("checkbox", { name: "Select all" }),
-    ).toBeVisible();
+    const checkbox = cell.getByRole("checkbox", { name: "Select all" });
+    await expect(checkbox).toBeVisible();
     await expect(cell.getByRole("button", { name: /sortable/ })).toHaveCount(0);
     await expect(cell.locator('[title="Select"]')).toHaveCount(0);
+    const button = cell.getByRole("button", { name: "Filter Select" });
+    await expect(button).toBeVisible();
+    const box = (await checkbox.boundingBox())!;
+    const filter = (await button.boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(filter.x + 0.5);
+    const bounds = (await cell.boundingBox())!;
+    expect(filter.x + filter.width).toBeLessThanOrEqual(
+      bounds.x + bounds.width + 0.5,
+    );
   });
 });
 
@@ -178,6 +197,87 @@ test.describe("body cells", () => {
     await fits.hover();
     expect(await fits.getAttribute("title")).toBeNull();
   });
+
+  test("content exactly as wide as the column counts as fitting; 1px more is cut off", async ({
+    page,
+  }) => {
+    await open(page);
+    // The cell box pads its content for focus rings; the padding must not read as overflow.
+    const cells = rowCells(scenario(page, "fit"), 0);
+    const exact = cells.nth(0).locator(":scope > div");
+    await exact.hover();
+    expect(await exact.getAttribute("title")).toBeNull();
+    const over = cells.nth(1).locator(":scope > div");
+    await over.hover();
+    await expect(over).toHaveAttribute("title", "Over");
+  });
+});
+
+test.describe("interactive cells", () => {
+  /**
+   * Every side on which a clipping ancestor — up to and including the row cell — cuts the
+   * focused element's outline. The outline's box is the element's border box grown by
+   * `outline-offset + outline-width`. Chromium paints `outline-style: auto` (the UA focus
+   * ring) about 2px wide whatever its computed width reads (1px from the UA sheet), so an
+   * auto outline counts as at least 2px. A clip edge is the ancestor's padding box: its
+   * client rect less its borders.
+   *
+   * Self-contained on purpose: Playwright serialises it into the page.
+   */
+  function cutRing(el: Element): { outline: string; cuts: string[] } {
+    const s = getComputedStyle(el);
+    const width = parseFloat(s.outlineWidth) || 0;
+    const grow =
+      (s.outlineStyle === "auto" ? Math.max(width, 2) : width) +
+      (parseFloat(s.outlineOffset) || 0);
+    const r = el.getBoundingClientRect();
+    const ring = {
+      left: r.left - grow,
+      top: r.top - grow,
+      right: r.right + grow,
+      bottom: r.bottom + grow,
+    };
+    const cuts: string[] = [];
+    for (let a = el.parentElement; a; a = a.parentElement) {
+      const cs = getComputedStyle(a);
+      if (cs.overflowX !== "visible" || cs.overflowY !== "visible") {
+        const ar = a.getBoundingClientRect();
+        const clip = {
+          left: ar.left + parseFloat(cs.borderLeftWidth),
+          top: ar.top + parseFloat(cs.borderTopWidth),
+          right: ar.right - parseFloat(cs.borderRightWidth),
+          bottom: ar.bottom - parseFloat(cs.borderBottomWidth),
+        };
+        const who = `${a.tagName.toLowerCase()}.${a.className || "(no class)"}`;
+        if (ring.left < clip.left - 0.01) cuts.push(`${who} left`);
+        if (ring.top < clip.top - 0.01) cuts.push(`${who} top`);
+        if (ring.right > clip.right + 0.01) cuts.push(`${who} right`);
+        if (ring.bottom > clip.bottom + 0.01) cuts.push(`${who} bottom`);
+      }
+      if ((a as HTMLElement).dataset["automationid"] === "DetailsRowCell")
+        break;
+    }
+    return {
+      outline: `${s.outlineStyle} ${s.outlineWidth} offset ${s.outlineOffset}`,
+      cuts,
+    };
+  }
+
+  for (const [name, selector] of [
+    ["link", "a"],
+    ["checkbox", 'input[type="checkbox"]'],
+  ] as const) {
+    test(`a focused ${name} in a titled cell keeps its whole focus ring`, async ({
+      page,
+    }) => {
+      await open(page);
+      const control = scenario(page, "focus").locator(selector);
+      await control.focus();
+      const { outline, cuts } = await control.evaluate(cutRing);
+      expect(outline, "the focus ring is drawn").not.toMatch(/^none/);
+      expect(cuts, outline).toEqual([]);
+    });
+  }
 });
 
 test.describe("default widths", () => {

@@ -746,8 +746,21 @@ const HEADER_ROW_STYLES: NonNullable<IDetailsHeaderProps["styles"]> = {
   cellSizer: { flexShrink: 0 },
 };
 
+/**
+ * Room for a focus ring around the cell box's content. `overflow: hidden` clips at the padding
+ * edge, and a content-tight box would cut the outline of a link or checkbox in the cell — the
+ * UA ring reaches 3px past the element (2px ring + 1px offset), a Fluent Checkbox's 3px.
+ * Padding moves the clip edge out into Fluent's own cell padding (12px left, 8px right, 11px
+ * — 6px compact — above and below); the equal negative margin keeps the content box, where
+ * text breaks and the ellipsis sits, and the row's layout exactly where they were. Padding
+ * counts in both `scrollWidth` and `clientWidth`, so `setOverflowTitle` still reads a value
+ * that just fits as fitting.
+ */
+const CELL_FOCUS_SLACK: React.CSSProperties = { padding: 3, margin: -3 };
+
 /** A single-line cell: cut off with an ellipsis, as DetailsList's own cell style does. */
 const CELL_LINE_STYLE: React.CSSProperties = {
+  ...CELL_FOCUS_SLACK,
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
@@ -758,6 +771,7 @@ const CELL_LINE_STYLE: React.CSSProperties = {
  * column in "…" — rather than Fluent's `isMultiline` `word-break: break-word`.
  */
 const CELL_WRAP_STYLE: React.CSSProperties = {
+  ...CELL_FOCUS_SLACK,
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "normal",
@@ -768,7 +782,8 @@ const CELL_WRAP_STYLE: React.CSSProperties = {
 /**
  * A cell's content in a box the skin can measure: on hover, a cut-off cell gets its full text
  * as a title. Only for columns that wrap or have a title — the rest (the actions column)
- * render bare, so nothing clips their buttons' focus rings.
+ * render bare. The box keeps `CELL_FOCUS_SLACK` around its content, so a control in it keeps
+ * its whole focus ring.
  */
 function V8Cell({
   column,
@@ -872,6 +887,9 @@ export function V8Table(
   const columns: IColumn[] = p.columns.map((c, i) => ({
     key: c.key,
     name: c.header,
+    // Fluent names the columnheader from the content it renders; with a control there, that
+    // is the control's name ("Select all"). `ariaLabel` names it by `header` instead.
+    ...(c.headerContent !== undefined ? { ariaLabel: c.header } : {}),
     isResizable: true,
     // The held width rides in maxWidth, NOT minWidth: DetailsList clamps a drag to minWidth,
     // so a floor equal to the current width lets a column grow and never shrink.
