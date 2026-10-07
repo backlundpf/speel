@@ -1,9 +1,11 @@
 # SPFx sample — Playwright tests
 
-Two layers:
+Three layers:
 
 - **Unit** (`tests/helpers/*.spec.ts`) — pure logic (`env`, `totp`). No browser, no tenant.
   Run: `npm run test:unit`
+- **Layout** (`tests/layout/*.spec.ts`) — the v8 table's real line boxes in Chromium, offline.
+  No tenant, no serve. Run: `npm run test:layout` — see [Layout tests](#layout-tests).
 - **E2E** (`tests/*.spec.ts`) — opens one of the two web part pages under `SP_BASE_URL`
   (`SitePages/AdminDashboard.aspx`, `ProjectDashboard.aspx`; the web parts are already
   deployed to them), scripts the Microsoft login (password + TOTP), and drives the web part
@@ -14,6 +16,23 @@ Two layers:
   `pd` opens `admin`. Run: `npm run test:e2e` (headed: `npm run test:e2e:ui`).
   - `providerConformance.spec.ts` — the `@speel/core` provider conformance suite against the
     live provider: `PW_E2E=1 npx playwright test providerConformance --project e2e`.
+
+## Layout tests
+
+The `layout` Playwright project checks what jsdom can't: how the Fluent v8 table actually lays
+out text. `tableLayout.spec.ts` bundles `layout/fixture.tsx` — `V8Table` scenarios rendered
+from the sample's installed `@speel/react`, React 17 and Fluent 8 — with esbuild, loads it into
+a blank page with the network blocked, and reads line boxes (`Range.getClientRects()`):
+header words never split, an over-long word ends in "…", text never runs under the filter
+button, a `wrap` column grows its row, a defaulted column is never narrower than its header
+needs, and only a cut-off cell gets a hover title.
+
+- **Run:** `npm run test:layout` here; it is also the last step of the root `npm run verify`.
+  It reads `@speel/react` from its `dist/`, so rebuild the package after changing it.
+- **Browser:** needs Playwright's Chromium once — `npx playwright install chromium`, or
+  `npm run playwright:install` (adds `--with-deps`, needs sudo) on a CI-like machine.
+- **Font:** the fixture pins Liberation Sans so canvas measurement and line breaking agree on
+  every machine; Playwright's Linux dependencies install it.
 
 ## One-time machine setup
 

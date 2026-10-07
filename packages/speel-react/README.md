@@ -128,6 +128,8 @@ navigation expands.
   rows, loads too much, should add what the user typed, or renders radios with "Other".
 - [Tables](docs/tables.md) — read when displaying entity data with `SpeelTable` or
   `SpeelEntityTable`, customising columns, or using the reload handle.
+- [Table columns](docs/table-columns.md) — read when a column needs a width, a different header
+  or cell, wrapping, or a control in its header.
 - [Table sort, filter, and search](docs/table-filtering.md) — read when a table should open
   pre-filtered, a column should sort or filter on a derived value, or users need to search rows.
 - [Table export](docs/table-export.md) — read when getting rows out of a table as CSV, Excel, or

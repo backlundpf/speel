@@ -113,9 +113,9 @@ open state, title, body and footer slots, `resizable`, `draggable` (dialog only)
 shadcn skins implement all flags, so drag/resize/fullscreen parity is maintained across
 skins out of the box.
 
-**Table** — `TableProps` with `TableColumn` descriptors and `TableSort` carries sort
-state. The skin owns header rendering, cell rendering, and sort indicator placement;
-column order, widths, and custom cells come from the `TableColumn` spec.
+**Table** — `TableProps` carries `TableColumn` specs and `TableSort`; the skin owns header,
+cell, and sort rendering. Optional hints: `defaultWidth` (a column with no `width`), `wrap`,
+`cellTitle` (hover via the exported `setOverflowTitle`), `headerContent` (replaces the label).
 
 **Menu** — `MenuProps` carries titled sections of items with icons and optional checkmarks.
 Map it to the library's own menu (Fluent's `ContextualMenu`, radix's dropdown menu), not

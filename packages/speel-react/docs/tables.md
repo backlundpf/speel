@@ -84,39 +84,15 @@ followed by all navigations. Anything the model marks `isVisible(false)` — pro
 navigation, including `SpeelDocument`'s injected file fields — stays out of that default
 set; an explicit column spec can still name it.
 
-The idiomatic form uses a **proxy accessor**: the `(p) => [...]` callback receives a
-proxy whose property accesses return opaque column refs; named fields get their display
-name, sort/filter accessors, and cell renderer from the model metadata automatically.
+Name fields through the `(p) => [...]` callback: each `p.Field` brings that field's display
+name, cell renderer, sort, and filter from the model, and `p.Field.with({ ... })` adds options
+such as a width, a header, or a custom cell while staying keyed to the field. Custom columns,
+default widths, wrapping, hover titles, and controls in a header are on
+[table columns](table-columns.md).
 
 ```tsx
-columns={(p) => [p.Title, p.Status, p.DueDate]}
+columns={(p) => [p.Title, p.Status.with({ width: 120 }), p.DueDate]}
 ```
-
-To override label, width, or cell rendering for one column, pass a **`ColumnDescriptor`**
-inline:
-
-```tsx
-columns={(p) => [
-  { key: 'Title', render: (r) => <Link onClick={() => view(r)}>{r.Title}</Link> },
-  p.Status,
-  { key: 'health', header: 'Health', render: (r) => r.DueDate && r.DueDate < new Date()
-      ? <span style={{ color: 'crimson' }}>Late</span>
-      : <span style={{ color: 'green' }}>On track</span>,
-    sortValue: (r) => r.DueDate?.getTime() ?? 0 },
-]}
-```
-
-A `ColumnDescriptor` whose `key` matches a model field inherits that field's display name,
-cell renderer, comparator, and filter control; `sortValue` / `filterValue` then override
-only the **value** that column sorts and filters on, leaving the inherited control in place.
-A purely custom column (no matching field) is inert until you supply `sortValue`, and
-`tableFilter` together with `filterValue`.
-
-That override is what makes a **masked** display value findable: key the column to the model
-field so it keeps that field's Choice select, and point `render`, `sortValue`, and
-`filterValue` at the masked value. Without all three the row displays one status while
-filtering and sorting as another — unfindable by the status the user can actually see. The
-side-map idiom under Boundaries shows the shape.
 
 ### Opening pre-filtered, sorting, filtering, and searching
 
@@ -214,10 +190,11 @@ rowActions={{ onEdit, custom: [
   ```
 
 - **Columns keep their widths; the table scrolls.** Every rendered column is laid out at the
-  width it holds — a live drag, else a view or descriptor width, else a readable default — and
-  when those add up to more than the container the table scrolls horizontally, header and rows
-  together, rather than compressing sixteen columns into slivers. Only when they fit does the
-  last column stretch into the slack. Nothing outside the table moves sideways, and a drag is
-  still session-only: it never enters the lifted state and is gone on refresh. A header label
-  never truncates either: it wraps and the header row grows, with the full label as the hover
-  tooltip. Only a single word wider than the whole column breaks mid-word — the cue to widen it.
+  width it holds — a live drag, else a view or descriptor width, else (Fluent v8) a default for
+  its field kind, never narrower than its header's longest word — and when those add up to more
+  than the container the table scrolls horizontally, header and rows together, rather than
+  compressing sixteen columns into slivers. Only when they fit does the last column stretch into
+  the slack. Nothing outside the table moves sideways, and a drag is still session-only: it
+  never enters the lifted state and is gone on refresh. A header label breaks only at spaces and
+  the header row grows; a word wider than the column ends in "…", with the full label as the
+  hover title — the cue to widen it. The defaults by kind are on [table columns](table-columns.md).
