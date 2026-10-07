@@ -58,6 +58,12 @@ export interface ResolvedColumn<T> {
   width?: number;
   /** The width to hold the column at when nobody has given it one — `defaultWidthFor`. */
   defaultWidth?: number;
+  /** Break long values onto more lines instead of cutting them off. */
+  wrap?: boolean;
+  /** `false` when the column opted out of the cut-off hover title. */
+  cellTitle?: false;
+  /** Shown in the header cell in place of `header`'s text. */
+  headerContent?: ReactNode;
   sortable: boolean;
   sortAccessor?: (row: T) => unknown;
   comparator?: Comparator;
@@ -198,6 +204,11 @@ function descriptorColumn<T>(
     defaultWidth: defaultWidthFor(field?.config),
     ...(d.width !== undefined ? { width: d.width } : {}),
     ...(d.exportValue !== undefined ? { exportValue: d.exportValue } : {}),
+    ...(d.wrap ? { wrap: true } : {}),
+    ...(d.cellTitle === false ? { cellTitle: false as const } : {}),
+    ...(d.headerContent !== undefined
+      ? { headerContent: d.headerContent }
+      : {}),
     sortable: false,
   };
 

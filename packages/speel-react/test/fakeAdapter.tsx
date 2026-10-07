@@ -92,7 +92,9 @@ const FakeTableHeaderCell = ({
   const sorted = sort && sort.key === column.key;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-      {column.sortable && onSortChange ? (
+      {column.headerContent !== undefined ? (
+        <span>{column.headerContent}</span>
+      ) : column.sortable && onSortChange ? (
         <button type="button" onClick={() => onSortChange(column.key)}>
           {column.header}
           <span aria-hidden="true">
@@ -649,6 +651,7 @@ export const fakeAdapter: SpeelUIAdapter = {
                 key={c.key}
                 data-width={c.width}
                 data-default-width={c.defaultWidth}
+                data-wrap={c.wrap ? "" : undefined}
                 {...(sort && sort.key === c.key
                   ? {
                       "aria-sort":
@@ -685,7 +688,9 @@ export const fakeAdapter: SpeelUIAdapter = {
                 {...(cls ? { className: cls } : {})}
               >
                 {columns.map((c) => (
-                  <td key={c.key}>{c.render(row)}</td>
+                  <td key={c.key} data-cell-title={c.cellTitle?.(row)}>
+                    {c.render(row)}
+                  </td>
                 ))}
               </tr>
             );

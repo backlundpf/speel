@@ -292,6 +292,13 @@ export interface TableColumn {
   defaultWidth?: number;
   sortable?: boolean;
   headerFilter?: { active: boolean; content: ReactNode };
+  /** Break long values onto more lines, at spaces, instead of cutting them off. */
+  wrap?: boolean;
+  /** A cell's full text, for a hover title when the skin has cut the cell off. */
+  cellTitle?: (row: unknown) => string;
+  /** Rendered in the header cell in place of `header`'s text — never as a sort button.
+   *  `header` still names the column everywhere else. */
+  headerContent?: ReactNode;
 }
 
 export interface TableSort {

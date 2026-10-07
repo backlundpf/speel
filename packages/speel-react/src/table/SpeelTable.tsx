@@ -39,6 +39,7 @@ import {
   type ColumnState,
 } from "./columnState.js";
 import { ColumnChooser } from "./ColumnChooser.js";
+import { cellText } from "./cellText.js";
 import {
   ColumnChooserContext,
   type ColumnChooserAccess,
@@ -262,6 +263,14 @@ function SpeelTableInner<T extends IEntity>(
     // `visibleColumns` has already layered any user resize over the descriptor width.
     ...(c.width !== undefined ? { width: c.width } : {}),
     ...(c.defaultWidth !== undefined ? { defaultWidth: c.defaultWidth } : {}),
+    ...(c.wrap ? { wrap: true } : {}),
+    // The text export and search read — computed only when a skin asks, on hover.
+    ...(c.cellTitle !== false
+      ? { cellTitle: (row: unknown) => cellText(c, row as T) }
+      : {}),
+    ...(c.headerContent !== undefined
+      ? { headerContent: c.headerContent }
+      : {}),
     ...(sortable && c.sortable ? { sortable: true } : {}),
     ...(filterable && c.filter
       ? {

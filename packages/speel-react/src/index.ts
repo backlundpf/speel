@@ -237,3 +237,4 @@ export type {
   ResizeState,
   ResizeHandleProps,
 } from "./surface/useResizable.js";
+export { setOverflowTitle } from "./table/overflowTitle.js";
