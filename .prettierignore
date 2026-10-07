@@ -7,6 +7,8 @@ samples/*/lib-commonjs
 samples/*/temp
 samples/*/release
 samples/*/test-results
+# Playwright's HTML report: `verify` runs the layout tests, which write it.
+samples/*/playwright-report
 # SPFx packaging output — present only after a sample build, but enough to fail
 # `format:check` on a machine that has run one.
 samples/*/sharepoint
