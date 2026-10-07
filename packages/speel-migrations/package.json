@@ -1,6 +1,6 @@
 {
   "name": "@speel/migrations",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "description": "EF-Core-style schema migrations for SharePoint lists and fields, applied at runtime by a Migrator.",
   "keywords": [
     "sharepoint",
@@ -43,10 +43,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
-    "@speel/core": "^0.1.0-beta.2"
+    "@speel/core": "^0.1.0-beta.3"
   },
   "devDependencies": {
-    "@speel/core": "0.1.0-beta.2",
+    "@speel/core": "0.1.0-beta.3",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
   },
