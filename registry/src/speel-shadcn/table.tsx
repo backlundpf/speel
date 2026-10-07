@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ReactElement, ReactNode } from "react";
+import type { MouseEvent, ReactElement, ReactNode } from "react";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 
 import {
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-import { useResizable } from "@speel/react";
+import { setOverflowTitle, useResizable } from "@speel/react";
 import type {
   RowIntent,
   TableColumn,
@@ -36,7 +36,12 @@ function HeaderCell({
   const sorted = sort?.key === column.key;
   return (
     <span className="flex w-full items-center gap-1">
-      {column.sortable && onSortChange ? (
+      {column.headerContent !== undefined ? (
+        // A control in the header owns its clicks: it is never wrapped in the sort button.
+        <span className="min-w-0 grow">
+          {column.headerContent as ReactNode}
+        </span>
+      ) : column.sortable && onSortChange ? (
         <button
           type="button"
           className="hover:bg-accent group flex min-w-0 grow items-center gap-1 rounded px-1.5 py-1 text-left"
@@ -172,7 +177,19 @@ export function ShadTable(p: TableProps): ReactElement {
                 {p.columns.map((c) => (
                   <TableCell
                     key={c.key}
-                    className={cn(c.width !== undefined && "truncate")}
+                    className={cn(
+                      c.wrap
+                        ? "whitespace-normal"
+                        : c.width !== undefined && "truncate",
+                    )}
+                    {...(c.cellTitle
+                      ? {
+                          onMouseEnter: (e: MouseEvent<HTMLTableCellElement>) =>
+                            setOverflowTitle(e.currentTarget, () =>
+                              c.cellTitle!(row),
+                            ),
+                        }
+                      : {})}
                   >
                     {c.render(row) as ReactNode}
                   </TableCell>
