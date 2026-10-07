@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { V8Table } from "../src/fluent-v8/primitives.js";
 import type { TableColumn } from "../src/adapter/SpeelUIAdapter.js";
 
@@ -41,7 +41,7 @@ describe("V8Table header labels", () => {
     expect(label(container).textContent).toBe("Response Due Date");
   });
 
-  it("wraps the label instead of clipping it to one line", () => {
+  it("breaks the label only at spaces and ends an over-long word in an ellipsis", () => {
     const { container } = render(
       <V8Table
         columns={[column({ sortable: true })]}
@@ -50,12 +50,50 @@ describe("V8Table header labels", () => {
         containerWidth={300}
       />,
     );
-    const el = label(container);
-    expect(el.style.whiteSpace).not.toBe("nowrap");
-    expect(el.style.textOverflow).not.toBe("ellipsis");
-    // A single word wider than the column breaks rather than clips — but only such a word:
-    // `anywhere` would let the label shrink to a character a line beside the filter button.
-    expect(el.style.overflowWrap).toBe("break-word");
+    const box = container.querySelector<HTMLElement>("[data-header-label]");
+    if (!box) throw new Error("no label box");
+    expect(box.contains(label(container))).toBe(true);
+    expect(box.style.whiteSpace).toBe("normal");
+    expect(box.style.overflowWrap).toBe("normal");
+    expect(box.style.wordBreak).toBe("normal");
+    expect(box.style.overflow).toBe("hidden");
+    expect(box.style.textOverflow).toBe("ellipsis");
+  });
+
+  it("sets the filter button beside the label rather than floating it", () => {
+    const { container } = render(
+      <V8Table
+        columns={[column({ headerFilter: { active: false, content: null } })]}
+        items={items}
+        containerWidth={300}
+      />,
+    );
+    const box = container.querySelector<HTMLElement>("[data-header-label]")!;
+    expect((box.parentElement as HTMLElement).style.display).toBe("flex");
+    expect(container.querySelector('[style*="float"]')).toBeNull();
+  });
+
+  it("renders headerContent in place of the label, never as a sort button", () => {
+    const { container } = render(
+      <V8Table
+        columns={[
+          column({
+            sortable: true,
+            headerContent: (
+              <input type="checkbox" readOnly aria-label="Select all" />
+            ),
+          }),
+        ]}
+        items={items}
+        onSortChange={() => undefined}
+        containerWidth={300}
+      />,
+    );
+    expect(
+      screen.getByRole("checkbox", { name: "Select all" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /sortable/ })).toBeNull();
+    expect(container.querySelector('[title="Response Due Date"]')).toBeNull();
   });
 
   it("lets the header row grow past Fluent's fixed height", () => {

@@ -50,6 +50,41 @@ const scenarios: Scenario[] = [
     ],
     items: [{ a: "Ada", b: "x" }],
   },
+  {
+    name: "headers",
+    containerWidth: 1200,
+    columns: [
+      col("a", "Supervisor", {
+        width: 92,
+        sortable: true,
+        headerFilter: filter,
+      }),
+      col("b", "Supervisor", {
+        width: 200,
+        sortable: true,
+        headerFilter: filter,
+      }),
+      col("c", "Separation Date", {
+        width: 92,
+        sortable: true,
+        headerFilter: filter,
+      }),
+      col("d", "Supervisor", {
+        width: 40,
+        sortable: true,
+        headerFilter: filter,
+      }),
+      col("e", "Select", {
+        width: 80,
+        sortable: true,
+        headerContent: (
+          <input type="checkbox" readOnly aria-label="Select all" />
+        ),
+      }),
+      col("f", "Filler", { width: 50 }),
+    ],
+    items: [{ a: "x", b: "x", c: "x", d: "x", e: "x", f: "x" }],
+  },
 ];
 
 function App(): JSX.Element {

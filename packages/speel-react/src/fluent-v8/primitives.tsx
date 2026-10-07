@@ -585,16 +585,28 @@ export function V8Popover(p: PopoverProps): JSX.Element {
 }
 
 /**
- * A header label is inline text in a block, with the filter button floated at the top
- * right: the first line is shortened by the button, later lines get the whole column, and a
- * single word that cannot fit beside the button drops under it rather than breaking. The
- * header row grows to fit (see `V8Table`). `break-word` is the last resort, for a word wider
- * than the column itself; the `title` is the hover for whatever still reads badly.
+ * The header's text box. It takes whatever the filter button leaves, and breaks a label only
+ * at spaces; a word wider than the box ends in "…" (`text-overflow` applies to every line).
+ * The `title` on the label is the hover for whatever is cut off. The header row grows to fit
+ * the lines (see `V8Table`).
  */
-const HEADER_LABEL_STYLE: React.CSSProperties = {
+const HEADER_LABEL_BOX_STYLE: React.CSSProperties = {
+  flex: "1 1 auto",
+  minWidth: 0,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
   whiteSpace: "normal",
-  overflowWrap: "break-word",
+  overflowWrap: "normal",
+  wordBreak: "normal",
   lineHeight: "normal",
+};
+
+/** Label box and filter button side by side, the button level with the first line. */
+const HEADER_ROW_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: 4,
+  width: "100%",
 };
 
 /** The filter button, smaller than the 32px default: every pixel here comes off the label. */
@@ -623,11 +635,67 @@ function V8HeaderCell({
       ? "SortUp"
       : "SortDown"
     : undefined;
+  const label =
+    column.headerContent !== undefined ? (
+      // A control in the header owns its clicks: it is never wrapped in the sort button.
+      column.headerContent
+    ) : column.sortable && onSortChange ? (
+      <span
+        role="button"
+        tabIndex={0}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          cursor: "pointer",
+          display: "inline",
+          padding: "2px 4px",
+          borderRadius: 2,
+          // Each line of a wrapped label gets its own rounded hover fragment.
+          boxDecorationBreak: "clone",
+          WebkitBoxDecorationBreak: "clone",
+          background: hovered ? "rgba(0,0,0,0.06)" : "transparent",
+        }}
+        aria-label={
+          sorted
+            ? `${column.header}, sorted ${sort!.direction === "asc" ? "ascending" : "descending"}`
+            : `${column.header}, sortable`
+        }
+        onClick={() => onSortChange(column.key)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSortChange(column.key);
+          }
+        }}
+      >
+        <span title={column.header}>{column.header}</span>
+        {sortIcon ? (
+          // An ordinary space, so a last word that fits but not with its arrow keeps the
+          // line and the arrow takes the next one — the word is never cut for the arrow.
+          <>
+            {" "}
+            <Icon
+              iconName={sortIcon}
+              aria-hidden
+              style={{
+                fontSize: 12,
+                display: "inline",
+                verticalAlign: "middle",
+              }}
+            />
+          </>
+        ) : null}
+      </span>
+    ) : (
+      <span title={column.header}>{column.header}</span>
+    );
   return (
-    <span style={{ display: "block", width: "100%" }}>
-      {/* First in the DOM so the float anchors to the first line, not wherever the text ends. */}
+    <span style={HEADER_ROW_STYLE}>
+      <span data-header-label="" style={HEADER_LABEL_BOX_STYLE}>
+        {label}
+      </span>
       {column.headerFilter ? (
-        <span style={{ float: "right", marginLeft: 4 }}>
+        <span style={{ flex: "none" }}>
           <V8Popover
             open={open}
             onOpenChange={setOpen}
@@ -646,63 +714,6 @@ function V8HeaderCell({
           </V8Popover>
         </span>
       ) : null}
-      {column.sortable && onSortChange ? (
-        <span
-          role="button"
-          tabIndex={0}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          style={{
-            ...HEADER_LABEL_STYLE,
-            cursor: "pointer",
-            display: "inline",
-            padding: "2px 4px",
-            borderRadius: 2,
-            // Each line of a wrapped label gets its own rounded hover fragment.
-            boxDecorationBreak: "clone",
-            WebkitBoxDecorationBreak: "clone",
-            background: hovered ? "rgba(0,0,0,0.06)" : "transparent",
-          }}
-          aria-label={
-            sorted
-              ? `${column.header}, sorted ${sort!.direction === "asc" ? "ascending" : "descending"}`
-              : `${column.header}, sortable`
-          }
-          onClick={() => onSortChange(column.key)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onSortChange(column.key);
-            }
-          }}
-        >
-          <span title={column.header} style={HEADER_LABEL_STYLE}>
-            {column.header}
-          </span>
-          {sortIcon ? (
-            // A no-break space rather than a margin glues the arrow to the last word, and the
-            // icon is rendered inline rather than as Fluent's inline-block: a break is allowed
-            // before an atomic inline whatever precedes it, so the arrow would still wrap
-            // onto a line of its own.
-            <>
-              {" "}
-              <Icon
-                iconName={sortIcon}
-                aria-hidden
-                style={{
-                  fontSize: 12,
-                  display: "inline",
-                  verticalAlign: "middle",
-                }}
-              />
-            </>
-          ) : null}
-        </span>
-      ) : (
-        <span title={column.header} style={HEADER_LABEL_STYLE}>
-          {column.header}
-        </span>
-      )}
     </span>
   );
 }
