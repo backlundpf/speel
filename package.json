@@ -14,7 +14,7 @@
     "format:check": "prettier --check .",
     "check:node-esm": "node scripts/check-node-esm.mjs",
     "fix:node-esm": "node scripts/add-js-extensions.mjs && prettier --write --log-level warn packages samples/spfx-sample/src/migrations",
-    "verify": "npm run test:scripts && npm run build && npm run check:node-esm && npm run typecheck && npm run test && npm --prefix registry run typecheck && npm --prefix registry test && npm --prefix registry run build:check && npm run check:skin && npm --prefix samples/spfx-sample run build:check",
+    "verify": "npm run test:scripts && npm run build && npm run check:node-esm && npm run typecheck && npm run test && npm --prefix registry run typecheck && npm --prefix registry test && npm --prefix registry run build:check && npm run check:skin && npm --prefix samples/spfx-sample run build:check && npm --prefix samples/spfx-sample run test:layout",
     "sync:skin": "node scripts/sync-shadcn-skin.mjs",
     "check:skin": "node scripts/sync-shadcn-skin.mjs --check",
     "changeset": "changeset",
