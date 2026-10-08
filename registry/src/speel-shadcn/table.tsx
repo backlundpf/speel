@@ -1,6 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import type { MouseEvent, ReactElement, ReactNode } from "react";
-import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import type { KeyboardEvent, MouseEvent, ReactElement, ReactNode } from "react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 
 import {
   Table,
@@ -12,8 +18,18 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-import { setOverflowTitle, useResizable } from "@speel/react";
+import {
+  MIN_RESIZE_WIDTH,
+  headerFloor,
+  resolveColumnWidths,
+  setOverflowTitle,
+  textMeasurer,
+  toFlexColumn,
+  useContainerWidth,
+  useResizable,
+} from "@speel/react";
 import type {
+  HeaderRoom,
   RowIntent,
   TableColumn,
   TableProps,
@@ -22,6 +38,70 @@ import type {
 
 import { ShadIconButton } from "./fields";
 import { ShadPopover } from "./overlays";
+
+/** Tailwind's default spacing unit (`--spacing: 0.25rem`), used until the theme's is measured. */
+const DEFAULT_SPACING = 4;
+
+/**
+ * The cell padding and header room this skin's markup takes, for a theme spacing unit of
+ * `spacing` pixels. Every size involved is a Tailwind spacing multiple, so a density theme
+ * that changes `--spacing` scales them all:
+ * - padding: th `px-2` / td `p-2` — 2 units a side;
+ * - label: the sort label's `px-1.5`;
+ * - sortArrow: the `size-3.5` arrow and the `gap-1` before it;
+ * - filterButton: `ShadIconButton`'s `size-8` and the `gap-1` before it.
+ */
+export function shadMetrics(spacing: number): {
+  padding: number;
+  room: HeaderRoom;
+} {
+  return {
+    padding: 4 * spacing,
+    room: {
+      label: 3 * spacing,
+      sortArrow: 4.5 * spacing,
+      filterButton: 9 * spacing,
+    },
+  };
+}
+
+/** What the layout reads from the rendered table: the theme's spacing unit and header font. */
+interface ShadTheme {
+  spacing: number;
+  /** CSS font shorthand the header labels render in. */
+  font: string;
+  fontSize: number;
+}
+
+/** `text-sm font-medium` at Tailwind's defaults, until the header is rendered to read. */
+const DEFAULT_THEME: ShadTheme = {
+  spacing: DEFAULT_SPACING,
+  font: "500 14px sans-serif",
+  fontSize: 14,
+};
+
+/**
+ * Spacing units in the probe. Layout snaps a box to 1/64px, so the probe is ten units wide
+ * rather than one: 0.2rem reads as 3.2, not 3.1875.
+ */
+const PROBE_UNITS = 10;
+
+/** Reads the spacing unit off the probe (`w-10`) and the header font off a header cell. */
+function readTheme(box: HTMLElement, probe?: HTMLElement): ShadTheme {
+  const unit = (probe?.getBoundingClientRect().width ?? 0) / PROBE_UNITS;
+  const spacing = Number.isFinite(unit) && unit > 0 ? unit : DEFAULT_SPACING;
+  const th = box.querySelector("th");
+  const style = th ? getComputedStyle(th) : undefined;
+  const size = parseFloat(style?.fontSize ?? "");
+  if (style && size > 0 && style.fontFamily)
+    return {
+      spacing,
+      font: `${style.fontWeight || "500"} ${size}px ${style.fontFamily}`,
+      fontSize: size,
+    };
+  const family = getComputedStyle(box).fontFamily || "sans-serif";
+  return { spacing, font: `500 14px ${family}`, fontSize: 14 };
+}
 
 function HeaderCell({
   column,
@@ -34,80 +114,149 @@ function HeaderCell({
 }): ReactElement {
   const [filterOpen, setFilterOpen] = useState(false);
   const sorted = sort?.key === column.key;
+  const arrow = "inline size-3.5 align-middle";
   return (
-    <span className="flex w-full items-center gap-1">
-      {column.headerContent !== undefined ? (
-        // A control in the header owns its clicks: it is never wrapped in the sort button.
-        <span className="min-w-0 grow">
-          {column.headerContent as ReactNode}
-        </span>
-      ) : column.sortable && onSortChange ? (
-        <button
-          type="button"
-          className="hover:bg-accent group flex min-w-0 grow items-center gap-1 rounded px-1.5 py-1 text-left"
-          aria-label={
-            sorted
-              ? `${column.header}, sorted ${sort!.direction === "asc" ? "ascending" : "descending"}`
-              : `${column.header}, sortable`
-          }
-          onClick={() => onSortChange(column.key)}
-        >
-          <span className="truncate">{column.header}</span>
-          {sorted ? (
-            sort!.direction === "asc" ? (
-              <ArrowUp className="size-3.5" />
-            ) : (
-              <ArrowDown className="size-3.5" />
-            )
-          ) : (
-            <ChevronsUpDown className="size-3.5 opacity-0 group-hover:opacity-60 group-focus-visible:opacity-60" />
-          )}
-        </button>
-      ) : (
-        <span className="min-w-0 grow">{column.header}</span>
-      )}
+    <span className="flex w-full items-start gap-1">
+      {/* The label box takes what the filter button leaves. It breaks a label only at spaces;
+          a word wider than the box ends in "…" (text-overflow applies to every line). Its
+          py-1 levels the first line with the filter button and keeps the sort label's
+          hover and focus boxes inside the clip. */}
+      <span
+        data-header-label=""
+        className="min-w-0 flex-1 overflow-hidden py-1 text-ellipsis whitespace-normal [overflow-wrap:normal] [word-break:normal]"
+      >
+        {column.headerContent !== undefined ? (
+          // A control in the header owns its clicks: it is never wrapped in the sort button.
+          (column.headerContent as ReactNode)
+        ) : column.sortable && onSortChange ? (
+          // A span, not a <button>: a button lays out as one inline-block whatever its
+          // `display`, so a wrapped label would be a single box the ellipsis hides whole.
+          // Inline, each line is its own fragment, and its own rounded hover/focus box.
+          <span
+            role="button"
+            tabIndex={0}
+            className="hover:bg-accent focus-visible:ring-ring inline cursor-pointer rounded px-1.5 py-0.5 outline-none box-decoration-clone focus-visible:ring-2 focus-visible:ring-inset"
+            aria-label={
+              sorted
+                ? `${column.header}, sorted ${sort!.direction === "asc" ? "ascending" : "descending"}`
+                : `${column.header}, sortable`
+            }
+            onClick={() => onSortChange(column.key)}
+            onKeyDown={(e: KeyboardEvent<HTMLSpanElement>) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSortChange(column.key);
+              }
+            }}
+          >
+            <span title={column.header}>{column.header}</span>
+            {/* The arrow only on the sorted column, as in the v8 skin: inline with a label
+                that wraps, an invisible hover hint could hold a line of its own. An ordinary
+                space before it: a last word that fits, but not with the arrow, keeps its
+                line and the arrow takes the next. */}
+            {sorted ? (
+              <>
+                {" "}
+                {sort!.direction === "asc" ? (
+                  <ArrowUp className={arrow} />
+                ) : (
+                  <ArrowDown className={arrow} />
+                )}
+              </>
+            ) : null}
+          </span>
+        ) : (
+          <span title={column.header}>{column.header}</span>
+        )}
+      </span>
       {column.headerFilter ? (
-        <ShadPopover
-          open={filterOpen}
-          onOpenChange={setFilterOpen}
-          trigger={
-            <ShadIconButton
-              iconName="Filter"
-              title={`Filter ${column.header}`}
-              toggled={column.headerFilter.active}
-              onClick={() => setFilterOpen((o) => !o)}
-            />
-          }
-        >
-          {column.headerFilter.content as ReactNode}
-        </ShadPopover>
+        <span className="shrink-0">
+          <ShadPopover
+            open={filterOpen}
+            onOpenChange={setFilterOpen}
+            trigger={
+              <ShadIconButton
+                iconName="Filter"
+                title={`Filter ${column.header}`}
+                toggled={column.headerFilter.active}
+                onClick={() => setFilterOpen((o) => !o)}
+              />
+            }
+          >
+            {column.headerFilter.content as ReactNode}
+          </ShadPopover>
+        </span>
       ) : null}
     </span>
   );
 }
 
+/**
+ * A column's drag handle, starting from the column's laid-out width. When the layout moves
+ * the column on its own — the container resizes, another column is dragged — the grip
+ * restarts from the new width. When the new width is only the layout echoing this handle's
+ * own report, as SpeelTable does on every move of a drag, the grip carries on: restarting it
+ * then would end the drag after its first step.
+ */
 function ResizeHandle({
   columnKey,
   width,
   onColumnResize,
 }: {
   columnKey: string;
-  width: number | undefined;
+  /** The column's laid-out content width. */
+  width: number;
   onColumnResize: (key: string, width: number) => void;
+}): ReactElement {
+  const reported = useRef<number | undefined>(undefined);
+  const start = useRef(width);
+  // Within a pixel: a host may round what it is told.
+  if (
+    reported.current === undefined ||
+    Math.abs(width - reported.current) >= 1
+  ) {
+    start.current = width;
+    reported.current = undefined;
+  }
+  const onResize = useCallback(
+    (w: number) => {
+      reported.current = w;
+      onColumnResize(columnKey, w);
+    },
+    [columnKey, onColumnResize],
+  );
+  return (
+    <ResizeGrip
+      key={start.current}
+      columnKey={columnKey}
+      initial={start.current}
+      onResize={onResize}
+    />
+  );
+}
+
+function ResizeGrip({
+  columnKey,
+  initial,
+  onResize,
+}: {
+  columnKey: string;
+  initial: number;
+  onResize: (width: number) => void;
 }): ReactElement {
   const { size, handleProps } = useResizable({
     axis: "x",
-    min: { w: 60 },
-    initial: { w: width ?? 150 },
+    min: { w: MIN_RESIZE_WIDTH },
+    initial: { w: initial },
   });
-  const reported = useRef<number | undefined>(undefined);
+  // Only the user's drags report: the width the grip mounted with is the layout's.
+  const mounted = useRef(initial);
   useEffect(() => {
-    const w = size.w;
-    if (w !== undefined && w !== reported.current) {
-      reported.current = w;
-      onColumnResize(columnKey, w);
+    if (size.w !== undefined && size.w !== mounted.current) {
+      mounted.current = size.w;
+      onResize(size.w);
     }
-  }, [size.w, columnKey, onColumnResize]);
+  }, [size.w, onResize]);
   return (
     <span
       {...handleProps}
@@ -127,28 +276,75 @@ const INTENT_ROW: Record<RowIntent, string> = {
 };
 
 export function ShadTable(p: TableProps): ReactElement {
-  if (p.items.length === 0) {
+  // Hooks sit before the empty early-return: they may not be conditional.
+  const container = useRef<HTMLDivElement>(null);
+  const probe = useRef<HTMLSpanElement>(null);
+  // What a percentage bound is a percentage of. The empty state renders the same div, so
+  // React keeps the measured element when rows arrive.
+  const containerWidth = useContainerWidth(container);
+  const [theme, setTheme] = useState<ShadTheme>(DEFAULT_THEME);
+  const hasRows = p.items.length > 0;
+  useLayoutEffect(() => {
+    if (hasRows && container.current)
+      setTheme(readTheme(container.current, probe.current ?? undefined));
+  }, [hasRows]);
+
+  if (!hasRows) {
     return (
-      <div className="text-muted-foreground py-4 text-sm">
+      <div ref={container} className="text-muted-foreground py-4 text-sm">
         {p.emptyMessage ?? "No items."}
       </div>
     );
   }
+  const metrics = shadMetrics(theme.spacing);
+  const room = metrics.room;
+  // Whole pixels, like the widths: a fractional padding would leave the columns' total a
+  // fraction off the table's width, and a table that fills its container would scroll by it.
+  const padding = Math.round(metrics.padding);
+  const measure = textMeasurer(theme.font, theme.fontSize);
+  const layout = resolveColumnWidths(
+    p.columns.map((c) =>
+      toFlexColumn(
+        c,
+        headerFloor(
+          c,
+          c.sortable === true &&
+            p.onSortChange !== undefined &&
+            c.headerContent === undefined,
+          measure,
+          room,
+        ),
+        padding,
+      ),
+    ),
+    {
+      ...(p.minWidth !== undefined ? { minWidth: p.minWidth } : {}),
+      ...(p.width !== undefined ? { width: p.width } : {}),
+      ...(p.maxWidth !== undefined ? { maxWidth: p.maxWidth } : {}),
+    },
+    containerWidth,
+  );
   return (
     // grid grid-cols-1 (= minmax(0,1fr)) caps the table width inside flex/grid
     // parents (e.g. the SharePoint canvas section) whose default min-width:auto
     // would otherwise let the table inflate its own container and defeat the
-    // overflow-x-auto scroll.
-    <div className="grid grid-cols-1">
-      <Table>
+    // overflow-x-auto scroll. It is also the box measured for the layout.
+    <div ref={container} className="grid grid-cols-1">
+      {/* PROBE_UNITS spacing units wide: how the theme's density is read. */}
+      <span ref={probe} aria-hidden className="invisible absolute w-10" />
+      {/* Fixed layout: the columns are exactly the resolved widths, whatever their content. */}
+      <Table style={{ tableLayout: "fixed", width: layout.tableWidth }}>
+        <colgroup>
+          {p.columns.map((c, i) => (
+            <col key={c.key} style={{ width: layout.widths[i]! + padding }} />
+          ))}
+        </colgroup>
         <TableHeader>
           <TableRow>
-            {p.columns.map((c) => (
-              <TableHead
-                key={c.key}
-                className="relative"
-                style={c.width !== undefined ? { width: c.width } : undefined}
-              >
+            {p.columns.map((c, i) => (
+              // The primitive's h-10 stays: a table cell's height is a minimum, so a wrapped
+              // label still grows the row, and one-line labels keep their height and centring.
+              <TableHead key={c.key} className="relative whitespace-normal">
                 <HeaderCell
                   column={c}
                   sort={p.sort}
@@ -157,7 +353,7 @@ export function ShadTable(p: TableProps): ReactElement {
                 {p.onColumnResize ? (
                   <ResizeHandle
                     columnKey={c.key}
-                    width={c.width}
+                    width={layout.widths[i]!}
                     onColumnResize={p.onColumnResize}
                   />
                 ) : null}
@@ -179,8 +375,8 @@ export function ShadTable(p: TableProps): ReactElement {
                     key={c.key}
                     className={cn(
                       c.wrap
-                        ? "whitespace-normal"
-                        : c.width !== undefined && "truncate",
+                        ? "overflow-hidden text-ellipsis whitespace-normal [overflow-wrap:normal] [word-break:normal]"
+                        : "truncate",
                     )}
                     {...(c.cellTitle
                       ? {

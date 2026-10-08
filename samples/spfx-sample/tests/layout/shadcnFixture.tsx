@@ -25,6 +25,8 @@ interface Scenario {
   };
   columns: TableColumn[];
   items: Row[];
+  /** Hold every dragged width the way SpeelTable does: as the column's width, held still. */
+  draggable?: boolean;
 }
 
 const scenarios: Scenario[] = [
@@ -47,7 +49,71 @@ const scenarios: Scenario[] = [
     ],
     items: [{ a: "x", b: "y" }],
   },
+  {
+    name: "narrow-header",
+    containerWidth: 1200,
+    columns: [
+      col("a", "Separation Date Confirmed", {
+        width: 60,
+        sortable: true,
+        headerFilter: filter,
+      }),
+      col("b", "Filler", { width: 80 }),
+    ],
+    items: [{ a: "x", b: "y" }],
+  },
+  {
+    name: "wide",
+    containerWidth: 300,
+    columns: [
+      col("a", "Title", { width: 200 }),
+      col("b", "Notes", { width: 200 }),
+    ],
+    items: [{ a: "x", b: "y" }],
+  },
+  {
+    name: "fill",
+    containerWidth: 1200,
+    bounds: { minWidth: "100%" },
+    columns: [
+      col("a", "Title", { width: 150, grow: 1, shrink: 1 }),
+      col("b", "Done", { width: 70 }),
+    ],
+    items: [{ a: "x", b: "y" }],
+  },
+  {
+    name: "drag",
+    containerWidth: 1200,
+    bounds: { minWidth: "100%" },
+    draggable: true,
+    columns: [
+      col("a", "Title", { width: 300, grow: 1, shrink: 1 }),
+      col("b", "Notes", { width: 300, grow: 1, shrink: 1 }),
+    ],
+    items: [{ a: "x", b: "y" }],
+  },
 ];
+
+/** A table whose drags stick, as in SpeelTable: a dragged column keeps its width and stops
+ *  flexing, and the others flex around it. */
+function DragHost({ s }: { s: Scenario }): JSX.Element {
+  const [dragged, setDragged] = React.useState<Record<string, number>>({});
+  const columns = s.columns.map((c) =>
+    dragged[c.key] !== undefined
+      ? { ...c, width: dragged[c.key]!, grow: 0, shrink: 0 }
+      : c,
+  );
+  return (
+    <ShadTable
+      columns={columns}
+      items={s.items}
+      onColumnResize={(key, width) =>
+        setDragged((prev) => ({ ...prev, [key]: Math.round(width) }))
+      }
+      {...s.bounds}
+    />
+  );
+}
 
 function App(): JSX.Element {
   return (
@@ -63,12 +129,16 @@ function App(): JSX.Element {
           data-scenario={s.name}
           style={{ width: s.containerWidth, marginBottom: 24 }}
         >
-          <ShadTable
-            columns={s.columns}
-            items={s.items}
-            onSortChange={() => undefined}
-            {...s.bounds}
-          />
+          {s.draggable ? (
+            <DragHost s={s} />
+          ) : (
+            <ShadTable
+              columns={s.columns}
+              items={s.items}
+              onSortChange={() => undefined}
+              {...s.bounds}
+            />
+          )}
         </section>
       ))}
     </div>

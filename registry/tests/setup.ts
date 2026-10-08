@@ -52,3 +52,22 @@ if (
 ) {
   document.elementFromPoint = () => null;
 }
+
+// jsdom ships no PointerEvent, so RTL's fireEvent.pointer* would drop clientX/clientY
+// and a pointer-driven column drag would read NaN. MouseEvent carries exactly the
+// coordinate fields the resize hook uses.
+if (
+  typeof window !== "undefined" &&
+  typeof window.PointerEvent !== "function"
+) {
+  class JsdomPointerEvent extends MouseEvent {
+    readonly pointerId: number;
+    readonly pointerType: string;
+    constructor(type: string, params: PointerEventInit = {}) {
+      super(type, params);
+      this.pointerId = params.pointerId ?? 1;
+      this.pointerType = params.pointerType ?? "mouse";
+    }
+  }
+  window.PointerEvent = JsdomPointerEvent as unknown as typeof PointerEvent;
+}

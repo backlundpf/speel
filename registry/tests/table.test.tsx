@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { useState } from "react";
+import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { TableColumn } from "@speel/react";
 
 import { shadcnAdapter } from "@/speel-shadcn/adapter";
+import { shadMetrics } from "@/speel-shadcn/table";
 
 const T = shadcnAdapter.Table;
 const items = [{ name: "Bartholomew Longname" }];
@@ -60,5 +63,137 @@ describe("shadcn Table column options", () => {
     Object.defineProperty(td, "clientWidth", { value: 80 });
     fireEvent.mouseEnter(td);
     expect(td.title).toBe("Bartholomew Longname");
+  });
+});
+
+describe("shadcn Table layout", () => {
+  const cols: TableColumn[] = [
+    { key: "a", header: "Title", width: 150, grow: 1, render: () => "x" },
+    { key: "b", header: "Modified", width: 120, render: () => "y" },
+  ];
+
+  it("lays out with fixed table layout and a col per column", () => {
+    const { container } = render(<T columns={cols} items={items} />);
+    const table = container.querySelector("table")!;
+    expect(table.style.tableLayout).toBe("fixed");
+    // padding 16 per column (jsdom has no layout: the default 4px spacing); no bounds →
+    // exactly the bases
+    expect(
+      Array.from(container.querySelectorAll("col")).map((c) => c.style.width),
+    ).toEqual(["166px", "136px"]);
+    expect(table.style.width).toBe("302px");
+  });
+
+  it("starts a column without a width at its default, else at 100px", () => {
+    const { container } = render(
+      <T
+        columns={[
+          { key: "d", header: "D", defaultWidth: 200, render: text },
+          { key: "n", header: "N", render: text },
+        ]}
+        items={items}
+      />,
+    );
+    expect(
+      Array.from(container.querySelectorAll("col")).map((c) => c.style.width),
+    ).toEqual(["216px", "116px"]);
+  });
+
+  it("derives cell padding and header room from the theme's spacing unit", () => {
+    const at4 = shadMetrics(4);
+    expect(at4.padding).toBe(16);
+    expect(at4.room).toEqual({ label: 12, sortArrow: 18, filterButton: 36 });
+    const at32 = shadMetrics(3.2);
+    expect(at32.padding).toBeCloseTo(12.8, 6);
+    expect(at32.room.label).toBeCloseTo(9.6, 6);
+    expect(at32.room.sortArrow).toBeCloseTo(14.4, 6);
+    expect(at32.room.filterButton).toBeCloseTo(28.8, 6);
+  });
+
+  it("lets header labels wrap at spaces", () => {
+    const { container } = render(<T columns={cols} items={items} />);
+    const th = container.querySelector("th")!;
+    expect(th.className).toContain("whitespace-normal");
+    expect(th.className).not.toContain("whitespace-nowrap");
+  });
+
+  it("sorts from an inline label, by pointer or keyboard", () => {
+    const onSortChange = vi.fn();
+    render(
+      <T
+        columns={[{ ...cols[0]!, sortable: true }]}
+        items={items}
+        onSortChange={onSortChange}
+      />,
+    );
+    const label = screen.getByRole("button", { name: "Title, sortable" });
+    expect(label).toHaveAttribute("tabindex", "0");
+    fireEvent.click(label);
+    fireEvent.keyDown(label, { key: "Enter" });
+    fireEvent.keyDown(label, { key: " " });
+    expect(onSortChange.mock.calls).toEqual([["a"], ["a"], ["a"]]);
+  });
+
+  it("truncates every cell that does not wrap", () => {
+    const { container } = render(
+      <T columns={[{ key: "n", header: "N", render: text }]} items={items} />,
+    );
+    expect(container.querySelector("td")!.className).toContain("truncate");
+  });
+
+  it("reports no column width until the user drags", () => {
+    const onColumnResize = vi.fn();
+    render(<T columns={cols} items={items} onColumnResize={onColumnResize} />);
+    expect(onColumnResize).not.toHaveBeenCalled();
+  });
+
+  it("keeps a drag going while the table lays the column out at each new width", () => {
+    const reported: number[] = [];
+    // Like SpeelTable: every reported width becomes the column's width, held still.
+    function Host(): JSX.Element {
+      const [w, setW] = useState<number | undefined>(undefined);
+      return (
+        <T
+          columns={[
+            w === undefined ? cols[0]! : { ...cols[0]!, width: w, grow: 0 },
+            cols[1]!,
+          ]}
+          items={items}
+          onColumnResize={(key, width) => {
+            if (key !== "a") return;
+            reported.push(width);
+            setW(Math.round(width));
+          }}
+        />
+      );
+    }
+    render(<Host />);
+    const grip = screen.getByRole("separator", { name: "Resize a" });
+    fireEvent.pointerDown(grip, { clientX: 0 });
+    fireEvent.pointerMove(window, { clientX: 10 });
+    fireEvent.pointerMove(window, { clientX: 30 });
+    fireEvent.pointerUp(window);
+    expect(reported).toEqual([160, 180]);
+  });
+
+  it("restarts a drag from where the layout last put the column", () => {
+    const onColumnResize = vi.fn();
+    const { rerender } = render(
+      <T columns={cols} items={items} onColumnResize={onColumnResize} />,
+    );
+    rerender(
+      <T
+        columns={[{ ...cols[0]!, width: 200 }, cols[1]!]}
+        items={items}
+        onColumnResize={onColumnResize}
+      />,
+    );
+    expect(onColumnResize).not.toHaveBeenCalled();
+    fireEvent.pointerDown(screen.getByRole("separator", { name: "Resize a" }), {
+      clientX: 0,
+    });
+    fireEvent.pointerMove(window, { clientX: 10 });
+    fireEvent.pointerUp(window);
+    expect(onColumnResize).toHaveBeenLastCalledWith("a", 210);
   });
 });
