@@ -216,6 +216,17 @@ const scenarios: Scenario[] = [
     items: [{ a: "x", b: "y", c: "z" }],
   },
   {
+    // A set width the columns cannot grow into: the spare width stays outside the table.
+    name: "spare",
+    containerWidth: 1200,
+    bounds: { width: 800 },
+    columns: [
+      col("a", "Title", { width: 200 }),
+      col("b", "Done", { width: 100 }),
+    ],
+    items: [{ a: "x", b: "y" }],
+  },
+  {
     name: "squeeze",
     containerWidth: 1200,
     bounds: { maxWidth: 400 },

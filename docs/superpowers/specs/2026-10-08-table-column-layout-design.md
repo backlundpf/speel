@@ -126,7 +126,8 @@ A column dragged in this mount is passed to the resolver with `basis` = the drag
 table's bounds (at `minWidth`, narrowing one widens the growers; at `maxWidth`, widening one
 shrinks the shrinkers). `SpeelTable` already layers the session width over `width`; it now also
 zeroes that column's `grow`/`shrink` before handing it to the skin. The drag floor stays 40px
-(`MIN_RESIZE_WIDTH`), below the header floor by design.
+(`MIN_RESIZE_WIDTH`), below the header floor by design; in both skins a drag also stops at the
+column's own `minWidth`/`maxWidth` (v8 re-pins Fluent's dragged-width override at `maxWidth`).
 
 ### Adapter surface
 
@@ -140,12 +141,16 @@ zeroes that column's `grow`/`shrink` before handing it to the skin. The drag flo
 
 - `V8Table` keeps measuring its container and computing header floors, then calls the resolver with
   `padding = CELL_PADDING` (20) per column.
-- Each `IColumn` gets `maxWidth = widths[i]`, `minWidth = min(MIN_RESIZE_WIDTH, widths[i])`
-  (the existing `columnBounds` contract), and `viewport.width = Σ(widths + padding)` — the content
-  total, never the container — so the justified pass has no remainder to hand the last column.
+- Each `IColumn` gets `maxWidth = widths[i]`,
+  `minWidth = min(max(MIN_RESIZE_WIDTH, column.minWidth ?? 0), widths[i])` (`columnBounds`: a
+  genuine floor, never the current width — Fluent stops a drag there), and
+  `viewport.width = Σ(widths + padding)` — the content total, never the container — so the
+  justified pass has no remainder to hand the last column.
 - The markup becomes an outer measuring `div` (100%) around an inner `div` of
-  `width: tableWidth; max-width: 100%`; DetailsList's root (`horizontalConstrained`) scrolls inside
-  it when the table is wider than the container. Rows and borders end at the table's width.
+  `width: Σ(widths + padding); max-width: 100%` — the columns' total, as in the shadcn skin, never
+  `tableWidth` — so spare width nothing can grow into stays outside the table; DetailsList's root
+  (`horizontalConstrained`) scrolls inside it when the table is wider than the container. Rows and
+  borders end at the columns.
 - `heldWidth` / the old `viewport = max(container, content)` logic are replaced by the resolver.
 
 ### shadcn (registry skin)
@@ -155,7 +160,7 @@ zeroes that column's `grow`/`shrink` before handing it to the skin. The drag flo
   `<colgroup>` giving each column `widths[i] + padding` (cells are border-box; `px-2` → padding
   16). Not `tableWidth`: a fixed-layout table spreads any width beyond its columns over them,
   so spare width nothing can grow into would widen every column past its resolved width. It
-  stays empty instead, as in the v8 skin.
+  stays empty instead, outside the table: both skins end at their columns.
 - Measures its container with a `ResizeObserver` (the existing `grid grid-cols-1` wrapper stays, so
   the table cannot inflate a flex/grid parent); the primitive's `overflow-x-auto` wrapper scrolls.
 - Uses `defaultWidth` and the header floor now (reverses the first cycle's "shadcn sizes to

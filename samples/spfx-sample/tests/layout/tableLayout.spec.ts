@@ -73,6 +73,18 @@ test.describe("table bounds", () => {
     expect(Math.abs(b - 170 - 2 * (a - 170))).toBeLessThanOrEqual(2);
   });
 
+  test("a width nothing can grow into leaves the table ending at its columns", async ({
+    page,
+  }) => {
+    await show(page);
+    const s = scenario(page, "spare");
+    const cells = headerCells(s);
+    expect(await widthOf(cells.nth(0))).toBeCloseTo(220, 0);
+    expect(await widthOf(cells.nth(1))).toBeCloseTo(120, 0);
+    // The rows and borders end where the columns do, as in the shadcn skin: 340, not 800.
+    expect(await widthOf(s.locator(".ms-DetailsList"))).toBeCloseTo(340, 0);
+  });
+
   test("maxWidth squeezes the shrinking columns and holds the rest", async ({
     page,
   }) => {

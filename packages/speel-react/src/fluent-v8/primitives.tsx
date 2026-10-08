@@ -948,9 +948,11 @@ export function V8Table(
   return (
     // The outer box is the one measured: as wide as the space the table may lay out in.
     <div ref={wrapper}>
-      {/* The table's own box, so rows and borders end where the columns do; capped at the
-          container so a wider table scrolls inside DetailsList rather than past the page. */}
-      <div style={{ width: layout.tableWidth, maxWidth: "100%" }}>
+      {/* The table's own box: the columns' total, so rows and borders end where the columns
+          do — spare width that nothing can grow into stays outside it, as in the shadcn skin —
+          capped at the container so a wider table scrolls inside DetailsList rather than past
+          the page. */}
+      <div style={{ width: content, maxWidth: "100%" }}>
         <DetailsList
           componentRef={list}
           items={[...p.items]}
