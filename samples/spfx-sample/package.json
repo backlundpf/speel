@@ -13,7 +13,7 @@
     "clean": "heft clean",
     "eject-webpack": "heft eject-webpack",
     "test:unit": "playwright test tests/helpers",
-    "test:layout": "playwright test --project=layout",
+    "test:layout": "npm run tailwind:build && playwright test --project=layout",
     "playwright:install": "playwright install --with-deps chromium",
     "test:e2e": "PW_E2E=1 playwright test tests/smoke.spec.ts",
     "test:e2e:ui": "PW_E2E=1 playwright test tests/smoke.spec.ts --ui",

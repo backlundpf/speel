@@ -1,62 +1,14 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
-import { build, type Plugin } from "esbuild";
-import { createRequire } from "node:module";
 import path from "node:path";
+import { bundle, open } from "./harness";
 import { lineTexts, wordsWhole } from "./lines";
 
-const sampleDir = path.resolve(__dirname, "../..");
-const fromSample = createRequire(path.join(sampleDir, "package.json"));
-
-/**
- * One React and one Fluent in the bundle: the sample's, the versions SPFx ships.
- * `@speel/react` is a file: link, so without this its own imports would resolve from the
- * repo root's copies and the page would run two Reacts.
- */
-const singleCopies: Plugin = {
-  name: "single-copies",
-  setup(b) {
-    b.onResolve(
-      { filter: /^(react|react-dom|@fluentui\/[^/]+)(\/.*)?$/ },
-      (args) => ({ path: fromSample.resolve(args.path) }),
-    );
-  },
-};
-
-let bundle = "";
+let js = "";
 test.beforeAll(async () => {
-  const out = await build({
-    entryPoints: [path.join(__dirname, "fixture.tsx")],
-    bundle: true,
-    write: false,
-    format: "iife",
-    platform: "browser",
-    jsx: "automatic",
-    define: { "process.env.NODE_ENV": '"production"' },
-    plugins: [singleCopies],
-    logLevel: "silent",
-  });
-  bundle = out.outputFiles[0]!.text;
+  js = await bundle(path.join(__dirname, "fixture.tsx"));
 });
+const show = (page: Page): Promise<void> => open(page, js);
 
-async function open(page: Page): Promise<void> {
-  // A fixture that throws never sets `ready`: fail on the error itself, not on the timeout.
-  const crashed = new Promise<Error>((resolve) =>
-    page.once("pageerror", resolve),
-  );
-  await page.route("**/*", (route) => route.abort()); // offline: nothing leaves the page
-  await page.setContent(
-    '<!doctype html><html><body style="margin:0"><div id="root"></div></body></html>',
-  );
-  await page.addScriptTag({ content: bundle });
-  const error = await Promise.race([
-    page
-      .waitForFunction(() => document.body.dataset["ready"] === "1")
-      .then(() => undefined),
-    crashed,
-  ]);
-  if (error)
-    throw new Error(`The fixture threw: ${error.stack ?? error.message}`);
-}
 const scenario = (page: Page, name: string): Locator =>
   page.locator(`section[data-scenario="${name}"]`);
 const headerCells = (s: Locator): Locator =>
@@ -70,7 +22,7 @@ const widthOf = (l: Locator): Promise<number> =>
   l.evaluate((el) => el.getBoundingClientRect().width);
 
 test("columns hold their authored widths", async ({ page }) => {
-  await open(page);
+  await show(page);
   const cells = headerCells(scenario(page, "authored-widths"));
   // DetailsList adds 20px of cell padding to every laid-out width. The last column does not
   // stretch into the container's slack: with no bounds the table is as wide as its columns.
@@ -80,7 +32,7 @@ test("columns hold their authored widths", async ({ page }) => {
 
 test.describe("table bounds", () => {
   test("without bounds the last column keeps its width", async ({ page }) => {
-    await open(page);
+    await show(page);
     const cells = headerCells(scenario(page, "no-stretch"));
     expect(await widthOf(cells.nth(1))).toBeCloseTo(140, 0); // 120 + 20 padding
     const table = scenario(page, "no-stretch").locator(".ms-DetailsList");
@@ -90,7 +42,7 @@ test.describe("table bounds", () => {
   test("minWidth 100% fills the container through the growers only", async ({
     page,
   }) => {
-    await open(page);
+    await show(page);
     const cells = headerCells(scenario(page, "fill"));
     const [a, b, c] = [
       await widthOf(cells.nth(0)),
@@ -106,7 +58,7 @@ test.describe("table bounds", () => {
   test("maxWidth squeezes the shrinking columns and holds the rest", async ({
     page,
   }) => {
-    await open(page);
+    await show(page);
     const cells = headerCells(scenario(page, "squeeze"));
     const [a, b, c] = [
       await widthOf(cells.nth(0)),
@@ -120,7 +72,7 @@ test.describe("table bounds", () => {
   test("a dragged column stays where it is dropped; the growers fill around it", async ({
     page,
   }) => {
-    await open(page);
+    await show(page);
     const s = scenario(page, "drag");
     const cells = headerCells(s);
     const before = await widthOf(cells.nth(0));
@@ -152,7 +104,7 @@ test.describe("header labels", () => {
   test("break only at spaces: every word stays on one line", async ({
     page,
   }) => {
-    await open(page);
+    await show(page);
     const boxes = scenario(page, "headers").locator("[data-header-label]");
     for (const [i, header] of labelled.entries()) {
       const lines = await boxes.nth(i).evaluate(lineTexts);
@@ -166,7 +118,7 @@ test.describe("header labels", () => {
   test("end a word wider than the label box in an ellipsis", async ({
     page,
   }) => {
-    await open(page);
+    await show(page);
     const boxes = scenario(page, "headers").locator("[data-header-label]");
     const overflows = (l: Locator): Promise<boolean> =>
       l.evaluate((el) => el.scrollWidth > el.clientWidth);
@@ -179,7 +131,7 @@ test.describe("header labels", () => {
   });
 
   test("never run under or into the filter button", async ({ page }) => {
-    await open(page);
+    await show(page);
     const cells = headerCells(scenario(page, "headers"));
     for (const i of [0, 1, 2, 3]) {
       const box = await cells
@@ -205,7 +157,7 @@ test.describe("header labels", () => {
   test("render headerContent in place of the label, with no sort button, beside the filter button", async ({
     page,
   }) => {
-    await open(page);
+    await show(page);
     const cell = headerCells(scenario(page, "headers")).nth(4);
     const checkbox = cell.getByRole("checkbox", { name: "Select all" });
     await expect(checkbox).toBeVisible();
@@ -228,7 +180,7 @@ test.describe("body cells", () => {
     rowCells(scenario(page, "cells"), row).nth(col).locator(":scope > div");
 
   test("a wrap column breaks at spaces and its row grows", async ({ page }) => {
-    await open(page);
+    await show(page);
     const lines = await content(page, 0, 0).evaluate(lineTexts);
     expect(lines.length).toBeGreaterThan(1);
     expect(wordsWhole(lines, "Alpha Beta Gamma Delta Epsilon")).toBe(true);
@@ -243,7 +195,7 @@ test.describe("body cells", () => {
   test("a word wider than a wrap column ends in an ellipsis instead of breaking", async ({
     page,
   }) => {
-    await open(page);
+    await show(page);
     const el = content(page, 2, 0);
     expect(await el.evaluate(lineTexts)).toHaveLength(1);
     expect(await el.evaluate((e) => e.scrollWidth > e.clientWidth)).toBe(true);
@@ -252,7 +204,7 @@ test.describe("body cells", () => {
   test("hovering a cut-off cell shows its full text; a cell that fits shows none", async ({
     page,
   }) => {
-    await open(page);
+    await show(page);
     const cut = content(page, 0, 1);
     await cut.hover();
     await expect(cut).toHaveAttribute("title", "Bartholomew Longname");
@@ -264,7 +216,7 @@ test.describe("body cells", () => {
   test("content exactly as wide as the column counts as fitting; 1px more is cut off", async ({
     page,
   }) => {
-    await open(page);
+    await show(page);
     // The cell box pads its content for focus rings; the padding must not read as overflow.
     const cells = rowCells(scenario(page, "fit"), 0);
     const exact = cells.nth(0).locator(":scope > div");
@@ -333,7 +285,7 @@ test.describe("interactive cells", () => {
     test(`a focused ${name} in a titled cell keeps its whole focus ring`, async ({
       page,
     }) => {
-      await open(page);
+      await show(page);
       const control = scenario(page, "focus").locator(selector);
       await control.focus();
       const { outline, cuts } = await control.evaluate(cutRing);
@@ -347,7 +299,7 @@ test.describe("default widths", () => {
   test("hold a column at its default hint when the header fits", async ({
     page,
   }) => {
-    await open(page);
+    await show(page);
     expect(
       await widthOf(headerCells(scenario(page, "floor")).nth(0)),
     ).toBeCloseTo(90, 0);
@@ -356,7 +308,7 @@ test.describe("default widths", () => {
   test("raise a defaulted column until its longest header word fits", async ({
     page,
   }) => {
-    await open(page);
+    await show(page);
     const cell = headerCells(scenario(page, "floor")).nth(1);
     const box = cell.locator("[data-header-label]");
     expect(await box.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
@@ -370,7 +322,7 @@ test.describe("default widths", () => {
   test("leave an authored width alone, even under the floor", async ({
     page,
   }) => {
-    await open(page);
+    await show(page);
     expect(
       await widthOf(headerCells(scenario(page, "floor")).nth(2)),
     ).toBeCloseTo(80, 0);
