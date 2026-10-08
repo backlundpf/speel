@@ -237,6 +237,18 @@ const scenarios: Scenario[] = [
     ],
     items: [{ a: "x", b: "y" }],
   },
+  {
+    // A column with its own bounds: a drag stops at them, and the columns after it stay put.
+    name: "bounded-drag",
+    containerWidth: 1200,
+    drag: true,
+    columns: [
+      col("status", "Status", { width: 130, minWidth: 120, maxWidth: 160 }),
+      col("owner", "Owner", { width: 130 }),
+      col("due", "Due", { width: 130 }),
+    ],
+    items: [{ status: "Open", owner: "Ada", due: "Friday" }],
+  },
 ];
 
 /** What SpeelTable does with a drag: the column gets the dragged width and stops flexing. */

@@ -26,6 +26,7 @@ import {
   DEFAULT_CELL_STYLE_PROPS,
   SelectionMode,
   type IColumn,
+  type IDetailsList,
   ColumnActionsMode,
   FontWeights,
   ProgressIndicator,
@@ -835,6 +836,7 @@ export function V8Table(
   // Called before the empty early-return: hooks may not sit behind a conditional.
   const theme = useTheme();
   const wrapper = React.useRef<HTMLDivElement>(null);
+  const list = React.useRef<IDetailsList>(null);
 
   // How wide the table may lay out in: what a percentage bound is a percentage of. Fluent
   // measures a box itself, but lays out against it directly — squashing the columns into it
@@ -899,7 +901,8 @@ export function V8Table(
     isResizable: true,
     // The resolved width rides in maxWidth, NOT minWidth: DetailsList clamps a drag to
     // minWidth, so a floor equal to the current width lets a column grow and never shrink.
-    ...columnBounds(layout.widths[i]!),
+    // The floor is the column's own minWidth, so a drag stops there.
+    ...columnBounds(layout.widths[i]!, c.minWidth),
     // We render our own sort/filter affordances, so disable Fluent's clickable-cell hover (the whole
     // header highlighting) — the sort label gets its own hover instead.
     columnActionsMode: ColumnActionsMode.disabled,
@@ -949,6 +952,7 @@ export function V8Table(
           container so a wider table scrolls inside DetailsList rather than past the page. */}
       <div style={{ width: layout.tableWidth, maxWidth: "100%" }}>
         <DetailsList
+          componentRef={list}
           items={[...p.items]}
           columns={columns}
           selectionMode={SelectionMode.none}
@@ -983,8 +987,31 @@ export function V8Table(
           {...(p.onColumnResize
             ? {
                 onColumnResize: (column?: IColumn, newWidth?: number) => {
-                  if (column && newWidth !== undefined)
-                    p.onColumnResize!(column.key, newWidth);
+                  if (!column || newWidth === undefined) return;
+                  // Fluent stops a drag at the column's minWidth (see columnBounds) but has
+                  // no ceiling: past the column's own maxWidth, report the width it stops at.
+                  const max = p.columns.find(
+                    (c) => c.key === column.key,
+                  )?.maxWidth;
+                  const held =
+                    max !== undefined && newWidth > max
+                      ? Math.max(max, column.minWidth ?? 0)
+                      : newWidth;
+                  p.onColumnResize!(column.key, held);
+                  // Fluent pins the dragged width as an override that outranks the column's
+                  // props, so the layout would hold the column at `held` while Fluent drew it
+                  // at `newWidth`, taking the difference from the columns after it — and the
+                  // next drag would start from `newWidth`. `updateColumn` re-pins it at `held`.
+                  // Fluent calls this BEFORE recording `newWidth`, so it is deferred: a
+                  // microtask runs once Fluent's own bookkeeping and render are done, yet
+                  // before the browser paints, so the overshoot is never drawn. Re-keying the
+                  // DetailsList instead would remount it mid-drag and end the drag (the drag
+                  // lives in its header's state). Optional-chained: the `>=8` peer range
+                  // reaches back to early 8.x releases that predate `updateColumn`.
+                  if (held !== newWidth)
+                    void Promise.resolve().then(() =>
+                      list.current?.updateColumn?.(column, { width: held }),
+                    );
                 },
               }
             : {})}

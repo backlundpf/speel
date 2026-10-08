@@ -21,6 +21,24 @@ const rowCells = (s: Locator, row: number): Locator =>
 const widthOf = (l: Locator): Promise<number> =>
   l.evaluate((el) => el.getBoundingClientRect().width);
 
+/** Drags column `index`'s sizer `dx` pixels with the mouse, as a user would. */
+async function dragSizer(
+  page: Page,
+  s: Locator,
+  index: number,
+  dx: number,
+): Promise<void> {
+  const sizer = s.locator(`[data-sizer-index="${index}"]`);
+  // The scenario may sit below the fold, and page.mouse works in viewport coordinates.
+  await sizer.scrollIntoViewIfNeeded();
+  const box = (await sizer.boundingBox())!;
+  const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + dx, y, { steps: 5 });
+  await page.mouse.up();
+}
+
 test("columns hold their authored widths", async ({ page }) => {
   await show(page);
   const cells = headerCells(scenario(page, "authored-widths"));
@@ -76,20 +94,47 @@ test.describe("table bounds", () => {
     const s = scenario(page, "drag");
     const cells = headerCells(s);
     const before = await widthOf(cells.nth(0));
-    const sizer = s.locator('[data-sizer-index="0"]');
-    // The scenario sits below the fold, and page.mouse works in viewport coordinates.
-    await sizer.scrollIntoViewIfNeeded();
-    const box = (await sizer.boundingBox())!;
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width / 2 - 150, box.y + box.height / 2, {
-      steps: 5,
-    });
-    await page.mouse.up();
+    await dragSizer(page, s, 0, -150);
     const after = await widthOf(cells.nth(0));
     expect(after).toBeLessThan(before - 100); // the drag took
     const b = await widthOf(cells.nth(1));
     expect(after + b).toBeCloseTo(1200, 0); // still fills: Notes grew into the freed width
+  });
+
+  /** Header widths of the bounded-drag scenario: Status (min 120, max 160), Owner, Due. */
+  const boundedWidths = async (page: Page): Promise<number[]> => {
+    const cells = headerCells(scenario(page, "bounded-drag"));
+    return [
+      await widthOf(cells.nth(0)),
+      await widthOf(cells.nth(1)),
+      await widthOf(cells.nth(2)),
+    ];
+  };
+
+  test("a drag past a column's maxWidth stops there; the columns after it keep their widths", async ({
+    page,
+  }) => {
+    await show(page);
+    const s = scenario(page, "bounded-drag");
+    await dragSizer(page, s, 0, 300);
+    const [status, owner, due] = await boundedWidths(page);
+    expect(status).toBeCloseTo(180, 0); // maxWidth 160 + 20 padding
+    expect(owner).toBeCloseTo(150, 0);
+    expect(due).toBeCloseTo(150, 0);
+    // The next drag starts where the column stopped, not where the mouse went.
+    await dragSizer(page, s, 0, -30);
+    expect((await boundedWidths(page))[0]).toBeCloseTo(150, 0);
+  });
+
+  test("a drag past a column's minWidth stops there; the columns after it keep their widths", async ({
+    page,
+  }) => {
+    await show(page);
+    await dragSizer(page, scenario(page, "bounded-drag"), 0, -300);
+    const [status, owner, due] = await boundedWidths(page);
+    expect(status).toBeCloseTo(140, 0); // minWidth 120 + 20 padding
+    expect(owner).toBeCloseTo(150, 0);
+    expect(due).toBeCloseTo(150, 0);
   });
 });
 
