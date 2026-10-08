@@ -145,4 +145,16 @@ describe("V8Table header labels", () => {
     const wrapper = cell.firstElementChild as HTMLElement;
     expect(getComputedStyle(wrapper).position).not.toBe("absolute");
   });
+
+  it("aligns the header label box with the column", () => {
+    const { container } = render(
+      <V8Table
+        columns={[column({ align: "end" })]}
+        items={items}
+        containerWidth={300}
+      />,
+    );
+    const box = container.querySelector<HTMLElement>("[data-header-label]")!;
+    expect(box.style.textAlign).toBe("end");
+  });
 });

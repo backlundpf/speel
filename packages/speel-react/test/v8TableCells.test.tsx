@@ -92,4 +92,28 @@ describe("V8Table body cells", () => {
     );
     expect(cellContent(container).style.whiteSpace).toBe("nowrap");
   });
+
+  it("aligns the cell content box with the column", () => {
+    const { container } = render(
+      <V8Table
+        columns={[column({ align: "center", cellTitle: () => "x" })]}
+        items={items}
+        containerWidth={300}
+      />,
+    );
+    expect(cellContent(container).style.textAlign).toBe("center");
+  });
+
+  it("routes an aligned column through the content box even without a hover title", () => {
+    const { container } = render(
+      <V8Table
+        columns={[column({ align: "end" })]}
+        items={items}
+        containerWidth={300}
+      />,
+    );
+    const el = cellContent(container);
+    expect(el.tagName).toBe("DIV");
+    expect(el.style.textAlign).toBe("end");
+  });
 });

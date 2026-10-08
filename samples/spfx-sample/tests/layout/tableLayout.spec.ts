@@ -423,4 +423,36 @@ test.describe("default widths", () => {
       await widthOf(headerCells(scenario(page, "floor")).nth(2)),
     ).toBeCloseTo(80, 0);
   });
+
+  test("align end puts the header label and the cell text at the column's end", async ({
+    page,
+  }) => {
+    await show(page);
+    const s = scenario(page, "align");
+    const box = headerCells(s).nth(0).locator("[data-header-label]");
+    const button = headerCells(s)
+      .nth(0)
+      .locator('button[aria-label^="Filter"]');
+    const labelEnd = await box.evaluate((el) => {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      return r.getBoundingClientRect().right;
+    });
+    const boxRight = await box.evaluate(
+      (el) => el.getBoundingClientRect().right,
+    );
+    expect(labelEnd).toBeGreaterThan(boxRight - 12); // flush with the box end (sort-label padding allowed)
+    expect(labelEnd).toBeLessThanOrEqual((await button.boundingBox())!.x + 0.5); // never under the button
+    const cellBox = rowCells(s, 0).nth(0).locator(":scope > div");
+    const textEnd = await cellBox.evaluate((el) => {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      return r.getBoundingClientRect().right;
+    });
+    const contentRight = await cellBox.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return el.getBoundingClientRect().right - parseFloat(cs.paddingRight);
+    });
+    expect(Math.abs(textEnd - contentRight)).toBeLessThanOrEqual(1);
+  });
 });

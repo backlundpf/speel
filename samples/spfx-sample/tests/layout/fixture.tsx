@@ -277,6 +277,21 @@ const scenarios: Scenario[] = [
       },
     ],
   },
+  {
+    name: "align",
+    containerWidth: 1200,
+    columns: [
+      col("n", "Open items", {
+        width: 160,
+        align: "end",
+        sortable: true,
+        headerFilter: filter,
+        cellTitle: (r) => (r as Row)["n"] ?? "",
+      }),
+      col("filler", "Filler", { width: 50 }),
+    ],
+    items: [{ n: "42", filler: "" }],
+  },
 ];
 
 /** What SpeelTable does with a drag: the column gets the dragged width and stops flexing. */

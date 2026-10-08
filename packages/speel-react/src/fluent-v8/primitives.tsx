@@ -702,7 +702,13 @@ function V8HeaderCell({
     );
   return (
     <span style={HEADER_ROW_STYLE}>
-      <span data-header-label="" style={HEADER_LABEL_BOX_STYLE}>
+      <span
+        data-header-label=""
+        style={{
+          ...HEADER_LABEL_BOX_STYLE,
+          ...(column.align ? { textAlign: column.align } : {}),
+        }}
+      >
         {label}
       </span>
       {column.headerFilter ? (
@@ -799,7 +805,7 @@ const CELL_WRAP_STYLE: React.CSSProperties = {
 
 /**
  * A cell's content in a box the skin can measure: on hover, a cut-off cell gets its full text
- * as a title. Only for columns that wrap or have a title — the rest (the actions column)
+ * as a title. Only for columns that wrap, have a title, or align — the rest (the actions column)
  * render bare. The box keeps `CELL_FOCUS_SLACK` around its content, so a control in it keeps
  * its whole focus ring.
  */
@@ -813,7 +819,10 @@ function V8Cell({
   const { cellTitle } = column;
   return (
     <div
-      style={column.wrap ? CELL_WRAP_STYLE : CELL_LINE_STYLE}
+      style={{
+        ...(column.wrap ? CELL_WRAP_STYLE : CELL_LINE_STYLE),
+        ...(column.align ? { textAlign: column.align } : {}),
+      }}
       {...(cellTitle
         ? {
             onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) =>
@@ -933,7 +942,11 @@ export function V8Table(
     // A wrapping column lets DetailsList grow the row; V8Cell sets how the text breaks.
     ...(c.wrap ? { isMultiline: true } : {}),
     onRender: (item: unknown) =>
-      c.cellTitle || c.wrap ? <V8Cell column={c} row={item} /> : c.render(item),
+      c.cellTitle || c.wrap || c.align ? (
+        <V8Cell column={c} row={item} />
+      ) : (
+        c.render(item)
+      ),
     onRenderHeader: () => (
       <V8HeaderCell
         column={c}
