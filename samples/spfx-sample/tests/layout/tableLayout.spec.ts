@@ -138,6 +138,45 @@ test.describe("table bounds", () => {
   });
 });
 
+test.describe("container resize", () => {
+  test("re-lays out the table without a ResizeObserver loop error", async ({
+    page,
+  }) => {
+    await show(page);
+    // The browser reports the loop as an error event on window, not as an exception.
+    await page.evaluate(() => {
+      const w = window as unknown as { errors: string[] };
+      w.errors = [];
+      window.addEventListener("error", (e) => w.errors.push(e.message));
+    });
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    page.on("console", (m) => {
+      if (m.type() === "error") errors.push(m.text());
+    });
+    const s = scenario(page, "resize");
+    const table = s.locator(".ms-DetailsList");
+    for (const width of [700, 900, 600, 1000, 800]) {
+      await s.evaluate((el, w) => (el.style.width = `${w}px`), width);
+      // minWidth 100%: the table follows the container once it has been re-measured.
+      await expect.poll(() => widthOf(table)).toBeCloseTo(width, 0);
+    }
+    // Let any notifications still pending from the last resize be delivered.
+    await page.evaluate(
+      () =>
+        new Promise((done) =>
+          requestAnimationFrame(() => requestAnimationFrame(done)),
+        ),
+    );
+    errors.push(
+      ...(await page.evaluate(
+        () => (window as unknown as { errors: string[] }).errors,
+      )),
+    );
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe("header labels", () => {
   const labelled = [
     "Supervisor",

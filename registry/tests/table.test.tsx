@@ -329,6 +329,11 @@ describe("shadcn Table theme", () => {
       unobserve(): void {}
       disconnect(): void {}
     } as unknown as typeof ResizeObserver;
+    // The container width is read on the frame after the observer fires.
+    const frames: FrameRequestCallback[] = [];
+    const raf = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((cb) => frames.push(cb));
     let shown = false;
     const clientWidth = vi
       .spyOn(Element.prototype, "clientWidth", "get")
@@ -361,10 +366,12 @@ describe("shadcn Table theme", () => {
       expect(col()).toBe("166px"); // hidden: nothing to read, the 4px default
       shown = true;
       act(() => observers.forEach((cb) => cb()));
+      act(() => frames.splice(0).forEach((cb) => cb(0)));
       expect(col()).toBe("163px"); // 3.2px units: padding round(12.8) = 13
     } finally {
       clientWidth.mockRestore();
       rect.mockRestore();
+      raf.mockRestore();
       window.ResizeObserver = savedRO;
     }
   });

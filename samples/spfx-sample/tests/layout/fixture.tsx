@@ -249,6 +249,23 @@ const scenarios: Scenario[] = [
     ],
     items: [{ status: "Open", owner: "Ada", due: "Friday" }],
   },
+  {
+    // Fills its container, with a wrapping column: a narrower container makes the rows taller.
+    name: "resize",
+    containerWidth: 1000,
+    bounds: { minWidth: "100%" },
+    columns: [
+      col("notes", "Notes", { width: 200, grow: 1, shrink: 1, wrap: true }),
+      col("due", "Due", { width: 100 }),
+    ],
+    items: [
+      {
+        notes:
+          "A note long enough to wrap onto more lines as the table gets narrower, and fewer as it widens again",
+        due: "Friday",
+      },
+    ],
+  },
 ];
 
 /** What SpeelTable does with a drag: the column gets the dragged width and stops flexing. */

@@ -10,6 +10,7 @@ export function useContainerWidth(ref: RefObject<HTMLElement>): number {
     const el = ref.current;
     if (!el) return undefined;
     const read = (): void => setWidth(el.clientWidth);
+    // Synchronous on mount, so the first paint is already laid out at the measured width.
     read();
     const RO = (
       window as unknown as {
@@ -23,9 +24,19 @@ export function useContainerWidth(ref: RefObject<HTMLElement>): number {
       window.addEventListener("resize", read);
       return () => window.removeEventListener("resize", read);
     }
-    const observer = new RO(read);
+    // A re-render from inside the observer callback re-lays out the table, which changes the
+    // observed box's height in the same frame — and the browser reports "ResizeObserver loop
+    // completed with undelivered notifications". Read on the next frame instead.
+    let frame = 0;
+    const observer = new RO(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(read);
+    });
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   }, [ref]);
   return width;
 }
