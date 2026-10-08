@@ -16,9 +16,8 @@ shadcn registry — install it into your own project, own the code, and use it i
 (Next.js, Vite, Remix, or SPFx via a sidecar recipe) that runs Tailwind. React 17 is
 supported; React 18 works equally well.
 
-Skins are interchangeable per-provider: swap the `ui` prop on `SpeelProvider` and every
-component in that tree renders with the new skin. You can run different skins in different
-subtrees if your app hosts both SPFx and non-SPFx sections.
+Skins are interchangeable per provider: swap `SpeelProvider`'s `ui` and every component in
+that tree renders with the new skin, so SPFx and non-SPFx subtrees can run different skins.
 
 ## Canonical example
 
@@ -116,11 +115,12 @@ skins out of the box.
 **Table** — `TableProps` carries `TableColumn` specs, `TableSort`, and the table's `minWidth` /
 `width` / `maxWidth`; the skin owns header, cell, and sort rendering. Optional column hints:
 `defaultWidth`, `grow` / `shrink` / `minWidth` / `maxWidth`, `wrap`, `cellTitle` (hover via
-`setOverflowTitle`), `headerContent` (replaces the label). To lay columns out as the built-in
-skins do, measure the container with `useContainerWidth`, map each column through `toFlexColumn`
-with its `headerFloor` (your header's `HeaderRoom`, a `textMeasurer` for its font) and
-whole-pixel cell padding, render the widths `resolveColumnWidths` returns in a table box as
-wide as their total, and stop drags at `MIN_RESIZE_WIDTH` and the column's own bounds.
+`setOverflowTitle`), `headerContent` (replaces the label), `align` (a `ColumnAlign`, absent =
+start; the logical `text-align` of the header label and the cells). To lay columns out as the
+built-in skins do, measure the container with `useContainerWidth`, map each column through
+`toFlexColumn` with its `headerFloor` (your header's `HeaderRoom`, a `textMeasurer` for its
+font) and whole-pixel cell padding, render the widths `resolveColumnWidths` returns in a table
+box as wide as their total, and stop drags at `MIN_RESIZE_WIDTH` and the column's own bounds.
 
 **Menu** — `MenuProps` carries titled sections of items with icons and optional checkmarks.
 Map it to the library's own menu (Fluent's `ContextualMenu`, radix's dropdown menu), not
@@ -128,12 +128,19 @@ a popover of buttons: roles, arrow keys and checkmark alignment are the point.
 
 **Feedback primitives** — `ButtonProps`, `IconButtonProps`, `MessageBarProps`, and
 `PopoverProps` serve every generic action or message. `appearance: "danger"` is a
-destructive `Button` in the error color; render `MessageBarProps.actions` (array or node;
-`multiline` puts it below or beside the text) with the exported `SpeelActionBar`.
+destructive `Button` in the error color. `appearance: "link"` is inline text on one line, no
+wider than its container, cut off at its **end** and never centred — the button a table cell
+opens its row with. A cut-off link without a `tooltip` sets its full text as its hover title
+(`setOverflowTitle`), so the cell holding it never needs a second one. Render
+`MessageBarProps.actions` (array or node; `multiline` puts it below or beside the text) with
+the exported `SpeelActionBar`.
 
 **Standalone controls** — `ariaLabel` names an unlabelled `Checkbox`; `indeterminate` shows
 "some selected" (a click reports `true`); `placeholder` explains an empty `Dropdown` or
-`Combobox`; a `Button`'s `tooltip` is its description and shows even while it is disabled.
+`Combobox`; a `Button`'s `tooltip` is its description and shows even while it is disabled. A
+tooltip's host and its button are **one box**, so the tooltip anchors to the button in any
+container: v8 makes the host `inline-block` and the button fill it, shadcn gives the button
+`w-full` inside its `inline-flex` trigger, and a link's host is also capped at its container.
 
 ### Skin-support hooks
 
@@ -171,13 +178,9 @@ the hint that would have avoided it.
 ### Icon vocabulary
 
 High-level components (`@speel/react`) emit icon names using Fluent icon identifiers
-(`"Cancel"`, `"View"`, `"Edit"`, `"Delete"`, `"Filter"`). A skin maps those names to whatever
-icon library it uses. The shadcn skin maps them to `lucide-react` equivalents in
-`src/components/speel/icons.tsx`.
-
-Custom `iconName` values that consumers pass (e.g. on `IconButtonProps`) use the
-skin's native vocabulary — lucide names in the shadcn skin, Fluent names in v8. Icon
-names are therefore skin-specific strings and are not portable across skins.
+(`"Cancel"`, `"View"`, `"Edit"`, `"Delete"`, `"Filter"`), and a skin maps them to its own icon
+library — the shadcn skin to `lucide-react` equivalents in `src/components/speel/icons.tsx`. An
+`iconName` you pass yourself (on `IconButtonProps`, say) is in the skin's native vocabulary.
 
 ### The speel default theme
 
@@ -201,8 +204,8 @@ Implement `SpeelUIAdapter` (imported from `@speel/react`) and pass the object as
 
 **The shadcn skin is copy-in source — you own it.** It is not an npm package. After
 installing it once you are responsible for keeping it up to date when `@speel/react`
-adds new adapter members. Re-run the registry `add` command to receive updates, or
-patch the files manually.
+adds new adapter members: re-run the registry `add` command, or patch the files manually. The
+item adds `@speel/react` and `lucide-react` but not `@speel/core` — install that separately.
 
 **SPFx hosts: fluent-v8 is the zero-setup default; the shadcn skin is supported via the sidecar recipe.** The Fabric-singleton constraint forbids bundling a second _Fluent_ runtime — it does not forbid non-Fluent skins. Running the shadcn skin in a web part requires the React 17-compatible skin build, a Tailwind sidecar whose preflight is isolated in the lowest cascade layer (so SharePoint's unlayered styles override it and the shared page is left untouched), and the `speel-shadcn` wrapper class; follow the recipe in `samples/spfx-sample/README.md`.
 
@@ -245,6 +248,3 @@ skins on one page, mount separate `SpeelProvider` trees with their own `ui` and 
 **`iconName` is not a portable string.** An icon name that works in the shadcn skin
 (`"Pencil"` from lucide) will not resolve in the Fluent v8 skin (`"Edit"` is the
 Fluent name). Do not hard-code skin-specific icon names in shared component code.
-
-**Registry item does not install `@speel/core`.** The item adds `@speel/react` and
-`lucide-react`; install `@speel/core` separately and configure a `DbContext` for `SpeelProvider`.
