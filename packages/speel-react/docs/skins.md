@@ -119,8 +119,8 @@ skins out of the box.
 `setOverflowTitle`), `headerContent` (replaces the label). To lay columns out as the built-in
 skins do, measure the container with `useContainerWidth`, map each column through `toFlexColumn`
 with its `headerFloor` (your header's `HeaderRoom`, a `textMeasurer` for its font) and
-whole-pixel cell padding, render what `resolveColumnWidths` returns, and stop drags at
-`MIN_RESIZE_WIDTH`.
+whole-pixel cell padding, render the widths `resolveColumnWidths` returns in a table box as
+wide as their total, and stop drags at `MIN_RESIZE_WIDTH` and the column's own bounds.
 
 **Menu** — `MenuProps` carries titled sections of items with icons and optional checkmarks.
 Map it to the library's own menu (Fluent's `ContextualMenu`, radix's dropdown menu), not

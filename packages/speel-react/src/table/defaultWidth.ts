@@ -5,8 +5,8 @@ export const CUSTOM_COLUMN_WIDTH = 100;
 
 /**
  * The width a column starts at when nobody has given it one, by what its field holds: a
- * Yes/No needs little, a person or a note needs room. A hint for skins that need a number —
- * the v8 skin holds a column at it; a skin that sizes columns to content ignores it.
+ * Yes/No needs little, a person or a note needs room. Both skins lay a column out from it —
+ * its flex basis, raised to the header floor — and the column grows or shrinks from there.
  */
 export function defaultWidthFor(config: FieldConfig | undefined): number {
   if (!config) return CUSTOM_COLUMN_WIDTH;

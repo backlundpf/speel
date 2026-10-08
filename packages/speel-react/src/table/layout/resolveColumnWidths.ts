@@ -12,7 +12,8 @@ export interface FlexColumn {
   min: number;
   /** Widest the layout may make the column; `Infinity` when unbounded. */
   max: number;
-  /** The skin's horizontal cell padding, outside the content width. */
+  /** The skin's horizontal cell padding, outside the content width. Pass whole pixels: a
+   *  fractional padding can overshoot the target by a sub-pixel and cause a scrollbar. */
   padding: number;
 }
 
@@ -26,8 +27,9 @@ export interface TableBounds {
 export interface ColumnLayout {
   /** Each column's content width, in whole pixels. */
   widths: number[];
-  /** The table's outer width. Wider than the columns when nothing can grow into a set width;
-   *  narrower than them when their minimums overflow it (the skin scrolls). */
+  /** The table's outer width, `max(target, the columns' total)`: never narrower than the
+   *  columns — when their minimums overflow the target it is their total and the skin scrolls —
+   *  and wider than them when nothing can grow into a set width. */
   tableWidth: number;
 }
 

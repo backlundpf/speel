@@ -171,7 +171,7 @@ header's longest word (nor 40px), or below its basis if that is narrower.
 
 Two table bounds cover most needs: `minWidth="100%"` fills the container through the growers,
 and `maxWidth="100%"` fits it, squeezing the shrinking columns toward their minimums. Spare
-width no column can grow into stays empty at the right. When the columns need more room than
+width no column can grow into stays outside the table. When the columns need more room than
 the container, the table scrolls horizontally, header and rows together. A column dragged by its
 header stays where it is dropped — it stops flexing — and the others flex around it.
 
@@ -230,9 +230,8 @@ accessible name — the example's `ariaLabel`.
   cell keeps its whole outline, but a control wider than the column is cut at the cell edge
   like text. `cellTitle: false` on a column without `wrap` renders the bare cell.
 
-- **The v8 last column no longer stretches.** A Fluent v8 table used to fill its container by
-  widening its last column; now a table without bounds ends where its columns do. Add
-  `minWidth="100%"` to fill the container through the columns that grow.
+- **The v8 last column no longer stretches.** A table without bounds ends where its columns
+  do; `minWidth="100%"` fills the container through the columns that grow.
 
 - **An authored `width` is a starting width.** It is the column's basis, so a growing column
   widens past it when the table has spare width, and a shrinking one narrows under a
@@ -244,7 +243,8 @@ accessible name — the example's `ariaLabel`.
 
 - **Upgrading moves columns.** Unsized v8 columns used to start at 100px and unsized shadcn
   columns sized to their content; both skins now start one at its kind's default, so a Yes/No
-  column narrows, a note widens, and the row-actions column shrinks to its buttons. The shadcn
-  table has a fixed layout — a long value no longer widens its column — sized in the theme's
-  spacing unit, and its sort arrow shows only on the sorted column. If a column reads wrong,
-  give it a `width` rather than fighting the default.
+  column narrows, a note widens, and the row-actions column shrinks to its buttons. A shadcn
+  table no longer spans its container (it was `w-full`; `minWidth="100%"` fills it again), has
+  a fixed layout — a long value no longer widens its column — sized in the theme's spacing
+  unit, and shows its sort arrow only on the sorted column. If a column reads wrong, give it a
+  `width` rather than fighting the default.

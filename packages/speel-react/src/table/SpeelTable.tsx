@@ -325,8 +325,8 @@ function SpeelTableInner<T extends IEntity>(
     tableColumns.push({
       key: "__actions",
       header: "",
-      // As wide as the buttons it renders: 32px icon buttons, 4px apart. A hint, not a width,
-      // so a skin that sizes columns to content fits it exactly.
+      // As wide as the buttons it renders: 32px icon buttons, 4px apart. It neither grows
+      // nor shrinks, so it stays that wide.
       defaultWidth: actionCount * 32 + (actionCount - 1) * 4,
       grow: 0,
       shrink: 0,

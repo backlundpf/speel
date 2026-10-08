@@ -65,7 +65,7 @@ export interface ResolvedColumn<T> {
   header: string;
   render: (row: T) => ReactNode;
   width?: number;
-  /** The width to hold the column at when nobody has given it one — `defaultWidthFor`. */
+  /** The width the column starts from when nobody has given it one — `defaultWidthFor`. */
   defaultWidth?: number;
   /** Share of the table's spare width (CSS `flex-grow`). */
   grow?: number;

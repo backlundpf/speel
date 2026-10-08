@@ -290,8 +290,8 @@ export interface TableColumn {
   header: string;
   render: (row: unknown) => ReactNode;
   width?: number;
-  /** The width to hold the column at when `width` is absent — a hint for skins that need a
-   *  number. A skin that sizes columns to their content ignores it. */
+  /** The width the column starts from when `width` is absent: the built-in skins take it as
+   *  the column's flex basis, raised to the header floor. */
   defaultWidth?: number;
   /** Share of the table's spare width (CSS `flex-grow`); absent = 0. */
   grow?: number;
