@@ -4,8 +4,9 @@ Three layers:
 
 - **Unit** (`tests/helpers/*.spec.ts`) — pure logic (`env`, `totp`). No browser, no tenant.
   Run: `npm run test:unit`
-- **Layout** (`tests/layout/*.spec.ts`) — the v8 table's real line boxes in Chromium, offline.
-  No tenant, no serve. Run: `npm run test:layout` — see [Layout tests](#layout-tests).
+- **Layout** (`tests/layout/*.spec.ts`) — both table skins' real layout and line boxes in
+  Chromium, offline. No tenant, no serve. Run: `npm run test:layout` — see
+  [Layout tests](#layout-tests).
 - **E2E** (`tests/*.spec.ts`) — opens one of the two web part pages under `SP_BASE_URL`
   (`SitePages/AdminDashboard.aspx`, `ProjectDashboard.aspx`; the web parts are already
   deployed to them), scripts the Microsoft login (password + TOTP), and drives the web part
@@ -19,19 +20,31 @@ Three layers:
 
 ## Layout tests
 
-The `layout` Playwright project checks what jsdom can't: how the Fluent v8 table actually lays
-out text. `tableLayout.spec.ts` bundles `layout/fixture.tsx` — `V8Table` scenarios rendered
-from the sample's installed `@speel/react`, React 17 and Fluent 8 — with esbuild, loads it into
-a blank page with the network blocked, and reads line boxes (`Range.getClientRects()`):
-header words never split, an over-long word ends in "…", text never runs under the filter
-button, a `wrap` column grows its row, a defaulted column is never narrower than its header
-needs, and only a cut-off cell gets a hover title.
+The `layout` Playwright project checks what jsdom can't: how the two table skins actually lay out
+columns and text. `harness.ts` bundles a fixture with esbuild, loads it into a blank page with
+the network blocked, and the specs read element boxes and line boxes (`Range.getClientRects()`).
 
-- **Run:** `npm run test:layout` here; it is also the last step of the root `npm run verify`.
-  It reads `@speel/react` from its `dist/`, so rebuild the package after changing it.
+- `tableLayout.spec.ts` renders `layout/fixture.tsx` — `V8Table` scenarios from the sample's
+  installed `@speel/react`, React 17 and Fluent 8.
+- `shadcnLayout.spec.ts` renders `layout/shadcnFixture.tsx` — the sample's synced shadcn
+  `ShadTable`, styled by the sample's compiled Tailwind CSS (`lib/styles/speel-shadcn.css`).
+  It reads the theme's spacing unit from the page rather than assuming Tailwind's default.
+
+Between them they check: a table without bounds is as wide as its columns (no stretched last
+column), `minWidth: "100%"` fills through the growing columns, `maxWidth` squeezes the shrinking
+ones, spare width nothing can grow into stays empty, a dragged column stays where it is dropped,
+and a table wider than its container scrolls sideways; header words never split, an over-long
+word ends in "…", text never runs under the filter button, a `wrap` column grows its row, a
+defaulted column is never narrower than its header needs, and only a cut-off cell gets a hover
+title.
+
+- **Run:** `npm run test:layout` here — it builds the Tailwind CSS first (`tailwind:build`); it
+  is also the last step of the root `npm run verify`. It reads `@speel/react` from its `dist/`,
+  so rebuild the package after changing it, and the sample's copy of the shadcn skin, so run
+  `npm run sync:skin` at the root after changing the registry skin.
 - **Browser:** needs Playwright's Chromium once — `npx playwright install chromium`, or
   `npm run playwright:install` (adds `--with-deps`, needs sudo) on a CI-like machine.
-- **Font:** the fixture pins Liberation Sans so canvas measurement and line breaking agree on
+- **Font:** both fixtures pin Liberation Sans so canvas measurement and line breaking agree on
   every machine; Playwright's Linux dependencies install it.
 
 ## One-time machine setup

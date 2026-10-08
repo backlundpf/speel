@@ -82,6 +82,8 @@ width, and a live drag keep winning, in today's order.
 - **shadcn** ignores `defaultWidth`: a column without `width` keeps sizing to its content, and
   the actions column (no longer given a width) now does too.
 
+> Superseded by `2026-10-08-table-column-layout-design.md`: shadcn now uses `defaultWidth`, the header floor and v8-style wrapping headers.
+
 ### Header floor (v8 only)
 
 A column held at its default is never narrower than its header needs:

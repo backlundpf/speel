@@ -4,9 +4,9 @@
 
 A `SpeelTable` or `SpeelEntityTable` column comes from the model: name a field and it brings
 its display name, cell renderer, sort comparator, and filter control with it. Reach for this
-page when one column needs more — a width, a different header or cell, long values wrapped
-onto more lines, a control in its header — or when a column is not a field at all. The
-components themselves, paging, and row actions are on [tables](tables.md).
+page to size columns or fit the table to its container, or when one column needs more — a
+different header or cell, long values wrapped, a control in its header — or is not a field at
+all. The components themselves, paging, and row actions are on [tables](tables.md).
 
 ## Canonical example
 
@@ -30,6 +30,7 @@ function ProjectPicker({ projects }: { projects: readonly Project[] }) {
     <SpeelTable
       of={Project}
       items={projects}
+      minWidth="100%"
       columns={(p) => [
         {
           key: "pick",
@@ -63,11 +64,13 @@ function ProjectPicker({ projects }: { projects: readonly Project[] }) {
 ```
 
 `p.Title` is the field's column exactly as the model describes it;
-`p.Owner.with({ width: 170 })` is the same column at a fixed width, and
-`p.Notes.with({ wrap: true })` lets long notes run onto more lines. The first column is not a
-field: `render` draws a checkbox per row, `headerContent` puts a select-all checkbox where the
-label would be, and `header` still names the column "Selected" in the column chooser and
-exports. `cellTitle: false` gives the interactive cell its bare layout back (see Boundaries).
+`p.Owner.with({ width: 170 })` is the same column starting at 170px, and
+`p.Notes.with({ wrap: true })` lets long notes run onto more lines. `minWidth="100%"` fills the
+container: Title and Owner take one share of the spare width each and Notes, a note, two. The
+first column is not a field: `render` draws a checkbox per row, `headerContent` puts a
+select-all checkbox where the label would be, and `header` still names the column "Selected" in
+the column chooser and exports. `cellTitle: false` gives the interactive cell its bare layout
+back (see Boundaries).
 
 ## Capabilities
 
@@ -135,12 +138,11 @@ another — unfindable by the status the user can actually see. The pill's text 
 your component, where the table cannot read it, so without `exportValue` search, export, and
 the hover title all read the stored status.
 
-### Widths
+### Column widths
 
-Every column holds a width, and when they add up to more than the container the table
-scrolls rather than squeezing them. A width you author (`.with({ width })`), one from a saved
-view, and one from a header drag win as given. In the Fluent v8 skin a column nobody has
-sized is held at a default for its field kind — a Yes/No needs little, a note needs room:
+Columns are laid out the way CSS flexbox lays out items. Each starts at its **basis**: the
+`width` you author (`.with({ width })`), one from a saved view or a header drag, else a default
+for its field kind — a Yes/No needs little, a note needs room:
 
 | Field kind               | Default | Multi / multiline / with time   |
 | ------------------------ | ------- | ------------------------------- |
@@ -153,18 +155,32 @@ sized is held at a default for its field kind — a Yes/No needs little, a note 
 | `Json`                   | 180     | —                               |
 | custom column (no field) | 100     | —                               |
 
-A defaulted column is raised — never lowered — until its header's longest word fits beside
-its sort arrow and filter button, so a Yes/No column headed "Requires approval" is as wide as
-"approval" needs, not 70. The floor never touches a width someone gave. The row-actions
-column is as wide as its buttons.
+A defaulted basis is raised — never lowered — until the header's longest word fits beside its
+sort arrow and filter button, so a Yes/No column headed "Requires approval" starts as wide as
+"approval" needs, not 70. The row-actions column is as wide as its buttons.
+
+With no bounds the table is exactly as wide as its columns' bases. Give the table `minWidth`,
+`width`, or `maxWidth` — pixels, or a percentage of its container — and the columns flex to meet
+it. Spare width goes to the columns that **grow**, by weight; a shortfall comes out of the
+columns that **shrink**, scaled by basis as in CSS, so a wide column gives up more pixels. By
+default Text, Lookup, and Choice columns grow and shrink alike, Note and Json columns take twice
+the spare width, and Yes/No, Number, Currency, Date, custom, and row-actions columns hold their
+basis; `.with({ grow, shrink })` overrides that, and `.with({ minWidth, maxWidth })` bounds how
+far the layout moves a column. Without its own `minWidth` a column is never squeezed below its
+header's longest word (nor 40px), or below its basis if that is narrower.
+
+Two table bounds cover most needs: `minWidth="100%"` fills the container through the growers,
+and `maxWidth="100%"` fits it, squeezing the shrinking columns toward their minimums. Spare
+width no column can grow into stays empty at the right. When the columns need more room than
+the container, the table scrolls horizontally, header and rows together. A column dragged by its
+header stays where it is dropped — it stops flexing — and the others flex around it.
 
 ### Wrapping long values
 
 `wrap: true` lets a column's values break onto more lines, at spaces, and the row grows to
-hold them — the choice for notes, descriptions, and long titles. Both skins honour it. In the
-Fluent v8 skin a single word wider than the column ends in "…" rather than splitting
-mid-word, the same rule header labels follow; the shadcn skin does not cut it, and the word
-overflows the column. Without `wrap` a value stays on one line and is cut off with "…".
+hold them — the choice for notes, descriptions, and long titles. In both skins a single word
+wider than the column ends in "…" rather than splitting mid-word, the same rule header labels
+follow. Without `wrap` a value stays on one line and is cut off with "…".
 
 ### Hover titles on cut-off cells
 
@@ -204,10 +220,9 @@ accessible name — the example's `ariaLabel`.
   sort button. The column still sorts through `tableState` / `defaultTableState` or a saved
   view — see [table sort, filter, and search](table-filtering.md).
 
-- **Header labels break only at spaces.** In the Fluent v8 skin a long label wraps at spaces
-  and the header row grows; the filter button stays beside the label, never under it. A
-  single word wider than the label box ends in "…", and the full label is the hover title —
-  the cue to widen the column. The shadcn header stays on one line and truncates.
+- **Header labels break only at spaces.** In both skins a long label wraps at spaces and the
+  header row grows, the filter button beside it, never under it. A word wider than the label
+  box ends in "…", with the full label as the hover title — the cue to widen the column.
 
 - **Data cells sit in a clipping box (v8).** A data column's cell content renders inside a
   box that clips its overflow — that is how the table tells a cut-off value and draws its
@@ -215,11 +230,21 @@ accessible name — the example's `ariaLabel`.
   cell keeps its whole outline, but a control wider than the column is cut at the cell edge
   like text. `cellTitle: false` on a column without `wrap` renders the bare cell.
 
-- **shadcn sizes to content.** The shadcn skin ignores the per-kind defaults and the header
-  floor: a column without a width sizes to its content, the row-actions column included. An
-  authored, view, or dragged width applies in both skins.
+- **The v8 last column no longer stretches.** A Fluent v8 table used to fill its container by
+  widening its last column; now a table without bounds ends where its columns do. Add
+  `minWidth="100%"` to fill the container through the columns that grow.
 
-- **Upgrading moves unsized v8 columns.** Before the per-kind defaults every unsized column
-  started at 100px; now a Yes/No column narrows, a note widens, and the row-actions column
-  shrinks to its buttons. If a column reads wrong, give it a `width` — `.with({ width })` —
-  rather than fighting the default.
+- **An authored `width` is a starting width.** It is the column's basis, so a growing column
+  widens past it when the table has spare width, and a shrinking one narrows under a
+  `maxWidth`. `.with({ width, grow: 0, shrink: 0 })` pins it.
+
+- **A drag stops at the column's own bounds.** A header drag never takes a column below 40px,
+  below its own `minWidth`, or past its `maxWidth`. A drag is session-only — see
+  [tables](tables.md#choosing-columns).
+
+- **Upgrading moves columns.** Unsized v8 columns used to start at 100px and unsized shadcn
+  columns sized to their content; both skins now start one at its kind's default, so a Yes/No
+  column narrows, a note widens, and the row-actions column shrinks to its buttons. The shadcn
+  table has a fixed layout — a long value no longer widens its column — sized in the theme's
+  spacing unit, and its sort arrow shows only on the sorted column. If a column reads wrong,
+  give it a `width` rather than fighting the default.

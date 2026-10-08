@@ -87,7 +87,7 @@ set; an explicit column spec can still name it.
 Name fields through the `(p) => [...]` callback: each `p.Field` brings that field's display
 name, cell renderer, sort, and filter from the model, and `p.Field.with({ ... })` adds options
 such as a width, a header, or a custom cell while staying keyed to the field. Custom columns,
-default widths, wrapping, hover titles, and controls in a header are on
+column widths and table bounds, wrapping, hover titles, and controls in a header are on
 [table columns](table-columns.md).
 
 ```tsx
@@ -194,12 +194,13 @@ rowActions={{ onEdit, custom: [
   since the pill's text is inside your component, out of the table's reach — see
   [table columns](table-columns.md#descriptors-and-custom-columns).
 
-- **Columns keep their widths; the table scrolls.** Every rendered column is laid out at the
-  width it holds — a live drag, else a view or descriptor width, else (Fluent v8) a default for
-  its field kind, never narrower than its header's longest word — and when those add up to more
-  than the container the table scrolls horizontally, header and rows together, rather than
-  compressing sixteen columns into slivers. Only when they fit does the last column stretch into
-  the slack. Nothing outside the table moves sideways, and a drag is still session-only: it
-  never enters the lifted state and is gone on refresh. A header label breaks only at spaces and
-  the header row grows; a word wider than the column ends in "…", with the full label as the
-  hover title — the cue to widen it. The defaults by kind are on [table columns](table-columns.md).
+- **Columns keep their widths; the table scrolls.** A table without bounds is exactly as wide
+  as its columns — each at a live drag, else a view or descriptor width, else a default for its
+  field kind, never narrower than its header's longest word — and nothing stretches to fill the
+  container: give it `minWidth="100%"` to fill the container through the columns that grow, or
+  `maxWidth="100%"` to fit it by squeezing the text-like columns. When the columns still need more
+  room, the table scrolls horizontally, header and rows together, rather than compressing
+  sixteen columns into slivers, and nothing outside the table moves sideways. A drag is still
+  session-only: it never enters the lifted state and is gone on refresh. Grow and shrink
+  weights, column bounds, and the defaults by kind are on
+  [table columns](table-columns.md#column-widths).
