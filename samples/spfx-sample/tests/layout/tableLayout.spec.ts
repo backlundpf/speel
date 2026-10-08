@@ -441,7 +441,7 @@ test.describe("default widths", () => {
     const boxRight = await box.evaluate(
       (el) => el.getBoundingClientRect().right,
     );
-    expect(labelEnd).toBeGreaterThan(boxRight - 12); // flush with the box end (sort-label padding allowed)
+    expect(labelEnd).toBeGreaterThan(boxRight - 2); // flush with the box end (measured flush)
     expect(labelEnd).toBeLessThanOrEqual((await button.boundingBox())!.x + 0.5); // never under the button
     const cellBox = rowCells(s, 0).nth(0).locator(":scope > div");
     const textEnd = await cellBox.evaluate((el) => {

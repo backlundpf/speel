@@ -328,7 +328,7 @@ function V8LinkButton(p: ButtonProps & { tooltipId: string }): JSX.Element {
           <Icon
             iconName={p.iconName}
             aria-hidden
-            style={{ marginRight: 4, verticalAlign: "middle" }}
+            style={{ marginInlineEnd: 4, verticalAlign: "middle" }}
           />
           {p.text}
         </>

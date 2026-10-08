@@ -268,7 +268,7 @@ const BUTTON_VARIANT = {
  * A link is inline text: no button height or padding (with an icon too), start-aligned, and
  * never wider than its container, so its label — the `truncate` span — is cut off at its end.
  */
-const LINK = "h-auto max-w-full justify-start p-0 text-left has-[>svg]:px-0";
+const LINK = "h-auto max-w-full justify-start p-0 text-start has-[>svg]:px-0";
 
 export function ShadButton(p: ButtonProps): ReactElement {
   const tipId = useStableId();

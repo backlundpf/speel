@@ -80,6 +80,7 @@ export interface ResolvedColumn<T> {
   maxWidth?: number;
   /** Break long values onto more lines instead of cutting them off. */
   wrap?: boolean;
+  /** Header and cell alignment; absent means start. */
   align?: ColumnAlign;
   /** `false` when the column opted out of the cut-off hover title. */
   cellTitle?: false;

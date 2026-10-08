@@ -205,7 +205,7 @@ Implement `SpeelUIAdapter` (imported from `@speel/react`) and pass the object as
 **The shadcn skin is copy-in source — you own it.** It is not an npm package. After
 installing it once you are responsible for keeping it up to date when `@speel/react`
 adds new adapter members: re-run the registry `add` command, or patch the files manually. The
-item adds `@speel/react` and `lucide-react` but not `@speel/core` — install that separately.
+item adds `@speel/react` and `lucide-react` but not `@speel/core` — install that and configure a `DbContext` for `SpeelProvider` yourself.
 
 **SPFx hosts: fluent-v8 is the zero-setup default; the shadcn skin is supported via the sidecar recipe.** The Fabric-singleton constraint forbids bundling a second _Fluent_ runtime — it does not forbid non-Fluent skins. Running the shadcn skin in a web part requires the React 17-compatible skin build, a Tailwind sidecar whose preflight is isolated in the lowest cascade layer (so SharePoint's unlayered styles override it and the shared page is left untouched), and the `speel-shadcn` wrapper class; follow the recipe in `samples/spfx-sample/README.md`.
 

@@ -75,20 +75,20 @@ interactive cell its bare layout back (see Boundaries).
 
 ### Column refs: `p.Field` and `.with()`
 
-The `columns` callback receives a map of column refs — one per data property of the entity —
-so a misspelt `p.Ttile` is a compile error. A bare ref is the field's column as the model
-describes it. `.with({ ... })` takes the same options a descriptor does and returns a column
+The `columns` callback receives a map of column refs, one per data property, so a misspelt
+`p.Ttile` is a compile error. A bare ref is the field's column as the model describes it.
+`.with({ ... })` takes the same options a descriptor does and returns a column
 still keyed to that field: it keeps the field's display name, cell renderer, comparator, and
 filter control for everything you leave out — `p.DueDate.with({ header: "Due", width: 110 })`
 renames and sizes the due-date column and nothing else. `render`, `sortValue`, `filterValue`,
 and `exportValue` are typed on the entity, so `r` needs no annotation. Omitting `columns`
-altogether renders the model's visible fields — see [tables](tables.md).
+renders the model's visible fields — see [tables](tables.md).
 
 ### Descriptors and custom columns
 
 `.with()` returns a plain `ColumnDescriptor`: the options plus a string `key`. You can write one
-directly, and `columns` also takes an array of descriptors and field-name strings instead of a
-callback — the form for a column list built outside render. A descriptor whose `key` names a
+directly, and `columns` also takes an array of descriptors and field-name strings instead of
+a callback — for a column list built outside render. A descriptor whose `key` names a
 model field inherits exactly what `.with()` would; `sortValue` / `filterValue` then override
 only the **value** that column sorts and filters on, keeping the inherited comparator and filter.
 
@@ -106,10 +106,9 @@ columns={(p) => [
 ]}
 ```
 
-That value override is what makes a **masked** display value findable: key the column to the
-model field so it keeps that field's Choice select, and point `render`, `sortValue`,
-`filterValue`, and `exportValue` at the masked value (`view` is the side map under
-[tables](tables.md#boundaries--gotchas)):
+That override makes a **masked** display value findable: key the column to the model field so
+it keeps that field's Choice select, and point `render`, `sortValue`, `filterValue`, and
+`exportValue` at the masked value (`view` is the side map under [tables](tables.md#boundaries--gotchas)):
 
 ```tsx
 columns={(p) => [
@@ -122,9 +121,8 @@ columns={(p) => [
 ]}
 ```
 
-Leave one out and the row shows one status while sorting, filtering, or exporting as another.
-The pill's text lives inside your component, where the table cannot read it, so without
-`exportValue` search, export, and the hover title all read the stored status.
+Leave one out and the row shows one status while sorting, filtering, or exporting another;
+without `exportValue`, search, export, and the hover title read the stored status.
 
 ### Column widths
 
@@ -143,8 +141,8 @@ Columns are laid out the way CSS flexbox lays out items. Each starts at its **ba
 | custom column (no field) | 100     | —                               |
 
 A defaulted basis is raised — never lowered — until the header's longest word fits beside its
-sort arrow and filter button, so a Yes/No column headed "Requires approval" starts as wide as
-"approval" needs, not 70. The row-actions column is as wide as its buttons.
+sort arrow and filter button, so a Yes/No column headed "Requires approval" starts wider than
+70; the row-actions column is as wide as its buttons.
 
 With no bounds the table is exactly as wide as its columns' bases. Give the table `minWidth`,
 `width`, or `maxWidth` — pixels, or a percentage of its container — and the columns flex to meet
@@ -156,29 +154,28 @@ overrides that and `.with({ minWidth, maxWidth })` bounds it. Without its own `m
 is never squeezed below its header's longest word (nor 40px), or its basis if that is narrower.
 
 `minWidth="100%"` fills the container through the growers; `maxWidth="100%"` fits it, squeezing
-the shrinkers toward their minimums. Spare width no column can grow into stays outside the
-table, and columns that need more room than the container scroll horizontally, header and rows
-together. A column dragged by its header stays where it is dropped — never below 40px or its
-`minWidth`, never past its `maxWidth` — and the others flex around it. A drag is session-only —
-see [tables](tables.md#choosing-columns).
+the shrinkers toward their minimums. Columns that need more room than the container scroll
+horizontally, header and rows together. A column dragged by its header stays where it is
+dropped — never below 40px or its `minWidth`, never past its `maxWidth` — and the others flex
+around it; a drag is session-only (see [tables](tables.md#choosing-columns)).
 
 ### Wrapping and alignment
 
 `wrap: true` lets a column's values break onto more lines, at spaces, and the row grows to
-hold them — the choice for notes, descriptions, and long titles. In both skins a single word
-wider than the column ends in "…" rather than splitting mid-word, the same rule header labels
-follow. Without `wrap` a value stays on one line and is cut off with "…".
+hold them — the choice for notes, descriptions, and long titles. A single word wider than the
+column ends in "…" rather than splitting mid-word, as header labels do. Without `wrap` a value
+stays on one line and is cut off with "…".
 
 `.with({ align: "end" })` sets a column's header label and cells against its end edge — the
-right, on a left-to-right page — and `"center"` centres them. The default is `"start"` for every
-field kind, so a number column lines up on its last digit only when it says `"end"`. Alignment
-is horizontal only and changes nothing in export, print, search, or sorting.
+right, on a left-to-right page — and `"center"` centres them. It moves text and inline controls
+such as links. The default is `"start"` for every field kind, so a number column lines up on
+its last digit only when it says `"end"`. Alignment is horizontal only and changes nothing in
+export, print, search, or sorting.
 
 ### Hover titles on cut-off cells
 
 When a value is cut off, hovering the cell shows its full text as the browser's tooltip; a
-value that fits shows none. It is on for every data column in both skins, and is worked out
-only when the pointer arrives. The title is the text the toolbar search and CSV export read:
+value that fits shows none. It is on for every data column in both skins. The title is the text the toolbar search and CSV export read:
 `exportValue` when the column has one, otherwise the text `render` returns. A cell whose text
 lives inside your own component — `<StatusPill />` — has none the table can read and falls back
 to the field's stored value, so give such a column an `exportValue`. `cellTitle: false` turns
@@ -191,15 +188,18 @@ taller than the row's other text:
 
 ```tsx
 const ui = useSpeelUI(); // from "@speel/react", in the component rendering the table
-p.Title.with({
-  render: (r) => <ui.Button appearance="link" text={r.Title ?? ""} onClick={() => open(r)} />,
-}),
+
+columns={(p) => [
+  p.Title.with({
+    render: (t) => <ui.Button appearance="link" text={t.Title ?? ""} onClick={() => open(t)} />,
+  }),
+  p.Owner,
+]}
 ```
 
 A title too long for the column is cut off at its end with "…" and shows its full text on
-hover; the link truncates itself, so the cell offers exactly one hover text. A `subtle` button
-is the wrong tool here: it is a full button tall and centres its label, so a long title can
-lose its start.
+hover (a disabled link shows none). A `subtle` button is a full button tall and centres its
+label, so a long title can lose its start.
 
 ### A control in the header
 
@@ -214,37 +214,37 @@ no hover title or name from `header`, so a control in it needs its own accessibl
 ## Boundaries & gotchas
 
 - **Drop the entity annotation on the callback.** `columns={(p: Project) => [...]}` does not
-  compile: the parameter is a map of column refs (`ColumnRefs<Project>`), not an entity.
-  Delete the annotation — the refs are inferred from `of`.
+  compile: the parameter is a map of column refs (`ColumnRefs<Project>`), inferred from `of`.
 
-- **A string key is unchecked.** A descriptor's `key` and a string spec are plain strings. A
-  misspelt field key with a `render` silently becomes a custom column that sorts and filters
-  on nothing; without a `render` the table throws when it resolves its columns. Reach a field
-  through `p.Field.with()` and the compiler catches the typo.
+- **A string key is unchecked.** A misspelt field key with a `render` silently becomes a custom
+  column that sorts and filters on nothing; without a `render` the table throws when it
+  resolves its columns. Reach a field through `p.Field.with()` and the compiler catches it.
 
-- **A `headerContent` header does not sort on click.** A control inside a sort button would
-  sort on every click and is invalid nested interactive content, so that header is never a
-  sort button. The column still sorts through `tableState` / `defaultTableState` or a saved
-  view — see [table sort, filter, and search](table-filtering.md).
+- **A `headerContent` header does not sort on click** (a control inside a sort button is
+  invalid nested interactive content). The column still sorts through `tableState` /
+  `defaultTableState` or a saved view — see [table sort, filter, and search](table-filtering.md).
 
-- **Header labels break only at spaces.** In both skins a long label wraps at spaces and the
-  header row grows, the filter button beside it, never under it. A word wider than the label
-  box ends in "…", with the full label as the hover title — the cue to widen the column.
+- **Header labels break only at spaces**, growing the header row, the filter button beside
+  them. A word wider than the label box ends in "…" with the full label as its hover title —
+  the cue to widen the column.
 
-- **Data cells sit in a clipping box (v8).** A data column's cell content renders inside a box
-  that clips its overflow — that is how the table tells a cut-off value and draws its "…". The
-  box leaves room for a focus ring, so a link or checkbox keeps its whole outline, but a control
-  wider than the column is cut at the cell edge like text. `cellTitle: false` on a column
-  without `wrap` or `align` renders the bare cell.
+- **`align` is CSS text alignment.** It moves text and inline controls; a block-level control
+  (a checkbox, a full-width component) keeps its place unless wrapped inline-block:
+  `render: (r) => <span style={{ display: "inline-block" }}><ui.Checkbox … /></span>`. A link
+  in a `wrap` column still truncates on one line; `wrap` suits long plain text.
 
-- **An authored `width` is a starting width.** A growing column widens past it when the table
-  has spare width, and a shrinking one narrows under a `maxWidth`;
-  `.with({ width, grow: 0, shrink: 0 })` pins it.
+- **Data cells sit in a clipping box (v8).** A data cell renders inside a box that clips its
+  overflow — how the table tells a cut-off value and draws its "…". The box leaves room for a
+  focus ring, but a control wider than the column is cut at the cell edge like text.
+  `cellTitle: false` on a column without `wrap` or `align` renders the bare cell.
+
+- **An authored `width` is a starting width.** A growing column widens past it and a shrinking
+  one narrows; `.with({ width, grow: 0, shrink: 0 })` pins it.
 
 - **Upgrading moves columns.** Unsized v8 columns used to start at 100px and unsized shadcn
   columns sized to their content; both skins now start one at its kind's default, so a Yes/No
   column narrows, a note widens, and the row-actions column shrinks to its buttons. A table
   without bounds no longer fills its container (the v8 last column stretched; a shadcn table
-  was `w-full`) — `minWidth="100%"` fills it. A shadcn table also has a fixed layout — a long
-  value no longer widens its column — sized in the theme's spacing unit, and shows its sort
-  arrow only on the sorted column. If a column reads wrong, give it a `width`.
+  was `w-full`) — `minWidth="100%"` fills it. A shadcn table also has a fixed layout (a long
+  value no longer widens its column) and shows its sort arrow only on the sorted column. If a
+  column reads wrong, give it a `width`.
