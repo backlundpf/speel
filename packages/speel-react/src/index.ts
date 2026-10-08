@@ -17,6 +17,7 @@ export type { PeopleSearch, ResolvedSpeelConfig } from "./context.js";
 // UI-adapter contract (a skin implements this; the Fluent v8 skin is @speel/react/fluent-v8)
 export type {
   SpeelUIAdapter,
+  ColumnAlign,
   FieldChrome,
   TextInputProps,
   RichTextInputProps,

@@ -663,6 +663,7 @@ export const fakeAdapter: SpeelUIAdapter = {
                 data-min-width={c.minWidth}
                 data-max-width={c.maxWidth}
                 data-wrap={c.wrap ? "" : undefined}
+                data-align={c.align}
                 {...(sort && sort.key === c.key
                   ? {
                       "aria-sort":
@@ -699,7 +700,11 @@ export const fakeAdapter: SpeelUIAdapter = {
                 {...(cls ? { className: cls } : {})}
               >
                 {columns.map((c) => (
-                  <td key={c.key} data-cell-title={c.cellTitle?.(row)}>
+                  <td
+                    key={c.key}
+                    data-cell-title={c.cellTitle?.(row)}
+                    data-align={c.align}
+                  >
                     {c.render(row)}
                   </td>
                 ))}

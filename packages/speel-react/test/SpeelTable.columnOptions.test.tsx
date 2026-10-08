@@ -121,4 +121,30 @@ describe("SpeelTable column options", () => {
     ).toBeInTheDocument();
     expect(head(container, 0).textContent).not.toContain("Select");
   });
+
+  it("carries align to the skin, header and cells", () => {
+    const { container } = wrap(
+      <SpeelTable
+        of={Org}
+        items={rows}
+        columns={(p) => [p.Title.with({ align: "end" }), p.Notes]}
+      />,
+    );
+    expect(head(container, 0).dataset["align"]).toBe("end");
+    expect(cell(container, 0).dataset["align"]).toBe("end");
+    expect(head(container, 1).dataset["align"]).toBeUndefined();
+  });
+
+  it("accepts align on a custom descriptor", () => {
+    const { container } = wrap(
+      <SpeelTable
+        of={Org}
+        items={rows}
+        columns={[
+          { key: "n", header: "N", align: "center", render: () => "1" },
+        ]}
+      />,
+    );
+    expect(head(container, 0).dataset["align"]).toBe("center");
+  });
 });

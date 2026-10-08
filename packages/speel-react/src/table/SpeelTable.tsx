@@ -285,6 +285,7 @@ function SpeelTableInner<T extends IEntity>(
     ...(c.minWidth !== undefined ? { minWidth: c.minWidth } : {}),
     ...(c.maxWidth !== undefined ? { maxWidth: c.maxWidth } : {}),
     ...(c.wrap ? { wrap: true } : {}),
+    ...(c.align !== undefined ? { align: c.align } : {}),
     // The text export and search read — computed only when a skin asks, on hover.
     ...(c.cellTitle !== false
       ? { cellTitle: (row: unknown) => cellText(c, row as T) }

@@ -285,7 +285,12 @@ export type RowIntent = "success" | "warning" | "error" | "muted";
 /** A table width: pixels, or a percentage of the container the table sits in. */
 export type TableLength = number | `${number}%`;
 
+/** Horizontal alignment of a column's header and cells. */
+export type ColumnAlign = "start" | "center" | "end";
+
 export interface TableColumn {
+  /** Header and cell alignment; absent = start. */
+  align?: ColumnAlign;
   key: string;
   header: string;
   render: (row: unknown) => ReactNode;

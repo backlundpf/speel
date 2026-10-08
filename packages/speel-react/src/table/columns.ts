@@ -5,6 +5,7 @@ import type {
   FieldContext,
   TableFilterConfig,
 } from "@speel/core";
+import type { ColumnAlign } from "../adapter/SpeelUIAdapter.js";
 import { formatFieldValue } from "../fields/format.js";
 import { comparatorFor, type Comparator } from "./sort.js";
 import { defaultFilterFor } from "./filter/defaults.js";
@@ -29,6 +30,8 @@ export interface ColumnOptions<T> {
   maxWidth?: number;
   /** Break long values onto more lines, at spaces, instead of cutting them off. */
   wrap?: boolean;
+  /** Header and cell alignment. Default "start". */
+  align?: ColumnAlign;
   /** `false` opts the column out of the hover title a cut-off cell shows. */
   cellTitle?: false;
   sortable?: boolean;
@@ -77,6 +80,7 @@ export interface ResolvedColumn<T> {
   maxWidth?: number;
   /** Break long values onto more lines instead of cutting them off. */
   wrap?: boolean;
+  align?: ColumnAlign;
   /** `false` when the column opted out of the cut-off hover title. */
   cellTitle?: false;
   /** Shown in the header cell in place of `header`'s text. */
@@ -238,6 +242,7 @@ function descriptorColumn<T>(
     ...(d.width !== undefined ? { width: d.width } : {}),
     ...(d.exportValue !== undefined ? { exportValue: d.exportValue } : {}),
     ...(d.wrap ? { wrap: true } : {}),
+    ...(d.align !== undefined && d.align !== "start" ? { align: d.align } : {}),
     ...(d.cellTitle === false ? { cellTitle: false as const } : {}),
     ...(d.headerContent !== undefined
       ? { headerContent: d.headerContent }
