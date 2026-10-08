@@ -77,7 +77,7 @@ describe("V8Table column widths", () => {
     expect(headerWidths(container)).toEqual([220, 320]);
   });
 
-  it("still fills the container when the held widths fit inside it", () => {
+  it("does not stretch the last column into spare width", () => {
     const { container } = render(
       <V8Table
         columns={cols([200, 300])}
@@ -85,10 +85,38 @@ describe("V8Table column widths", () => {
         containerWidth={1000}
       />,
     );
-    const widths = headerWidths(container);
-    expect(widths[0]).toBe(220);
-    expect(widths[1]).toBeGreaterThan(320); // the last column absorbs the slack
-    expect(widths[0]! + widths[1]!).toBe(1000);
+    expect(headerWidths(container)).toEqual([220, 320]);
+  });
+
+  it("fills a minWidth of 100% through the columns that grow", () => {
+    const columns = cols([200, 300]).map((c, i) => ({
+      ...c,
+      grow: i === 0 ? 1 : 0,
+    }));
+    const { container } = render(
+      <V8Table
+        columns={columns}
+        items={items}
+        containerWidth={1000}
+        minWidth="100%"
+      />,
+    );
+    // 1000 − 40 padding − 500 bases = 460 spare, all to the first column.
+    expect(headerWidths(container)).toEqual([680, 320]);
+  });
+
+  it("squeezes shrinking columns to meet a maxWidth", () => {
+    const columns = cols([200, 300]).map((c) => ({ ...c, shrink: 1 }));
+    const { container } = render(
+      <V8Table
+        columns={columns}
+        items={items}
+        containerWidth={1000}
+        maxWidth={440}
+      />,
+    );
+    // 440 − 40 padding = 400 content: a 100px shortfall split 2:3 by shrink × basis.
+    expect(headerWidths(container)).toEqual([180, 260]);
   });
 
   it("gives a column with no width of its own the default floor", () => {

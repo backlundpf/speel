@@ -4,7 +4,7 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { ThemeProvider, createTheme, loadTheme } from "@fluentui/react";
 import { fluentV8Adapter } from "@speel/react/fluent-v8";
-import type { TableColumn } from "@speel/react";
+import type { TableColumn, TableLength } from "@speel/react";
 
 // The package exports the skin as an adapter, not its primitives: its Table is V8Table.
 const V8Table = fluentV8Adapter.Table;
@@ -32,6 +32,14 @@ const filter = { active: false, content: null };
 interface Scenario {
   name: string;
   containerWidth: number;
+  /** The table's own bounds, as SpeelTable passes them through. */
+  bounds?: {
+    minWidth?: TableLength;
+    width?: TableLength;
+    maxWidth?: TableLength;
+  };
+  /** Render through `Dragging`, which keeps drag widths as SpeelTable does. */
+  drag?: true;
   columns: TableColumn[];
   items: Row[];
 }
@@ -177,7 +185,84 @@ const scenarios: Scenario[] = [
     ],
     items: [{ filler: "" }],
   },
+  {
+    name: "no-stretch",
+    containerWidth: 1200,
+    columns: [
+      col("a", "Title", {
+        width: 150,
+        grow: 1,
+        shrink: 1,
+        sortable: true,
+        headerFilter: filter,
+      }),
+      col("b", "Modified", {
+        width: 120,
+        sortable: true,
+        headerFilter: filter,
+      }),
+    ],
+    items: [{ a: "x", b: "y" }],
+  },
+  {
+    name: "fill",
+    containerWidth: 1200,
+    bounds: { minWidth: "100%" },
+    columns: [
+      col("a", "Title", { width: 150, grow: 1, shrink: 1 }),
+      col("b", "Notes", { width: 150, grow: 2, shrink: 1 }),
+      col("c", "Done", { width: 70 }),
+    ],
+    items: [{ a: "x", b: "y", c: "z" }],
+  },
+  {
+    name: "squeeze",
+    containerWidth: 1200,
+    bounds: { maxWidth: 400 },
+    columns: [
+      col("a", "Title", { width: 300, grow: 1, shrink: 1 }),
+      col("b", "Notes", { width: 300, grow: 2, shrink: 1 }),
+      col("c", "Done", { width: 70 }),
+    ],
+    items: [{ a: "x", b: "y", c: "z" }],
+  },
+  {
+    name: "drag",
+    containerWidth: 1200,
+    drag: true,
+    bounds: { minWidth: "100%" },
+    columns: [
+      col("a", "Title", { width: 300, grow: 1, shrink: 1 }),
+      col("b", "Notes", { width: 300, grow: 1, shrink: 1 }),
+    ],
+    items: [{ a: "x", b: "y" }],
+  },
 ];
+
+/** What SpeelTable does with a drag: the column gets the dragged width and stops flexing. */
+function Dragging(props: {
+  columns: TableColumn[];
+  items: Row[];
+  bounds?: Scenario["bounds"];
+}): JSX.Element {
+  const [dragged, setDragged] = React.useState<Record<string, number>>({});
+  const columns = props.columns.map((c) =>
+    dragged[c.key] !== undefined
+      ? { ...c, width: dragged[c.key]!, grow: 0, shrink: 0 }
+      : c,
+  );
+  return (
+    <V8Table
+      columns={columns}
+      items={props.items}
+      onSortChange={() => undefined}
+      onColumnResize={(key, width) =>
+        setDragged((d) => ({ ...d, [key]: width }))
+      }
+      {...props.bounds}
+    />
+  );
+}
 
 function App(): JSX.Element {
   return (
@@ -188,11 +273,20 @@ function App(): JSX.Element {
           data-scenario={s.name}
           style={{ width: s.containerWidth, marginBottom: 24 }}
         >
-          <V8Table
-            columns={s.columns}
-            items={s.items}
-            onSortChange={() => undefined}
-          />
+          {s.drag ? (
+            <Dragging
+              columns={s.columns}
+              items={s.items}
+              {...(s.bounds ? { bounds: s.bounds } : {})}
+            />
+          ) : (
+            <V8Table
+              columns={s.columns}
+              items={s.items}
+              onSortChange={() => undefined}
+              {...s.bounds}
+            />
+          )}
         </section>
       ))}
     </ThemeProvider>

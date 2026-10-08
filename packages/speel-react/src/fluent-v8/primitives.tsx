@@ -59,6 +59,7 @@ import {
   type HeaderRoom,
 } from "../table/layout/headerFloor.js";
 import { toFlexColumn } from "../table/layout/columnFlex.js";
+import { resolveColumnWidths } from "../table/layout/resolveColumnWidths.js";
 import { useContainerWidth } from "../table/layout/useContainerWidth.js";
 import { setOverflowTitle } from "../table/overflowTitle.js";
 import { useResizable } from "../surface/useResizable.js";
@@ -835,9 +836,10 @@ export function V8Table(
   const theme = useTheme();
   const wrapper = React.useRef<HTMLDivElement>(null);
 
-  // How wide the table may lay out in. Fluent measures this itself, but only ever reports the
-  // visible width — which is the number that makes it squash. We measure the same box and use
-  // it as a floor rather than a ceiling (see `viewport` below).
+  // How wide the table may lay out in: what a percentage bound is a percentage of. Fluent
+  // measures a box itself, but lays out against it directly — squashing the columns into it
+  // or stretching the last one across it — so the resolver gets this width instead and
+  // Fluent is handed the result (see `viewport` below).
   const measured = useContainerWidth(wrapper);
 
   const rowBackground = (intent: RowIntent | undefined): string | undefined => {
@@ -866,8 +868,8 @@ export function V8Table(
     `${FontWeights.semibold} ${headerSize}px ${headerFont.fontFamily ?? "sans-serif"}`,
     headerSize,
   );
-  const held = p.columns.map(
-    (c) =>
+  const layout = resolveColumnWidths(
+    p.columns.map((c) =>
       toFlexColumn(
         c,
         headerFloor(
@@ -879,7 +881,14 @@ export function V8Table(
           V8_HEADER_ROOM,
         ),
         CELL_PADDING,
-      ).basis,
+      ),
+    ),
+    {
+      ...(p.minWidth !== undefined ? { minWidth: p.minWidth } : {}),
+      ...(p.width !== undefined ? { width: p.width } : {}),
+      ...(p.maxWidth !== undefined ? { maxWidth: p.maxWidth } : {}),
+    },
+    p.containerWidth ?? measured,
   );
   const columns: IColumn[] = p.columns.map((c, i) => ({
     key: c.key,
@@ -888,9 +897,9 @@ export function V8Table(
     // is the control's name ("Select all"). `ariaLabel` names it by `header` instead.
     ...(c.headerContent !== undefined ? { ariaLabel: c.header } : {}),
     isResizable: true,
-    // The held width rides in maxWidth, NOT minWidth: DetailsList clamps a drag to minWidth,
-    // so a floor equal to the current width lets a column grow and never shrink.
-    ...columnBounds(held[i]!),
+    // The resolved width rides in maxWidth, NOT minWidth: DetailsList clamps a drag to
+    // minWidth, so a floor equal to the current width lets a column grow and never shrink.
+    ...columnBounds(layout.widths[i]!),
     // We render our own sort/filter affordances, so disable Fluent's clickable-cell hover (the whole
     // header highlighting) — the sort label gets its own hover instead.
     columnActionsMode: ColumnActionsMode.disabled,
@@ -931,85 +940,87 @@ export function V8Table(
     ),
   }));
 
-  // What the columns need, padding included — the width the table would like to be.
-  const content = held.reduce((sum, w) => sum + w + CELL_PADDING, 0);
+  // The resolved columns, padding included.
+  const content = layout.widths.reduce((sum, w) => sum + w + CELL_PADDING, 0);
   return (
+    // The outer box is the one measured: as wide as the space the table may lay out in.
     <div ref={wrapper}>
-      <DetailsList
-        items={[...p.items]}
-        columns={columns}
-        selectionMode={SelectionMode.none}
-        layoutMode={DetailsListLayoutMode.justified}
-        /**
-         * The justified pass lays out against `viewport.width` and, when the columns do not
-         * fit it, shrinks every one of them toward its `minWidth` floor — sixteen authored
-         * widths in a narrower container render as unreadable slivers. So we hand it the
-         * width the columns NEED whenever that exceeds the container: no shrinking to do,
-         * every column lands on its held width, and the overflow becomes a horizontal
-         * scroll instead of a squash. When they do fit, this is the measured container and
-         * the last column stretches into the slack exactly as before.
-         *
-         * Passing `viewport` explicitly is supported: `withViewport` spreads our props over
-         * the value it measured, so ours wins. Only `width` is read for layout.
-         */
-        viewport={{
-          width: Math.max(p.containerWidth ?? measured, content),
-          height: 0,
-        }}
-        // Fluent's own root is the scroller: header and rows are inline blocks with
-        // `min-width: 100%`, so they overflow it together. Passed explicitly (it is also the
-        // default) because the width behaviour above depends on it.
-        constrainMode={ConstrainMode.horizontalConstrained}
-        onRenderDetailsHeader={(headerProps, defaultRender) =>
-          headerProps && defaultRender
-            ? defaultRender({ ...headerProps, styles: HEADER_ROW_STYLES })
-            : null
-        }
-        {...(p.getRowKey
-          ? {
-              getKey: (item: unknown, i?: number) => p.getRowKey!(item, i ?? 0),
-            }
-          : {})}
-        {...(p.onColumnResize
-          ? {
-              onColumnResize: (column?: IColumn, newWidth?: number) => {
-                if (column && newWidth !== undefined)
-                  p.onColumnResize!(column.key, newWidth);
-              },
-            }
-          : {})}
-        {...(p.getRowIntent || p.getRowClassName
-          ? {
-              onRenderRow: (
-                rowProps?: IDetailsRowProps,
-                defaultRender?: (rp?: IDetailsRowProps) => JSX.Element | null,
-              ) => {
-                if (!rowProps || !defaultRender) return null;
-                const item = rowProps.item as unknown;
-                const intent = p.getRowIntent?.(item, rowProps.itemIndex);
-                const cls = p.getRowClassName?.(item, rowProps.itemIndex);
-                const background = rowBackground(intent);
-                return defaultRender({
-                  ...rowProps,
-                  ...(cls ? { className: cls } : {}),
-                  ...(background
-                    ? {
-                        styles: {
-                          root: {
-                            background,
-                            ...(intent === "muted"
-                              ? { color: theme.palette.neutralSecondary }
-                              : {}),
-                            selectors: { ":hover": { background } },
+      {/* The table's own box, so rows and borders end where the columns do; capped at the
+          container so a wider table scrolls inside DetailsList rather than past the page. */}
+      <div style={{ width: layout.tableWidth, maxWidth: "100%" }}>
+        <DetailsList
+          items={[...p.items]}
+          columns={columns}
+          selectionMode={SelectionMode.none}
+          layoutMode={DetailsListLayoutMode.justified}
+          /**
+           * The justified pass lays out against `viewport.width`: it shrinks columns toward
+           * their `minWidth` floors when they do not fit, and gives any width beyond them to
+           * the LAST column. So it is handed exactly the columns' total. The resolver has
+           * already decided growing, shrinking and overflow — each column's width rides in
+           * its `maxWidth` — and leaves the justified pass nothing to do. When that total is
+           * wider than the box, the DetailsList root scrolls it horizontally.
+           *
+           * Passing `viewport` explicitly is supported: `withViewport` spreads our props over
+           * the value it measured, so ours wins. Only `width` is read for layout.
+           */
+          viewport={{ width: content, height: 0 }}
+          // Fluent's own root is the scroller: header and rows are inline blocks with
+          // `min-width: 100%`, so they overflow it together. Passed explicitly (it is also the
+          // default) because the width behaviour above depends on it.
+          constrainMode={ConstrainMode.horizontalConstrained}
+          onRenderDetailsHeader={(headerProps, defaultRender) =>
+            headerProps && defaultRender
+              ? defaultRender({ ...headerProps, styles: HEADER_ROW_STYLES })
+              : null
+          }
+          {...(p.getRowKey
+            ? {
+                getKey: (item: unknown, i?: number) =>
+                  p.getRowKey!(item, i ?? 0),
+              }
+            : {})}
+          {...(p.onColumnResize
+            ? {
+                onColumnResize: (column?: IColumn, newWidth?: number) => {
+                  if (column && newWidth !== undefined)
+                    p.onColumnResize!(column.key, newWidth);
+                },
+              }
+            : {})}
+          {...(p.getRowIntent || p.getRowClassName
+            ? {
+                onRenderRow: (
+                  rowProps?: IDetailsRowProps,
+                  defaultRender?: (rp?: IDetailsRowProps) => JSX.Element | null,
+                ) => {
+                  if (!rowProps || !defaultRender) return null;
+                  const item = rowProps.item as unknown;
+                  const intent = p.getRowIntent?.(item, rowProps.itemIndex);
+                  const cls = p.getRowClassName?.(item, rowProps.itemIndex);
+                  const background = rowBackground(intent);
+                  return defaultRender({
+                    ...rowProps,
+                    ...(cls ? { className: cls } : {}),
+                    ...(background
+                      ? {
+                          styles: {
+                            root: {
+                              background,
+                              ...(intent === "muted"
+                                ? { color: theme.palette.neutralSecondary }
+                                : {}),
+                              selectors: { ":hover": { background } },
+                            },
                           },
-                        },
-                      }
-                    : {}),
-                });
-              },
-            }
-          : {})}
-      />
+                        }
+                      : {}),
+                  });
+                },
+              }
+            : {})}
+        />
+      </div>
     </div>
   );
 }

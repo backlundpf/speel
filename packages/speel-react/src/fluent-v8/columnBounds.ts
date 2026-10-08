@@ -10,9 +10,10 @@ export { MIN_RESIZE_WIDTH };
  * column's own floor and the column can only ever grow.
  *
  * The resolved width rides in `maxWidth`, which is where the justified layout pass stops growing
- * a column — so every column gets its held width and no more, and only the last one absorbs
- * whatever the container has left over. A column with no `maxWidth` would swallow that slack
- * whole and starve the columns after it.
+ * a column — so every column gets its resolved width and no more. The pass would give any width
+ * left over to the last column; `V8Table` leaves none, handing it a viewport exactly as wide as
+ * the columns. A column with no `maxWidth` would swallow slack whole and starve the columns
+ * after it.
  */
 export function columnBounds(held: number): {
   minWidth: number;

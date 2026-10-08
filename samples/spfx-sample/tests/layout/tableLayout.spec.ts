@@ -72,10 +72,73 @@ const widthOf = (l: Locator): Promise<number> =>
 test("columns hold their authored widths", async ({ page }) => {
   await open(page);
   const cells = headerCells(scenario(page, "authored-widths"));
-  // DetailsList adds 20px of cell padding to every laid-out width; the last column also
-  // stretches into the container's slack.
+  // DetailsList adds 20px of cell padding to every laid-out width. The last column does not
+  // stretch into the container's slack: with no bounds the table is as wide as its columns.
   expect(await widthOf(cells.nth(0))).toBeCloseTo(220, 0);
-  expect(await widthOf(cells.nth(1))).toBeGreaterThanOrEqual(140);
+  expect(await widthOf(cells.nth(1))).toBeCloseTo(140, 0);
+});
+
+test.describe("table bounds", () => {
+  test("without bounds the last column keeps its width", async ({ page }) => {
+    await open(page);
+    const cells = headerCells(scenario(page, "no-stretch"));
+    expect(await widthOf(cells.nth(1))).toBeCloseTo(140, 0); // 120 + 20 padding
+    const table = scenario(page, "no-stretch").locator(".ms-DetailsList");
+    expect(await widthOf(table)).toBeLessThan(1200);
+  });
+
+  test("minWidth 100% fills the container through the growers only", async ({
+    page,
+  }) => {
+    await open(page);
+    const cells = headerCells(scenario(page, "fill"));
+    const [a, b, c] = [
+      await widthOf(cells.nth(0)),
+      await widthOf(cells.nth(1)),
+      await widthOf(cells.nth(2)),
+    ];
+    expect(a + b + c).toBeCloseTo(1200, 0);
+    expect(c).toBeCloseTo(90, 0); // Done holds 70 + 20
+    // Notes gets twice Title's share of the spare width (±1px each for whole-pixel rounding).
+    expect(Math.abs(b - 170 - 2 * (a - 170))).toBeLessThanOrEqual(2);
+  });
+
+  test("maxWidth squeezes the shrinking columns and holds the rest", async ({
+    page,
+  }) => {
+    await open(page);
+    const cells = headerCells(scenario(page, "squeeze"));
+    const [a, b, c] = [
+      await widthOf(cells.nth(0)),
+      await widthOf(cells.nth(1)),
+      await widthOf(cells.nth(2)),
+    ];
+    expect(a + b + c).toBeCloseTo(400, 0);
+    expect(c).toBeCloseTo(90, 0);
+  });
+
+  test("a dragged column stays where it is dropped; the growers fill around it", async ({
+    page,
+  }) => {
+    await open(page);
+    const s = scenario(page, "drag");
+    const cells = headerCells(s);
+    const before = await widthOf(cells.nth(0));
+    const sizer = s.locator('[data-sizer-index="0"]');
+    // The scenario sits below the fold, and page.mouse works in viewport coordinates.
+    await sizer.scrollIntoViewIfNeeded();
+    const box = (await sizer.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 - 150, box.y + box.height / 2, {
+      steps: 5,
+    });
+    await page.mouse.up();
+    const after = await widthOf(cells.nth(0));
+    expect(after).toBeLessThan(before - 100); // the drag took
+    const b = await widthOf(cells.nth(1));
+    expect(after + b).toBeCloseTo(1200, 0); // still fills: Notes grew into the freed width
+  });
 });
 
 test.describe("header labels", () => {
