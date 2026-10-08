@@ -18,7 +18,11 @@ import {
   type ColumnRef,
   type ColumnRefs,
 } from "./columns.js";
-import type { TableColumn, RowIntent } from "../adapter/SpeelUIAdapter.js";
+import type {
+  TableColumn,
+  RowIntent,
+  TableLength,
+} from "../adapter/SpeelUIAdapter.js";
 import { FilterBar, type FilterState } from "./filter/FilterBar.js";
 import { isActiveCriteria } from "./filter/match.js";
 import { FilterControl } from "./filter/controls.js";
@@ -69,6 +73,11 @@ export interface SpeelTableProps<T extends IEntity = IEntity> {
   columns?:
     | ColumnSpec<T>[]
     | ((p: ColumnRefs<T>) => (ColumnDescriptor<T> | ColumnRef<T>)[]);
+  /** Bounds on the table's width — px or a percentage of its container, as in CSS. With none,
+   *  the table is exactly as wide as its columns; `minWidth: "100%"` fills the container. */
+  minWidth?: TableLength;
+  width?: TableLength;
+  maxWidth?: TableLength;
   rowActions?: {
     onView?: (row: T) => void;
     onEdit?: (row: T) => void;
@@ -142,6 +151,9 @@ function SpeelTableInner<T extends IEntity>(
     of,
     items,
     columns,
+    minWidth,
+    width,
+    maxWidth,
     rowActions,
     getRowKey,
     emptyMessage,
@@ -263,6 +275,15 @@ function SpeelTableInner<T extends IEntity>(
     // `visibleColumns` has already layered any user resize over the descriptor width.
     ...(c.width !== undefined ? { width: c.width } : {}),
     ...(c.defaultWidth !== undefined ? { defaultWidth: c.defaultWidth } : {}),
+    // A column the user has dragged stays where they let go; the others flex around it.
+    ...(sessionWidths[c.key] !== undefined
+      ? { grow: 0, shrink: 0 }
+      : {
+          ...(c.grow !== undefined ? { grow: c.grow } : {}),
+          ...(c.shrink !== undefined ? { shrink: c.shrink } : {}),
+        }),
+    ...(c.minWidth !== undefined ? { minWidth: c.minWidth } : {}),
+    ...(c.maxWidth !== undefined ? { maxWidth: c.maxWidth } : {}),
     ...(c.wrap ? { wrap: true } : {}),
     // The text export and search read — computed only when a skin asks, on hover.
     ...(c.cellTitle !== false
@@ -307,6 +328,8 @@ function SpeelTableInner<T extends IEntity>(
       // As wide as the buttons it renders: 32px icon buttons, 4px apart. A hint, not a width,
       // so a skin that sizes columns to content fits it exactly.
       defaultWidth: actionCount * 32 + (actionCount - 1) * 4,
+      grow: 0,
+      shrink: 0,
       render: (row: unknown) => (
         <div style={{ display: "flex", gap: 4 }}>
           {ra.onView ? (
@@ -479,6 +502,9 @@ function SpeelTableInner<T extends IEntity>(
           ? { getRowClassName: (row: unknown) => rowClassName(row as T) }
           : {})}
         onColumnResize={onColumnResize}
+        {...(minWidth !== undefined ? { minWidth } : {})}
+        {...(width !== undefined ? { width } : {})}
+        {...(maxWidth !== undefined ? { maxWidth } : {})}
       />
       <TableFooter
         ui={ui}

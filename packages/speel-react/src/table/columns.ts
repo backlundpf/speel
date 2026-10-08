@@ -8,7 +8,7 @@ import type {
 import { formatFieldValue } from "../fields/format.js";
 import { comparatorFor, type Comparator } from "./sort.js";
 import { defaultFilterFor } from "./filter/defaults.js";
-import { defaultWidthFor } from "./defaultWidth.js";
+import { defaultFlexFor, defaultWidthFor } from "./defaultWidth.js";
 
 /** Every column option except `key` — what `p.Field.with(...)` takes. */
 export interface ColumnOptions<T> {
@@ -17,7 +17,16 @@ export interface ColumnOptions<T> {
    *  column everywhere else — export, the column chooser, filter chips, hover titles. */
   headerContent?: ReactNode;
   render?: (row: T) => ReactNode;
+  /** The column's starting width (CSS `flex-basis`). Defaults by field kind. */
   width?: number;
+  /** Share of a table's spare width (CSS `flex-grow`). Defaults by field kind. */
+  grow?: number;
+  /** Share of a table's shortfall, scaled by width (CSS `flex-shrink`). Defaults by field kind. */
+  shrink?: number;
+  /** Narrowest the table's layout may make this column. Defaults to its header's longest word. */
+  minWidth?: number;
+  /** Widest the table's layout may make this column. */
+  maxWidth?: number;
   /** Break long values onto more lines, at spaces, instead of cutting them off. */
   wrap?: boolean;
   /** `false` opts the column out of the hover title a cut-off cell shows. */
@@ -58,6 +67,14 @@ export interface ResolvedColumn<T> {
   width?: number;
   /** The width to hold the column at when nobody has given it one — `defaultWidthFor`. */
   defaultWidth?: number;
+  /** Share of the table's spare width (CSS `flex-grow`). */
+  grow?: number;
+  /** Share of the table's shortfall (CSS `flex-shrink`). */
+  shrink?: number;
+  /** Narrowest the layout may make the column. */
+  minWidth?: number;
+  /** Widest the layout may make the column. */
+  maxWidth?: number;
   /** Break long values onto more lines instead of cutting them off. */
   wrap?: boolean;
   /** `false` when the column opted out of the cut-off hover title. */
@@ -182,7 +199,22 @@ function autoColumn<T>(et: EntityType, key: string): ResolvedColumn<T> {
     header: field.displayName,
     render: cellFor<T>(field, key),
     defaultWidth: defaultWidthFor(field.config),
+    ...flexFor<T>(field.config),
     ...fieldMeta<T>(field, key),
+  };
+}
+
+/** grow/shrink from the descriptor, else the field kind's default; min/max only when given. */
+function flexFor<T>(
+  config: FieldConfig | undefined,
+  d?: ColumnDescriptor<T>,
+): Pick<ResolvedColumn<T>, "grow" | "shrink" | "minWidth" | "maxWidth"> {
+  const kind = defaultFlexFor(config);
+  return {
+    grow: d?.grow ?? kind.grow,
+    shrink: d?.shrink ?? kind.shrink,
+    ...(d?.minWidth !== undefined ? { minWidth: d.minWidth } : {}),
+    ...(d?.maxWidth !== undefined ? { maxWidth: d.maxWidth } : {}),
   };
 }
 
@@ -202,6 +234,7 @@ function descriptorColumn<T>(
     header: d.header ?? field?.displayName ?? d.key,
     render,
     defaultWidth: defaultWidthFor(field?.config),
+    ...flexFor<T>(field?.config, d),
     ...(d.width !== undefined ? { width: d.width } : {}),
     ...(d.exportValue !== undefined ? { exportValue: d.exportValue } : {}),
     ...(d.wrap ? { wrap: true } : {}),
@@ -246,6 +279,7 @@ function defaultColumns<T>(et: EntityType): ResolvedColumn<T>[] {
       header: p.displayName,
       render: cellFor<T>(p as Field, p.propertyName),
       defaultWidth: defaultWidthFor(p.config),
+      ...flexFor<T>(p.config),
       ...fieldMeta<T>(p as Field, p.propertyName),
     });
   }
@@ -260,6 +294,7 @@ function defaultColumns<T>(et: EntityType): ResolvedColumn<T>[] {
       header: n.displayName,
       render: cellFor<T>(nav, n.name),
       defaultWidth: defaultWidthFor(nav.config),
+      ...flexFor<T>(nav.config),
       ...fieldMeta<T>(nav, n.name),
     });
   }

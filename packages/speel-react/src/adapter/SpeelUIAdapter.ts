@@ -293,6 +293,14 @@ export interface TableColumn {
   /** The width to hold the column at when `width` is absent — a hint for skins that need a
    *  number. A skin that sizes columns to their content ignores it. */
   defaultWidth?: number;
+  /** Share of the table's spare width (CSS `flex-grow`); absent = 0. */
+  grow?: number;
+  /** Share of the table's shortfall, scaled by width (CSS `flex-shrink`); absent = 0. */
+  shrink?: number;
+  /** Narrowest the layout may make the column; absent = the skin's header floor. */
+  minWidth?: number;
+  /** Widest the layout may make the column; absent = unbounded. */
+  maxWidth?: number;
   sortable?: boolean;
   headerFilter?: { active: boolean; content: ReactNode };
   /** Break long values onto more lines, at spaces, instead of cutting them off. */
@@ -328,6 +336,11 @@ export interface TableProps {
   getRowIntent?: (row: unknown, index: number) => RowIntent | undefined;
   getRowClassName?: (row: unknown, index: number) => string | undefined;
   onColumnResize?: (key: string, width: number) => void;
+  /** The table's width bounds (CSS `min-width` / `width` / `max-width`). With none, the table
+   *  is exactly as wide as its columns. */
+  minWidth?: TableLength;
+  width?: TableLength;
+  maxWidth?: TableLength;
 }
 
 /** Chrome (label/required/error/description) wrapped around an arbitrary node —

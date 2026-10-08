@@ -639,11 +639,18 @@ export const fakeAdapter: SpeelUIAdapter = {
     getRowIntent,
     getRowClassName,
     onColumnResize,
+    minWidth,
+    width,
+    maxWidth,
   }) =>
     items.length === 0 ? (
       <div>{emptyMessage ?? "No items."}</div>
     ) : (
-      <table>
+      <table
+        data-min-width={minWidth}
+        data-width={width}
+        data-max-width={maxWidth}
+      >
         <thead>
           <tr>
             {columns.map((c) => (
@@ -651,6 +658,10 @@ export const fakeAdapter: SpeelUIAdapter = {
                 key={c.key}
                 data-width={c.width}
                 data-default-width={c.defaultWidth}
+                data-grow={c.grow}
+                data-shrink={c.shrink}
+                data-min-width={c.minWidth}
+                data-max-width={c.maxWidth}
                 data-wrap={c.wrap ? "" : undefined}
                 {...(sort && sort.key === c.key
                   ? {

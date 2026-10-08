@@ -28,3 +28,34 @@ export function defaultWidthFor(config: FieldConfig | undefined): number {
       return 180;
   }
 }
+
+const FIXED = { grow: 0, shrink: 0 } as const;
+const FLEX = { grow: 1, shrink: 1 } as const;
+/** Content-heavy kinds take twice the spare width. */
+const ROOMY = { grow: 2, shrink: 1 } as const;
+
+/**
+ * How a column of this kind flexes when its table has spare width or too little: text-like
+ * columns grow and shrink, Yes/No, numbers and dates hold their width, and a column with no
+ * field behind it holds too — nothing says what it contains.
+ */
+export function defaultFlexFor(config: FieldConfig | undefined): {
+  grow: number;
+  shrink: number;
+} {
+  if (!config) return { ...FIXED };
+  switch (config.kind) {
+    case "Text":
+      return { ...(config.multiline ? ROOMY : FLEX) };
+    case "Json":
+      return { ...ROOMY };
+    case "Lookup":
+    case "Choice":
+      return { ...FLEX };
+    case "Boolean":
+    case "Number":
+    case "Currency":
+    case "DateTime":
+      return { ...FIXED };
+  }
+}
