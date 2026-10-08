@@ -32,6 +32,7 @@ import {
   ProgressIndicator,
   Callout,
   Icon,
+  Link,
   ContextualMenu,
   ContextualMenuItemType,
   useTheme,
@@ -49,6 +50,8 @@ import type {
   IDetailsHeaderProps,
   IContextualMenuItem,
   IButtonStyles,
+  ILinkStyles,
+  ITooltipHostStyles,
   Theme,
 } from "@fluentui/react";
 import { V8Field, chromeFrom, useFieldAria } from "./Field.js";
@@ -233,8 +236,110 @@ export function V8ProgressBar(p: ProgressBarProps): JSX.Element {
   );
 }
 
+/** An inline text button: one line, cut off at its end, never centred. */
+const LINK_STYLES = {
+  root: {
+    display: "inline-block",
+    maxWidth: "100%",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    verticalAlign: "top",
+    textAlign: "start",
+  },
+} satisfies ILinkStyles;
+/** The wrapped button fills its tooltip host, so the host and the button are one box. */
+const FILL_HOST = { root: { width: "100%" } };
+/**
+ * Fluent's host is `inline`, which can't take its child's box: in a stretching flex container
+ * it stretches while the button doesn't, and the tooltip centres on the wider host.
+ * `inline-block` and a button that fills it make them one box in any container.
+ */
+const TOOLTIP_HOST_STYLES = {
+  root: { display: "inline-block" },
+} satisfies Partial<ITooltipHostStyles>;
+/**
+ * A link's host also takes the link's `max-width`: a link fills its host, so an unbounded
+ * host would let it outgrow a narrow cell and be clipped there instead of cutting itself off.
+ */
+const LINK_TOOLTIP_HOST_STYLES = {
+  root: { ...TOOLTIP_HOST_STYLES.root, maxWidth: "100%" },
+} satisfies Partial<ITooltipHostStyles>;
+
+/**
+ * A tooltip link's root. Fluent's `Link` puts the native `disabled` attribute on its
+ * `<button>`, which swallows the pointer and focus events the tooltip opens on; this
+ * button drops it. `Link` still marks it `aria-disabled`, styles it disabled and ignores
+ * its clicks — what `allowDisabledFocus` does for the other appearances.
+ */
+const FocusableButton = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement>
+>(function FocusableButton({ disabled: _native, ...rest }, ref) {
+  return <button ref={ref} {...rest} />;
+});
+
 export function V8Button(p: ButtonProps): JSX.Element {
   const tooltipId = useStableId();
+  const button =
+    p.appearance === "link" ? (
+      <V8LinkButton {...p} tooltipId={tooltipId} />
+    ) : (
+      <V8FluentButton {...p} tooltipId={tooltipId} />
+    );
+  if (p.tooltip === undefined) return button;
+  return (
+    <TooltipHost
+      content={p.tooltip}
+      id={tooltipId}
+      styles={
+        p.appearance === "link" ? LINK_TOOLTIP_HOST_STYLES : TOOLTIP_HOST_STYLES
+      }
+    >
+      {button}
+    </TooltipHost>
+  );
+}
+
+function V8LinkButton(p: ButtonProps & { tooltipId: string }): JSX.Element {
+  return (
+    <Link
+      styles={
+        p.tooltip !== undefined
+          ? { root: { ...LINK_STYLES.root, ...FILL_HOST.root } }
+          : LINK_STYLES
+      }
+      type={p.type ?? "button"}
+      disabled={!!p.disabled}
+      data-appearance="link"
+      {...(p.ariaLabel !== undefined ? { "aria-label": p.ariaLabel } : {})}
+      {...(p.onClick ? { onClick: p.onClick } : {})}
+      {...(p.tooltip !== undefined
+        ? // The tooltip is the hover text; the root keeps a disabled link hoverable.
+          { as: FocusableButton, "aria-describedby": p.tooltipId }
+        : {
+            // A cut-off link shows its full text natively.
+            onMouseEnter: (e: React.MouseEvent<HTMLElement>) =>
+              setOverflowTitle(e.currentTarget, () => p.text),
+          })}
+    >
+      {p.iconName !== undefined ? (
+        <>
+          <Icon
+            iconName={p.iconName}
+            aria-hidden
+            style={{ marginRight: 4, verticalAlign: "middle" }}
+          />
+          {p.text}
+        </>
+      ) : (
+        p.text
+      )}
+    </Link>
+  );
+}
+
+function V8FluentButton(p: ButtonProps & { tooltipId: string }): JSX.Element {
   const theme = useTheme();
   const Btn =
     p.appearance === "primary" || p.appearance === "danger"
@@ -242,11 +347,16 @@ export function V8Button(p: ButtonProps): JSX.Element {
       : p.appearance === "subtle"
         ? ActionButton
         : DefaultButton;
-  const button = (
+  const danger = p.appearance === "danger" ? dangerStyles(theme) : undefined;
+  const styles: IButtonStyles | undefined =
+    p.tooltip !== undefined
+      ? { ...danger, root: [danger?.root, FILL_HOST.root] }
+      : danger;
+  return (
     <Btn
       text={p.text}
       data-appearance={p.appearance ?? "secondary"}
-      {...(p.appearance === "danger" ? { styles: dangerStyles(theme) } : {})}
+      {...(styles ? { styles } : {})}
       type={p.type ?? "button"}
       disabled={!!p.disabled}
       {...(p.iconName !== undefined
@@ -260,16 +370,10 @@ export function V8Button(p: ButtonProps): JSX.Element {
             // tooltip could never open on it. `allowDisabledFocus` keeps it disabled
             // (aria-disabled, styled, clicks ignored) without the native attribute.
             allowDisabledFocus: true,
-            "aria-describedby": tooltipId,
+            "aria-describedby": p.tooltipId,
           }
         : {})}
     />
-  );
-  if (p.tooltip === undefined) return button;
-  return (
-    <TooltipHost content={p.tooltip} id={tooltipId}>
-      {button}
-    </TooltipHost>
   );
 }
 

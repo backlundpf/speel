@@ -176,8 +176,11 @@ export interface FileInputProps extends FieldChrome {
 export interface ButtonProps {
   text: string;
   onClick?: () => void;
-  /** `danger` marks a destructive action (the skin renders it in its error color). */
-  appearance?: "primary" | "secondary" | "subtle" | "danger";
+  /**
+   * `danger` marks a destructive action (the skin renders it in its error color). `link` is
+   * inline text that truncates at its end — for an action inside running text or a table cell.
+   */
+  appearance?: "primary" | "secondary" | "subtle" | "danger" | "link";
   type?: "button" | "submit";
   disabled?: boolean;
   /** Accessible name, when the visible text is not one — a status glyph, a bare view name. */

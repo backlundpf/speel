@@ -456,3 +456,96 @@ test.describe("default widths", () => {
     expect(Math.abs(textEnd - contentRight)).toBeLessThanOrEqual(1);
   });
 });
+
+test.describe("link buttons", () => {
+  test("a long link title shows its beginning, ends cut off, and hovers its full text", async ({
+    page,
+  }) => {
+    await show(page);
+    const s = scenario(page, "link");
+    const cell = rowCells(s, 0).nth(0);
+    const link = cell.locator(".ms-Link");
+    const firstCharLeft = await link.evaluate((el) => {
+      const node = document
+        .createTreeWalker(el, NodeFilter.SHOW_TEXT)
+        .nextNode()!;
+      const r = document.createRange();
+      r.setStart(node, 0);
+      r.setEnd(node, 1);
+      return r.getBoundingClientRect().left;
+    });
+    const cellBox = (await cell.boundingBox())!;
+    expect(firstCharLeft).toBeGreaterThanOrEqual(cellBox.x); // the beginning is visible
+    expect(await link.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+      true,
+    );
+    // The link cuts itself off inside the cell, so the cell never overflows: one hover text.
+    const cellContent = cell.locator(":scope > div");
+    expect(
+      await cellContent.evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+    await link.hover();
+    await expect(link).toHaveAttribute(
+      "title",
+      "Due within the first fourteen days of entry",
+    );
+    await expect(cellContent).not.toHaveAttribute("title");
+  });
+
+  test("a link row is no taller than a plain text row", async ({ page }) => {
+    await show(page);
+    const s = scenario(page, "link");
+    const rows = s.locator('[data-automationid="DetailsRow"]');
+    const linkRow = (await rows.nth(1).boundingBox())!.height;
+    const authored = scenario(page, "authored-widths")
+      .locator('[data-automationid="DetailsRow"]')
+      .first();
+    expect(linkRow).toBeLessThanOrEqual(
+      (await authored.boundingBox())!.height + 0.5,
+    );
+  });
+});
+
+test.describe("tooltip anchoring", () => {
+  for (const name of ["tip-block", "tip-column", "tip-row"]) {
+    test(`the tooltip host is the button's box (${name})`, async ({ page }) => {
+      await show(page);
+      const s = scenario(page, name);
+      const button = s.getByRole("button", { name: "Submit" });
+      const host = s.locator(".ms-TooltipHost");
+      const [b, h] = [
+        (await button.boundingBox())!,
+        (await host.boundingBox())!,
+      ];
+      expect(
+        Math.abs(b.x - h.x) + Math.abs(b.width - h.width),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(b.y - h.y) + Math.abs(b.height - h.height),
+      ).toBeLessThanOrEqual(1);
+    });
+  }
+
+  test("a link with a tooltip is its host's box and still cuts itself off in a cell", async ({
+    page,
+  }) => {
+    await show(page);
+    const cell = rowCells(scenario(page, "link"), 0).nth(2);
+    const link = cell.locator(".ms-Link");
+    const host = cell.locator(".ms-TooltipHost");
+    const [l, h] = [(await link.boundingBox())!, (await host.boundingBox())!];
+    expect(
+      Math.abs(l.x - h.x) + Math.abs(l.width - h.width),
+    ).toBeLessThanOrEqual(1);
+    expect(await link.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+      true,
+    );
+    const cellContent = cell.locator(":scope > div");
+    expect(
+      await cellContent.evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+    await link.hover();
+    await expect(link).not.toHaveAttribute("title"); // the tooltip is the hover text
+    await expect(cellContent).not.toHaveAttribute("title");
+  });
+});

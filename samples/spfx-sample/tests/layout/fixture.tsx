@@ -8,6 +8,7 @@ import type { TableColumn, TableLength } from "@speel/react";
 
 // The package exports the skin as an adapter, not its primitives: its Table is V8Table.
 const V8Table = fluentV8Adapter.Table;
+const V8Button = fluentV8Adapter.Button;
 
 // Liberation Sans ships with Playwright's Linux dependencies: pinning it makes the skin's
 // canvas measurements and the browser's line breaking agree on every machine.
@@ -292,6 +293,57 @@ const scenarios: Scenario[] = [
     ],
     items: [{ n: "42", filler: "" }],
   },
+  {
+    // A row title rendered as a link button, bare and tooltip-wrapped, each with a title as
+    // SpeelTable gives every data column.
+    name: "link",
+    containerWidth: 1200,
+    columns: [
+      col("t", "Title", {
+        width: 120,
+        render: (r) => (
+          <V8Button
+            appearance="link"
+            text={(r as Row)["t"] ?? ""}
+            onClick={() => undefined}
+          />
+        ),
+        cellTitle: (r) => (r as Row)["t"] ?? "",
+      }),
+      col("p", "Plain", { width: 120 }),
+      col("tt", "Tipped", {
+        width: 120,
+        render: (r) => (
+          <V8Button
+            appearance="link"
+            text={(r as Row)["t"] ?? ""}
+            tooltip="Open the item"
+            onClick={() => undefined}
+          />
+        ),
+        cellTitle: (r) => (r as Row)["t"] ?? "",
+      }),
+      col("filler", "Filler", { width: 50 }),
+    ],
+    items: [
+      {
+        t: "Due within the first fourteen days of entry",
+        p: "plain",
+        filler: "",
+      },
+      { t: "Short", p: "plain", filler: "" },
+    ],
+  },
+];
+
+/** A tooltip-wrapped button in each kind of container it may sit in. */
+const tipContainers: { name: string; style: React.CSSProperties }[] = [
+  { name: "tip-block", style: {} },
+  {
+    name: "tip-column",
+    style: { display: "flex", flexDirection: "column", width: 400 },
+  },
+  { name: "tip-row", style: { display: "flex", width: 400 } },
 ];
 
 /** What SpeelTable does with a drag: the column gets the dragged width and stops flexing. */
@@ -342,6 +394,17 @@ function App(): JSX.Element {
               {...s.bounds}
             />
           )}
+        </section>
+      ))}
+      {tipContainers.map((t) => (
+        <section
+          key={t.name}
+          data-scenario={t.name}
+          style={{ marginBottom: 24 }}
+        >
+          <div style={t.style}>
+            <V8Button text="Submit" tooltip="Sends it" />
+          </div>
         </section>
       ))}
     </ThemeProvider>
