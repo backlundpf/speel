@@ -192,44 +192,56 @@ function HeaderCell({
 }
 
 /**
- * A column's drag handle, starting from the column's laid-out width. When the layout moves
- * the column on its own — the container resizes, another column is dragged — the grip
- * restarts from the new width. When the new width is only the layout echoing this handle's
- * own report, as SpeelTable does on every move of a drag, the grip carries on: restarting it
- * then would end the drag after its first step.
+ * A column's drag handle. It starts from the column's laid-out width and is held to the
+ * column's own `minWidth`/`maxWidth`, so every width it reports is one the layout honours.
+ *
+ * The host is expected to echo each report straight back as the column's width — SpeelTable
+ * does, synchronously, on every move of a drag — and the grip carries on through the echo.
+ * When the layout puts the column anywhere the grip is not — the container resizes, another
+ * column is dragged — the grip restarts from there. Restarting on an echo would end the drag
+ * after its first step (and drop keyboard focus); a host that applies widths later, or not
+ * at all, simply leaves the grip where the user left it until the layout next moves.
  */
 function ResizeHandle({
   columnKey,
   width,
+  minWidth,
+  maxWidth,
   onColumnResize,
 }: {
   columnKey: string;
   /** The column's laid-out content width. */
   width: number;
+  minWidth: number | undefined;
+  maxWidth: number | undefined;
   onColumnResize: (key: string, width: number) => void;
 }): ReactElement {
-  const reported = useRef<number | undefined>(undefined);
-  const start = useRef(width);
-  // Within a pixel: a host may round what it is told.
-  if (
-    reported.current === undefined ||
-    Math.abs(width - reported.current) >= 1
-  ) {
-    start.current = width;
-    reported.current = undefined;
-  }
+  // The width the grip is at: where it started, or the last width it reported.
+  const at = useRef(width);
+  // Restarts count up, so a restart to the width the grip started from still restarts it.
+  const [start, setStart] = useState({ width, restarts: 0 });
+  useLayoutEffect(() => {
+    // Within a pixel: a host may round what it is told.
+    if (Math.abs(width - at.current) < 1) return;
+    at.current = width;
+    setStart((s) => ({ width, restarts: s.restarts + 1 }));
+  }, [width]);
   const onResize = useCallback(
     (w: number) => {
-      reported.current = w;
+      at.current = w;
       onColumnResize(columnKey, w);
     },
     [columnKey, onColumnResize],
   );
+  // CSS order: a minimum beats a maximum.
+  const min = Math.max(MIN_RESIZE_WIDTH, minWidth ?? 0);
   return (
     <ResizeGrip
-      key={start.current}
+      key={start.restarts}
       columnKey={columnKey}
-      initial={start.current}
+      initial={start.width}
+      min={min}
+      {...(maxWidth !== undefined ? { max: Math.max(maxWidth, min) } : {})}
       onResize={onResize}
     />
   );
@@ -238,15 +250,20 @@ function ResizeHandle({
 function ResizeGrip({
   columnKey,
   initial,
+  min,
+  max,
   onResize,
 }: {
   columnKey: string;
   initial: number;
+  min: number;
+  max?: number;
   onResize: (width: number) => void;
 }): ReactElement {
   const { size, handleProps } = useResizable({
     axis: "x",
-    min: { w: MIN_RESIZE_WIDTH },
+    min: { w: min },
+    ...(max !== undefined ? { max: { w: max } } : {}),
     initial: { w: initial },
   });
   // Only the user's drags report: the width the grip mounted with is the layout's.
@@ -284,10 +301,19 @@ export function ShadTable(p: TableProps): ReactElement {
   const containerWidth = useContainerWidth(container);
   const [theme, setTheme] = useState<ShadTheme>(DEFAULT_THEME);
   const hasRows = p.items.length > 0;
+  // Read again whenever the container's width changes: a table that mounted hidden (a
+  // collapsed tab or section) measures nothing until it is shown.
   useLayoutEffect(() => {
-    if (hasRows && container.current)
-      setTheme(readTheme(container.current, probe.current ?? undefined));
-  }, [hasRows]);
+    if (!hasRows || !container.current) return;
+    const next = readTheme(container.current, probe.current ?? undefined);
+    setTheme((prev) =>
+      prev.spacing === next.spacing &&
+      prev.font === next.font &&
+      prev.fontSize === next.fontSize
+        ? prev
+        : next,
+    );
+  }, [hasRows, containerWidth]);
 
   if (!hasRows) {
     return (
@@ -324,6 +350,11 @@ export function ShadTable(p: TableProps): ReactElement {
     },
     containerWidth,
   );
+  // The columns' total, never `layout.tableWidth`: a fixed-layout table spreads any width
+  // beyond its columns over them, so a table held to a bound nothing can grow into would
+  // widen every column past its resolved width, and a dragged column would not land where
+  // it was let go. Spare width stays empty instead, as in CSS flexbox and the v8 skin.
+  const tableWidth = layout.widths.reduce((sum, w) => sum + w + padding, 0);
   return (
     // grid grid-cols-1 (= minmax(0,1fr)) caps the table width inside flex/grid
     // parents (e.g. the SharePoint canvas section) whose default min-width:auto
@@ -333,7 +364,7 @@ export function ShadTable(p: TableProps): ReactElement {
       {/* PROBE_UNITS spacing units wide: how the theme's density is read. */}
       <span ref={probe} aria-hidden className="invisible absolute w-10" />
       {/* Fixed layout: the columns are exactly the resolved widths, whatever their content. */}
-      <Table style={{ tableLayout: "fixed", width: layout.tableWidth }}>
+      <Table style={{ tableLayout: "fixed", width: tableWidth }}>
         <colgroup>
           {p.columns.map((c, i) => (
             <col key={c.key} style={{ width: layout.widths[i]! + padding }} />
@@ -354,6 +385,8 @@ export function ShadTable(p: TableProps): ReactElement {
                   <ResizeHandle
                     columnKey={c.key}
                     width={layout.widths[i]!}
+                    minWidth={c.minWidth}
+                    maxWidth={c.maxWidth}
                     onColumnResize={p.onColumnResize}
                   />
                 ) : null}

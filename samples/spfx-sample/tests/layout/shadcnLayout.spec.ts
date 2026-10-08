@@ -132,6 +132,18 @@ test("minWidth 100% fills the container through the growers", async ({
   expect(await widthOf(ths.nth(1))).toBeCloseTo(70 + padding, 0); // Done holds its width
 });
 
+test("spare width no column can grow into stays empty; every column keeps its width", async ({
+  page,
+}) => {
+  await show(page);
+  const s = scenario(page, "spare");
+  const ths = s.locator("th");
+  const padding = await paddingOf(ths.first());
+  expect(await widthOf(ths.nth(0))).toBeCloseTo(150 + padding, 0);
+  expect(await widthOf(ths.nth(1))).toBeCloseTo(120 + padding, 0);
+  expect(await widthOf(s.locator("table"))).toBeLessThan(1200);
+});
+
 test("a dragged column stays where it is dropped; the growers fill around it", async ({
   page,
 }) => {

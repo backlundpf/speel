@@ -82,6 +82,17 @@ const scenarios: Scenario[] = [
     items: [{ a: "x", b: "y" }],
   },
   {
+    // A bound nothing can grow into: the spare width stays empty.
+    name: "spare",
+    containerWidth: 1200,
+    bounds: { minWidth: "100%" },
+    columns: [
+      col("a", "Title", { width: 150 }),
+      col("b", "Modified", { width: 120 }),
+    ],
+    items: [{ a: "x", b: "y" }],
+  },
+  {
     name: "drag",
     containerWidth: 1200,
     bounds: { minWidth: "100%" },

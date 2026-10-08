@@ -150,9 +150,12 @@ zeroes that column's `grow`/`shrink` before handing it to the skin. The drag flo
 
 ### shadcn (registry skin)
 
-- Keeps a real `<table>` (semantics intact) with `table-layout: fixed`, `width: tableWidth`
-  (inline style, overriding the primitive's `w-full`), and a `<colgroup>` giving each column
-  `widths[i] + padding` (cells are border-box; `px-2` → padding 16).
+- Keeps a real `<table>` (semantics intact) with `table-layout: fixed`, its width the columns'
+  total `Σ(widths[i] + padding)` (inline style, overriding the primitive's `w-full`), and a
+  `<colgroup>` giving each column `widths[i] + padding` (cells are border-box; `px-2` → padding
+  16). Not `tableWidth`: a fixed-layout table spreads any width beyond its columns over them,
+  so spare width nothing can grow into would widen every column past its resolved width. It
+  stays empty instead, as in the v8 skin.
 - Measures its container with a `ResizeObserver` (the existing `grid grid-cols-1` wrapper stays, so
   the table cannot inflate a flex/grid parent); the primitive's `overflow-x-auto` wrapper scrolls.
 - Uses `defaultWidth` and the header floor now (reverses the first cycle's "shadcn sizes to
