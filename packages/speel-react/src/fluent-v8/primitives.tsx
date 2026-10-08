@@ -52,8 +52,14 @@ import type {
 } from "@fluentui/react";
 import { V8Field, chromeFrom, useFieldAria } from "./Field.js";
 import { useStableId } from "./useStableId.js";
-import { columnBounds, heldWidth } from "./columnBounds.js";
-import { headerFloor, textMeasurer } from "./headerFloor.js";
+import { columnBounds } from "./columnBounds.js";
+import {
+  headerFloor,
+  textMeasurer,
+  type HeaderRoom,
+} from "../table/layout/headerFloor.js";
+import { toFlexColumn } from "../table/layout/columnFlex.js";
+import { useContainerWidth } from "../table/layout/useContainerWidth.js";
 import { setOverflowTitle } from "../table/overflowTitle.js";
 import { useResizable } from "../surface/useResizable.js";
 import { useDragResize } from "../surface/useDragResize.js";
@@ -726,6 +732,16 @@ const CELL_PADDING =
   DEFAULT_CELL_STYLE_PROPS.cellLeftPadding +
   DEFAULT_CELL_STYLE_PROPS.cellRightPadding;
 
+/**
+ * What the v8 header puts around its label: the sort label's `padding: 2px 4px`, a space and
+ * the 12px sort arrow, and the 24px filter button plus its 4px gap.
+ */
+const V8_HEADER_ROOM: HeaderRoom = {
+  label: 8,
+  sortArrow: 16,
+  filterButton: 28,
+};
+
 /** Fluent's header height, which it pins on the row AND on every cell; it is not exported. */
 const HEADER_HEIGHT = 42;
 
@@ -818,32 +834,11 @@ export function V8Table(
   // Called before the empty early-return: hooks may not sit behind a conditional.
   const theme = useTheme();
   const wrapper = React.useRef<HTMLDivElement>(null);
-  const [measured, setMeasured] = React.useState(0);
 
   // How wide the table may lay out in. Fluent measures this itself, but only ever reports the
   // visible width — which is the number that makes it squash. We measure the same box and use
   // it as a floor rather than a ceiling (see `viewport` below).
-  React.useLayoutEffect(() => {
-    const el = wrapper.current;
-    if (!el) return undefined;
-    const read = (): void => setMeasured(el.clientWidth);
-    read();
-    const RO = (
-      window as unknown as {
-        ResizeObserver?: new (cb: () => void) => {
-          observe: (target: Element) => void;
-          disconnect: () => void;
-        };
-      }
-    ).ResizeObserver;
-    if (!RO) {
-      window.addEventListener("resize", read);
-      return () => window.removeEventListener("resize", read);
-    }
-    const observer = new RO(read);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const measured = useContainerWidth(wrapper);
 
   const rowBackground = (intent: RowIntent | undefined): string | undefined => {
     switch (intent) {
@@ -871,18 +866,20 @@ export function V8Table(
     `${FontWeights.semibold} ${headerSize}px ${headerFont.fontFamily ?? "sans-serif"}`,
     headerSize,
   );
-  const held = p.columns.map((c) =>
-    heldWidth(
-      c.width,
-      c.defaultWidth,
-      headerFloor(
+  const held = p.columns.map(
+    (c) =>
+      toFlexColumn(
         c,
-        c.sortable === true &&
-          p.onSortChange !== undefined &&
-          c.headerContent === undefined,
-        measure,
-      ),
-    ),
+        headerFloor(
+          c,
+          c.sortable === true &&
+            p.onSortChange !== undefined &&
+            c.headerContent === undefined,
+          measure,
+          V8_HEADER_ROOM,
+        ),
+        CELL_PADDING,
+      ).basis,
   );
   const columns: IColumn[] = p.columns.map((c, i) => ({
     key: c.key,

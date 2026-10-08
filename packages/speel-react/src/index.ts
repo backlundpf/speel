@@ -245,3 +245,7 @@ export type {
   TableBounds,
   ColumnLayout,
 } from "./table/layout/resolveColumnWidths.js";
+export { headerFloor, textMeasurer } from "./table/layout/headerFloor.js";
+export type { HeaderRoom } from "./table/layout/headerFloor.js";
+export { MIN_RESIZE_WIDTH, toFlexColumn } from "./table/layout/columnFlex.js";
+export { useContainerWidth } from "./table/layout/useContainerWidth.js";
