@@ -282,6 +282,9 @@ export interface PopoverProps {
 /** Semantic row emphasis a skin renders consistently. `undefined` is the normal row. */
 export type RowIntent = "success" | "warning" | "error" | "muted";
 
+/** A table width: pixels, or a percentage of the container the table sits in. */
+export type TableLength = number | `${number}%`;
+
 export interface TableColumn {
   key: string;
   header: string;

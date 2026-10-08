@@ -38,6 +38,7 @@ export type {
   DrawerProps,
   PopoverProps,
   TableColumn,
+  TableLength,
   TableProps,
   TableSort,
   RowIntent,
@@ -238,3 +239,9 @@ export type {
   ResizeHandleProps,
 } from "./surface/useResizable.js";
 export { setOverflowTitle } from "./table/overflowTitle.js";
+export { resolveColumnWidths } from "./table/layout/resolveColumnWidths.js";
+export type {
+  FlexColumn,
+  TableBounds,
+  ColumnLayout,
+} from "./table/layout/resolveColumnWidths.js";
