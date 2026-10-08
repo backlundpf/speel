@@ -31,16 +31,38 @@ export interface ColumnLayout {
   tableWidth: number;
 }
 
-/** A length in pixels; a percentage of the container, or nothing while it is unmeasured. */
+/**
+ * A length in pixels; a percentage of the container, or nothing while it is unmeasured. A
+ * length that is not a finite number of pixels (NaN, ∞, `"abc%"`) counts as absent too.
+ */
 function resolveLength(
   length: TableLength | undefined,
   container: number,
 ): number | undefined {
   if (length === undefined) return undefined;
-  if (typeof length === "number") return length;
-  if (container <= 0) return undefined;
-  return (parseFloat(length) / 100) * container;
+  if (typeof length === "number")
+    return Number.isFinite(length) ? length : undefined;
+  if (!Number.isFinite(container) || container <= 0) return undefined;
+  const percent = parseFloat(length);
+  return Number.isFinite(percent) ? (percent / 100) * container : undefined;
 }
+
+/** A finite, non-negative number of pixels or flex units; anything else is 0. */
+const positive = (v: number): number => (Number.isFinite(v) && v > 0 ? v : 0);
+
+/**
+ * The column with every number usable. One NaN or ∞ (or a negative grow) makes every
+ * violation in the freeze loop NaN, so nothing ever freezes: such a value counts as absent —
+ * 0 for the basis, min, flex factors and padding, unbounded for the max.
+ */
+const sanitise = (c: FlexColumn): FlexColumn => ({
+  basis: positive(c.basis),
+  grow: positive(c.grow),
+  shrink: positive(c.shrink),
+  min: positive(c.min),
+  max: Number.isFinite(c.max) && c.max >= 0 ? c.max : Number.POSITIVE_INFINITY,
+  padding: Number.isFinite(c.padding) ? c.padding : 0,
+});
 
 /** CSS clamp order: `min` wins over `max`. */
 const clamp = (v: number, min: number, max: number): number =>
@@ -56,10 +78,11 @@ const clamp = (v: number, min: number, max: number): number =>
  * until nothing moves. Widths are whole pixels that add up exactly.
  */
 export function resolveColumnWidths(
-  columns: readonly FlexColumn[],
+  input: readonly FlexColumn[],
   bounds: TableBounds,
   containerWidth: number,
 ): ColumnLayout {
+  const columns = input.map(sanitise);
   const padding = columns.reduce((sum, c) => sum + c.padding, 0);
   const base = columns.map((c) => clamp(c.basis, c.min, c.max));
   const outerBases = base.reduce((sum, w) => sum + w, 0) + padding;
@@ -78,7 +101,9 @@ export function resolveColumnWidths(
 
   const size = [...base];
   const frozen = columns.map((_, i) => initialFree === 0 || factor(i) === 0);
-  while (frozen.some((f) => !f)) {
+  // Every pass freezes at least one column, so `columns.length` passes always settle; the cap
+  // is a backstop that keeps a page from hanging should that ever not hold.
+  for (let pass = 0; pass <= columns.length && frozen.some((f) => !f); pass++) {
     const open = columns.map((_, i) => i).filter((i) => !frozen[i]);
     const used = columns.reduce(
       (sum, _, i) => sum + (frozen[i] ? size[i]! : base[i]!),

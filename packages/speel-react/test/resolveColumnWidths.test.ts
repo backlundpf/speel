@@ -151,3 +151,120 @@ describe("resolveColumnWidths", () => {
     });
   });
 });
+
+/**
+ * Inputs that once made the freeze loop spin forever (every violation NaN, so nothing froze).
+ * The resolver runs on every render of both skins, so a hang freezes the page. A synchronous
+ * hang cannot be cut short by vitest's timeout; it shows as a run that never finishes.
+ */
+describe("resolveColumnWidths with unusable input", () => {
+  /** Lays out, and checks the result is whole, finite pixels. */
+  const settles = (
+    columns: FlexColumn[],
+    bounds: Parameters<typeof resolveColumnWidths>[1],
+    container = 1000,
+  ): ReturnType<typeof resolveColumnWidths> => {
+    const r = resolveColumnWidths(columns, bounds, container);
+    expect(r.widths.every(Number.isInteger)).toBe(true);
+    expect(Number.isInteger(r.tableWidth)).toBe(true);
+    return r;
+  };
+
+  it("ignores a NaN table width", () => {
+    expect(settles([col(100, { grow: 1, shrink: 1 })], { width: NaN })).toEqual(
+      { widths: [100], tableWidth: 100 },
+    );
+  });
+
+  it("ignores a percentage that is not a number", () => {
+    expect(
+      settles([col(100, { grow: 1, shrink: 1 })], {
+        width: "abc%" as `${number}%`,
+      }),
+    ).toEqual({ widths: [100], tableWidth: 100 });
+  });
+
+  it("ignores a percentage of a NaN or infinite container", () => {
+    for (const container of [NaN, Number.POSITIVE_INFINITY])
+      expect(
+        settles(
+          [col(100, { grow: 1, shrink: 1 })],
+          { width: "50%" },
+          container,
+        ),
+      ).toEqual({ widths: [100], tableWidth: 100 });
+  });
+
+  it("ignores infinite table bounds", () => {
+    expect(
+      settles([col(100, { grow: 1, shrink: 1 })], {
+        minWidth: Number.POSITIVE_INFINITY,
+        width: Number.POSITIVE_INFINITY,
+      }),
+    ).toEqual({ widths: [100], tableWidth: 100 });
+  });
+
+  it("starts a column with a NaN basis from 0, even with no bounds", () => {
+    expect(settles([col(NaN), col(50)], {})).toEqual({
+      widths: [0, 50],
+      tableWidth: 50,
+    });
+  });
+
+  it("starts a column with a negative basis from 0", () => {
+    expect(settles([col(-30), col(50)], {})).toEqual({
+      widths: [0, 50],
+      tableWidth: 50,
+    });
+  });
+
+  it("treats a negative grow as no grow", () => {
+    expect(
+      settles([col(100, { grow: -1 }), col(100, { grow: 1 })], { width: 400 }),
+    ).toEqual({ widths: [100, 300], tableWidth: 400 });
+  });
+
+  it("treats an infinite grow as no grow", () => {
+    expect(
+      settles(
+        [col(100, { grow: Number.POSITIVE_INFINITY }), col(100, { grow: 1 })],
+        {
+          width: 400,
+        },
+      ),
+    ).toEqual({ widths: [100, 300], tableWidth: 400 });
+  });
+
+  it("treats a NaN or negative shrink as no shrink", () => {
+    expect(
+      settles(
+        [
+          col(200, { shrink: NaN }),
+          col(200, { shrink: -1 }),
+          col(100, { shrink: 1 }),
+        ],
+        { width: 450 },
+      ),
+    ).toEqual({ widths: [200, 200, 50], tableWidth: 450 });
+  });
+
+  it("drops a NaN min and a NaN or negative max", () => {
+    expect(
+      settles(
+        [
+          col(100, { shrink: 1, min: NaN }),
+          col(100, { grow: 1, max: NaN }),
+          col(100, { grow: 1, max: -5 }),
+        ],
+        { width: 500 },
+      ),
+    ).toEqual({ widths: [100, 200, 200], tableWidth: 500 });
+  });
+
+  it("drops a NaN padding", () => {
+    expect(settles([col(100, { padding: NaN }), col(50)], {})).toEqual({
+      widths: [100, 50],
+      tableWidth: 150,
+    });
+  });
+});
