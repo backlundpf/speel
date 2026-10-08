@@ -165,3 +165,134 @@ test("a dragged column stays where it is dropped; the growers fill around it", a
   expect(Math.abs(after - (before - 150))).toBeLessThanOrEqual(1);
   expect(after + (await widthOf(ths.nth(1)))).toBeCloseTo(1200, 0);
 });
+
+/** The right edge of an element's contents, as laid out. */
+const contentsRight = (l: Locator): Promise<number> =>
+  l.evaluate((el) => {
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    return r.getBoundingClientRect().right;
+  });
+const bodyRows = (s: Locator): Locator => s.locator("tbody tr");
+const rowCells = (s: Locator, row: number): Locator =>
+  bodyRows(s).nth(row).locator("td");
+
+test("align end puts the header label and the cell text at the column's end", async ({
+  page,
+}) => {
+  await show(page);
+  const s = scenario(page, "align");
+  const th = s.locator("th").first();
+  const box = th.locator("[data-header-label]");
+  const button = th.getByRole("button", { name: "Filter Open items" });
+  const labelEnd = await contentsRight(box);
+  const boxRight = await box.evaluate((el) => el.getBoundingClientRect().right);
+  expect(labelEnd).toBeGreaterThan(boxRight - 1); // flush with the box end
+  expect(labelEnd).toBeLessThanOrEqual((await button.boundingBox())!.x + 0.5); // never under the button
+  const td = rowCells(s, 0).first();
+  const textEnd = await contentsRight(td);
+  const contentRight = await td.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return el.getBoundingClientRect().right - parseFloat(cs.paddingRight);
+  });
+  expect(Math.abs(textEnd - contentRight)).toBeLessThanOrEqual(1);
+});
+
+test.describe("link buttons", () => {
+  test("a long link title shows its beginning, ends cut off, and hovers its full text", async ({
+    page,
+  }) => {
+    await show(page);
+    const cell = rowCells(scenario(page, "link"), 0).first();
+    const label = cell.locator('button[data-variant="link"] .truncate');
+    const firstCharLeft = await label.evaluate((el) => {
+      const node = document
+        .createTreeWalker(el, NodeFilter.SHOW_TEXT)
+        .nextNode()!;
+      const r = document.createRange();
+      r.setStart(node, 0);
+      r.setEnd(node, 1);
+      return r.getBoundingClientRect().left;
+    });
+    const cellBox = (await cell.boundingBox())!;
+    expect(firstCharLeft).toBeGreaterThanOrEqual(cellBox.x); // the beginning is visible
+    expect(await label.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+      true,
+    );
+    expect(
+      await label.evaluate((el) => getComputedStyle(el).textOverflow),
+    ).toBe("ellipsis");
+    // The link cuts itself off inside the cell, so the cell never overflows: one hover text.
+    expect(await cell.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+      true,
+    );
+    await label.hover();
+    await expect(label).toHaveAttribute(
+      "title",
+      "Due within the first fourteen days of entry",
+    );
+    await expect(cell).not.toHaveAttribute("title");
+  });
+
+  test("a link row is no taller than a plain text row", async ({ page }) => {
+    await show(page);
+    // Both the last row of their table: the body's last row has no bottom border.
+    const linkRow = (await bodyRows(scenario(page, "link"))
+      .nth(1)
+      .boundingBox())!;
+    const plainRow = (await bodyRows(scenario(page, "basic"))
+      .first()
+      .boundingBox())!;
+    expect(linkRow.height).toBeLessThanOrEqual(plainRow.height + 0.5);
+  });
+});
+
+test.describe("tooltip anchoring", () => {
+  for (const name of ["tip-block", "tip-column", "tip-row"]) {
+    test(`the tooltip trigger is the button's box (${name})`, async ({
+      page,
+    }) => {
+      await show(page);
+      const button = scenario(page, name).getByRole("button", {
+        name: "Submit",
+      });
+      const trigger = button.locator("xpath=..");
+      const [b, t] = [
+        (await button.boundingBox())!,
+        (await trigger.boundingBox())!,
+      ];
+      expect(
+        Math.abs(b.x - t.x) + Math.abs(b.width - t.width),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(b.y - t.y) + Math.abs(b.height - t.height),
+      ).toBeLessThanOrEqual(1);
+    });
+  }
+
+  test("a link with a tooltip is its trigger's box and still cuts itself off in a cell", async ({
+    page,
+  }) => {
+    await show(page);
+    const cell = rowCells(scenario(page, "link"), 0).nth(2);
+    const link = cell.locator('button[data-variant="link"]');
+    const label = link.locator(".truncate");
+    const trigger = link.locator("xpath=..");
+    const [l, t] = [
+      (await link.boundingBox())!,
+      (await trigger.boundingBox())!,
+    ];
+    expect(
+      Math.abs(l.x - t.x) + Math.abs(l.width - t.width),
+    ).toBeLessThanOrEqual(1);
+    expect(await label.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+      true,
+    );
+    expect(await cell.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+      true,
+    );
+    await label.hover();
+    await expect(label).not.toHaveAttribute("title"); // the tooltip is the hover text
+    await expect(cell).not.toHaveAttribute("title");
+  });
+});

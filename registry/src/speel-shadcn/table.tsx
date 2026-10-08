@@ -103,6 +103,13 @@ function readTheme(box: HTMLElement, probe?: HTMLElement): ShadTheme {
   return { spacing, font: `500 14px ${family}`, fontSize: 14 };
 }
 
+/** A column's `align`, as logical text alignment (start and end follow the writing direction). */
+const ALIGN = {
+  start: "text-start",
+  center: "text-center",
+  end: "text-end",
+} as const;
+
 function HeaderCell({
   column,
   sort,
@@ -123,7 +130,10 @@ function HeaderCell({
           hover and focus boxes inside the clip. */}
       <span
         data-header-label=""
-        className="min-w-0 flex-1 overflow-hidden py-1 text-ellipsis whitespace-normal [overflow-wrap:normal] [word-break:normal]"
+        className={cn(
+          "min-w-0 flex-1 overflow-hidden py-1 text-ellipsis whitespace-normal [overflow-wrap:normal] [word-break:normal]",
+          column.align ? ALIGN[column.align] : undefined,
+        )}
       >
         {column.headerContent !== undefined ? (
           // A control in the header owns its clicks: it is never wrapped in the sort button.
@@ -410,6 +420,7 @@ export function ShadTable(p: TableProps): ReactElement {
                       c.wrap
                         ? "overflow-hidden text-ellipsis whitespace-normal [overflow-wrap:normal] [word-break:normal]"
                         : "truncate",
+                      c.align ? ALIGN[c.align] : undefined,
                     )}
                     {...(c.cellTitle
                       ? {

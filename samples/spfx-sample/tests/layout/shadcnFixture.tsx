@@ -2,6 +2,7 @@
 // compiled Tailwind CSS (added by the spec), every scenario in its own section[data-scenario].
 import * as React from "react";
 import * as ReactDOM from "react-dom";
+import { ShadButton } from "@/components/speel/fields";
 import { ShadTable } from "@/components/speel/table";
 import type { TableColumn, TableLength } from "@speel/react";
 
@@ -103,6 +104,72 @@ const scenarios: Scenario[] = [
     ],
     items: [{ a: "x", b: "y" }],
   },
+  {
+    name: "align",
+    containerWidth: 1200,
+    columns: [
+      col("n", "Open items", {
+        width: 160,
+        align: "end",
+        sortable: true,
+        headerFilter: filter,
+        cellTitle: (r) => (r as Row)["n"] ?? "",
+      }),
+      col("filler", "Filler", { width: 50 }),
+    ],
+    items: [{ n: "42", filler: "" }],
+  },
+  {
+    // A row title rendered as a link button, bare and tooltip-wrapped, each with a title as
+    // SpeelTable gives every data column.
+    name: "link",
+    containerWidth: 1200,
+    columns: [
+      col("t", "Title", {
+        width: 120,
+        render: (r) => (
+          <ShadButton
+            appearance="link"
+            text={(r as Row)["t"] ?? ""}
+            onClick={() => undefined}
+          />
+        ),
+        cellTitle: (r) => (r as Row)["t"] ?? "",
+      }),
+      col("p", "Plain", { width: 120 }),
+      col("tt", "Tipped", {
+        width: 120,
+        render: (r) => (
+          <ShadButton
+            appearance="link"
+            text={(r as Row)["t"] ?? ""}
+            tooltip="Open the item"
+            onClick={() => undefined}
+          />
+        ),
+        cellTitle: (r) => (r as Row)["t"] ?? "",
+      }),
+      col("filler", "Filler", { width: 50 }),
+    ],
+    items: [
+      {
+        t: "Due within the first fourteen days of entry",
+        p: "plain",
+        filler: "",
+      },
+      { t: "Short", p: "plain", filler: "" },
+    ],
+  },
+];
+
+/** A tooltip-wrapped button in each kind of container it may sit in. */
+const tipContainers: { name: string; style: React.CSSProperties }[] = [
+  { name: "tip-block", style: {} },
+  {
+    name: "tip-column",
+    style: { display: "flex", flexDirection: "column", width: 400 },
+  },
+  { name: "tip-row", style: { display: "flex", width: 400 } },
 ];
 
 /** A table whose drags stick, as in SpeelTable: a dragged column keeps its width and stops
@@ -150,6 +217,17 @@ function App(): JSX.Element {
               {...s.bounds}
             />
           )}
+        </section>
+      ))}
+      {tipContainers.map((t) => (
+        <section
+          key={t.name}
+          data-scenario={t.name}
+          style={{ marginBottom: 24 }}
+        >
+          <div style={t.style}>
+            <ShadButton text="Submit" tooltip="Sends it" />
+          </div>
         </section>
       ))}
     </div>

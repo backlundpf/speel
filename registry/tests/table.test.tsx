@@ -49,6 +49,42 @@ describe("shadcn Table column options", () => {
     expect(td.className).not.toContain("truncate");
   });
 
+  it("aligns the header label box and the cells", () => {
+    const { container } = render(
+      <T
+        columns={[
+          {
+            key: "n",
+            header: "N",
+            width: 80,
+            align: "end",
+            render: () => "42",
+          },
+        ]}
+        items={items}
+      />,
+    );
+    expect(container.querySelector("[data-header-label]")!.className).toContain(
+      "text-end",
+    );
+    expect(container.querySelector("td")!.className).toContain("text-end");
+  });
+
+  it("leaves a column without align at the start", () => {
+    const { container } = render(
+      <T
+        columns={[{ key: "n", header: "N", width: 80, render: () => "42" }]}
+        items={items}
+      />,
+    );
+    const label = container.querySelector("[data-header-label]")!.className;
+    const td = container.querySelector("td")!.className;
+    for (const cls of [label, td]) {
+      expect(cls).not.toContain("text-end");
+      expect(cls).not.toContain("text-center");
+    }
+  });
+
   it("titles a cut-off cell with its text on hover", () => {
     const { container } = render(
       <T

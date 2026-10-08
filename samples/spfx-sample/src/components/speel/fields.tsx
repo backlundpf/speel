@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import type { KeyboardEvent, ReactElement, ReactNode } from "react";
+import type { KeyboardEvent, MouseEvent, ReactElement, ReactNode } from "react";
 import {
   CalendarIcon,
   Check,
@@ -59,7 +59,7 @@ import type {
   SpinnerProps,
   TextInputProps,
 } from "@speel/react";
-import { SpeelActionBar } from "@speel/react";
+import { SpeelActionBar, setOverflowTitle } from "@speel/react";
 
 import { useStableId } from "./compat";
 import { Chrome, fieldAria } from "./chrome";
@@ -261,30 +261,66 @@ const BUTTON_VARIANT = {
   secondary: "outline",
   subtle: "ghost",
   danger: "destructive",
+  link: "link",
 } as const;
+
+/**
+ * A link is inline text: no button height or padding (with an icon too), start-aligned, and
+ * never wider than its container, so its label — the `truncate` span — is cut off at its end.
+ */
+const LINK = "h-auto max-w-full justify-start p-0 text-left has-[>svg]:px-0";
 
 export function ShadButton(p: ButtonProps): ReactElement {
   const tipId = useStableId();
+  const tipped = p.tooltip !== undefined;
+  const link = p.appearance === "link";
+  const Icon =
+    link && p.iconName !== undefined ? iconFor(p.iconName) : undefined;
   const button = (
     <Button
       type={p.type ?? "button"}
       variant={BUTTON_VARIANT[p.appearance ?? "secondary"]}
       disabled={!!p.disabled}
       aria-label={p.ariaLabel}
-      aria-describedby={p.tooltip !== undefined ? tipId : undefined}
+      aria-describedby={tipped ? tipId : undefined}
+      // A tooltip-wrapped button fills its trigger, so the tooltip anchors on the button.
+      className={cn(link && LINK, tipped && "w-full")}
       onClick={p.onClick}
     >
-      {p.text}
+      {link ? (
+        <>
+          {Icon ? <Icon aria-hidden /> : null}
+          <span
+            className="truncate"
+            // A cut-off link shows its full text natively — unless the tooltip is its hover text.
+            {...(!tipped
+              ? {
+                  onMouseEnter: (e: MouseEvent<HTMLSpanElement>) =>
+                    setOverflowTitle(e.currentTarget, () => p.text),
+                }
+              : {})}
+          >
+            {p.text}
+          </span>
+        </>
+      ) : (
+        p.text
+      )}
     </Button>
   );
-  if (p.tooltip === undefined) return button;
+  if (!tipped) return button;
   // A disabled button takes no pointer or focus events, so the trigger is a wrapper
   // around it — focusable itself while the button is not — and the hint still shows.
+  // A link's trigger is held to its container like the link: a link fills its trigger, so
+  // an unbounded one would let it outgrow a narrow cell instead of cutting itself off.
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="inline-flex" tabIndex={p.disabled ? 0 : undefined}>
+          <span
+            className={cn("inline-flex", link && "max-w-full")}
+            tabIndex={p.disabled ? 0 : undefined}
+          >
             {button}
           </span>
         </TooltipTrigger>
