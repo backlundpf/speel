@@ -6,9 +6,25 @@ const sized = (el: HTMLElement, s: number, c: number): void => {
   Object.defineProperty(el, "scrollWidth", { value: s, configurable: true });
   Object.defineProperty(el, "clientWidth", { value: c, configurable: true });
 };
-/** fireEvent.click returns false when the handler called preventDefault. */
-const clickPrevented = (el: HTMLElement, init: MouseEventInit = {}): boolean =>
-  !fireEvent.click(el, { button: 0, ...init });
+/** Whether the link's own handler prevented the click — read at the document, after React's
+ *  root listener, which then prevents it: jsdom implements no navigation and logs each try. */
+const clickPrevented = (
+  el: HTMLElement,
+  init: MouseEventInit = {},
+): boolean => {
+  let prevented = false;
+  const settle = (e: Event): void => {
+    prevented = e.defaultPrevented;
+    e.preventDefault();
+  };
+  document.addEventListener("click", settle);
+  try {
+    fireEvent.click(el, { button: 0, ...init });
+  } finally {
+    document.removeEventListener("click", settle);
+  }
+  return prevented;
+};
 
 describe("V8Link", () => {
   it("renders a real anchor for href, a button without one", () => {
