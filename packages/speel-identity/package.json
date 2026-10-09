@@ -1,6 +1,6 @@
 {
   "name": "@speel/identity",
-  "version": "0.1.0-beta.3",
+  "version": "0.1.0-beta.4",
   "description": "Signed-in user, groups, and permissions for @speel/core over SharePoint's own security model.",
   "keywords": [
     "sharepoint",
@@ -48,10 +48,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
-    "@speel/core": "^0.1.0-beta.3"
+    "@speel/core": "^0.1.0-beta.4"
   },
   "devDependencies": {
-    "@speel/core": "0.1.0-beta.3",
+    "@speel/core": "0.1.0-beta.4",
     "@swc/core": "^1.15.43",
     "typescript": "^5.4.0",
     "unplugin-swc": "^1.5.9",

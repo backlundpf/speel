@@ -1,5 +1,12 @@
 # @speel/migrations-cli
 
+## 0.1.0-beta.4
+
+### Patch Changes
+
+- @speel/core@0.1.0-beta.4
+  - @speel/migrations@0.1.0-beta.4
+
 ## 0.1.0-beta.3
 
 ### Minor Changes

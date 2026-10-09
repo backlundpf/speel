@@ -1,6 +1,6 @@
 {
   "name": "@speel/pnpjs",
-  "version": "0.1.0-beta.3",
+  "version": "0.1.0-beta.4",
   "description": "PnPjs v4 SharePoint provider for @speel/core, @speel/migrations, and @speel/identity.",
   "keywords": [
     "sharepoint",
@@ -43,9 +43,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
-    "@speel/core": "^0.1.0-beta.3",
-    "@speel/migrations": "^0.1.0-beta.3",
-    "@speel/identity": "^0.1.0-beta.3",
+    "@speel/core": "^0.1.0-beta.4",
+    "@speel/migrations": "^0.1.0-beta.4",
+    "@speel/identity": "^0.1.0-beta.4",
     "@pnp/sp": "^4.0.0",
     "@pnp/queryable": "^4.0.0",
     "@pnp/logging": "^4.0.0"
@@ -59,9 +59,9 @@
     }
   },
   "devDependencies": {
-    "@speel/core": "0.1.0-beta.3",
-    "@speel/migrations": "0.1.0-beta.3",
-    "@speel/identity": "0.1.0-beta.3",
+    "@speel/core": "0.1.0-beta.4",
+    "@speel/migrations": "0.1.0-beta.4",
+    "@speel/identity": "0.1.0-beta.4",
     "@pnp/sp": "^4.0.0",
     "@pnp/queryable": "^4.0.0",
     "@pnp/logging": "^4.0.0",
