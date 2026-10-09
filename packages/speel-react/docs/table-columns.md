@@ -192,14 +192,14 @@ const ui = useSpeelUI(); // from "@speel/react", in the component rendering the 
 
 columns={(p) => [
   p.Title.with({
-    render: (t) => <ui.Link text={t.Title ?? ""} href={urlOf(t)} onClick={() => open(t)} />,
+    render: (t) => <ui.Link text={t.Title?.trim() || "(Untitled)"} href={urlOf(t)} onClick={() => open(t)} />,
   }),
   p.Owner,
 ]}
 ```
 
 A title too long for the column is cut off at its end with "…" and shows its full text on
-hover. Without `href` it is a button that looks the same.
+hover. Without `href` it is a button that looks the same. Empty `text` leaves it nameless.
 
 ### A control in the header
 

@@ -209,9 +209,14 @@ const DashboardBody: React.FC<{
   };
   // Arriving with ?project=<id> (a title opened in a new tab, or a shared link): load that
   // project and open its view. Mount-only on purpose — after that the URL follows the open
-  // view, not the other way round. An id that matches nothing is dropped from the URL.
+  // view, not the other way round. An id that is not a list item id, matches nothing or
+  // fails to load is dropped from the URL.
   React.useEffect(() => {
     if (project === undefined) return;
+    if (!Number.isInteger(project) || project <= 0) {
+      onProjectChange(undefined);
+      return;
+    }
     let live = true;
     ctx.projects
       .findAsync(project)
@@ -221,7 +226,9 @@ const DashboardBody: React.FC<{
         else onProjectChange(undefined);
       })
       .catch((e) => {
-        if (live) toast.error(errMsg(e), { title: "Could not open project" });
+        if (!live) return;
+        toast.error(errMsg(e), { title: "Could not open project" });
+        onProjectChange(undefined);
       });
     return () => {
       live = false;
@@ -295,7 +302,8 @@ const DashboardBody: React.FC<{
             render: (r) => (
               <ui.Link
                 href={projectHref(idOf(r))}
-                text={r.Title ?? ""}
+                // An empty title would leave the link with no text and no name.
+                text={r.Title?.trim() || "(Untitled project)"}
                 onClick={() => openProject(r)}
               />
             ),
