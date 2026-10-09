@@ -540,9 +540,12 @@ export const fakeAdapter: SpeelUIAdapter = {
 
   Link: ({ text, href, onClick, target, ariaLabel, disabled }) =>
     href !== undefined ? (
+      // A disabled link goes nowhere but stays a focusable link, as in the skins.
       <a
-        href={href}
-        target={target}
+        href={disabled ? undefined : href}
+        target={disabled ? undefined : target}
+        role={disabled ? "link" : undefined}
+        tabIndex={disabled ? 0 : undefined}
         aria-label={ariaLabel}
         aria-disabled={disabled ? "true" : undefined}
         data-fake-link=""
