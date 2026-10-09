@@ -47,11 +47,11 @@ export const ArtifactsPanel: React.FC<{
             header: "File",
             render: (r) =>
               r.FileLeafRef && r.FileRef ? (
-                // A plain anchor: the adapter has no link primitive, and a link to a
-                // file needs nothing a skin would add.
-                <a href={r.FileRef} target="_blank" rel="noreferrer">
-                  {r.FileLeafRef}
-                </a>
+                <ui.Link
+                  href={r.FileRef}
+                  text={r.FileLeafRef}
+                  target="_blank"
+                />
               ) : (
                 <span>—</span>
               ),

@@ -6,6 +6,7 @@ import {
   useOverlays,
   useSpeelUI,
   useUrlState,
+  urlNumber,
   urlString,
   type SpeelEntityTableHandle,
   type PeopleSearch,
@@ -109,7 +110,20 @@ const ProgramsSection: React.FC<{ ctx: ProjectDashboardContext }> = ({
   );
 };
 
-const DashboardBody: React.FC<{ ctx: ProjectDashboardContext }> = ({ ctx }) => {
+/** This page's URL with `?project=<id>` — the dashboard's own `project` parameter — so a
+ *  project title opened in a new tab, or copied, lands here with that project open. */
+const projectHref = (id: number): string => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("project", String(id));
+  return url.toString();
+};
+
+const DashboardBody: React.FC<{
+  ctx: ProjectDashboardContext;
+  /** The project named in the URL (`?project=`), if any. */
+  project: number | undefined;
+  onProjectChange: (id: number | undefined) => void;
+}> = ({ ctx, project, onProjectChange }) => {
   const ui = useSpeelUI();
   const { toast, tasks, showForm, showDocumentForm } = useOverlays();
   const tableRef = React.useRef<SpeelEntityTableHandle>(null);
@@ -179,15 +193,40 @@ const DashboardBody: React.FC<{ ctx: ProjectDashboardContext }> = ({ ctx }) => {
       reload();
     }
   };
-  const viewProject = (p: Project): void => {
-    void showForm({
+  // Opening a project names it in the URL for as long as its view is up (`showForm`
+  // resolves when the view closes), so the address bar is always the open project's link.
+  const openProject = (p: Project): void => {
+    onProjectChange(idOf(p));
+    showForm({
       surface: "modal",
       title: p.Title ?? "Project",
       entity: p,
       mode: "view",
       sections: SECTIONS,
-    });
+    })
+      .then(() => onProjectChange(undefined))
+      .catch((e) => toast.error(errMsg(e)));
   };
+  // Arriving with ?project=<id> (a title opened in a new tab, or a shared link): load that
+  // project and open its view. Mount-only on purpose — after that the URL follows the open
+  // view, not the other way round. An id that matches nothing is dropped from the URL.
+  React.useEffect(() => {
+    if (project === undefined) return;
+    let live = true;
+    ctx.projects
+      .findAsync(project)
+      .then((p) => {
+        if (!live) return;
+        if (p) openProject(p);
+        else onProjectChange(undefined);
+      })
+      .catch((e) => {
+        if (live) toast.error(errMsg(e), { title: "Could not open project" });
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
   const removeProject = (p: Project): void => {
     ctx.set(Project).remove(p);
     tasks
@@ -248,14 +287,16 @@ const DashboardBody: React.FC<{ ctx: ProjectDashboardContext }> = ({ ctx }) => {
               </span>
             ),
           },
-          // The title opens the project: a link button stays on one line, keeps the
-          // start of a long title, and shows the whole title on hover when cut off.
+          // The title opens the project in place. It is a real link to this page with
+          // ?project=<id>, so the link's own menu (or a middle click) opens the project in
+          // a new tab. It stays on one line, keeps the start of a long title, and shows the
+          // whole title on hover when cut off.
           p.Title.with({
             render: (r) => (
-              <ui.Button
-                appearance="link"
+              <ui.Link
+                href={projectHref(idOf(r))}
                 text={r.Title ?? ""}
-                onClick={() => viewProject(r)}
+                onClick={() => openProject(r)}
               />
             ),
           }),
@@ -279,7 +320,7 @@ const DashboardBody: React.FC<{ ctx: ProjectDashboardContext }> = ({ ctx }) => {
           },
         ]}
         rowActions={{
-          onView: viewProject,
+          onView: openProject,
           onEdit: (p) => void editProject(p),
           onDelete: removeProject,
           custom: [
@@ -341,7 +382,10 @@ export const ProjectsDashboard: React.FC<{
   ctx: ProjectDashboardContext;
   peopleSearch?: PeopleSearch;
 }> = ({ ctx, peopleSearch }) => {
-  const [params, setParams] = useUrlState({ skin: urlString() });
+  const [params, setParams] = useUrlState({
+    skin: urlString(),
+    project: urlNumber(),
+  });
   const skin: Skin = isSkin(params.skin) ? params.skin : "fluent";
   const tree = (
     <SpeelProvider
@@ -359,7 +403,11 @@ export const ProjectsDashboard: React.FC<{
           setParams({ skin: next === "fluent" ? null : next })
         }
       />
-      <DashboardBody ctx={ctx} />
+      <DashboardBody
+        ctx={ctx}
+        project={params.project ?? undefined}
+        onProjectChange={(id) => setParams({ project: id ?? null })}
+      />
     </SpeelProvider>
   );
   return skin === "shadcn" ? <div className="speel-shadcn">{tree}</div> : tree;
