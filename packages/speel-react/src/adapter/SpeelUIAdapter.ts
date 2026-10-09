@@ -176,11 +176,8 @@ export interface FileInputProps extends FieldChrome {
 export interface ButtonProps {
   text: string;
   onClick?: () => void;
-  /**
-   * `danger` marks a destructive action (the skin renders it in its error color). `link` is
-   * inline text that truncates at its end — for an action inside running text or a table cell.
-   */
-  appearance?: "primary" | "secondary" | "subtle" | "danger" | "link";
+  /** `danger` marks a destructive action (the skin renders it in its error color). */
+  appearance?: "primary" | "secondary" | "subtle" | "danger";
   type?: "button" | "submit";
   disabled?: boolean;
   /** Accessible name, when the visible text is not one — a status glyph, a bare view name. */
@@ -192,6 +189,22 @@ export interface ButtonProps {
    * is disabled too — the place to say why ("Tick rows first").
    */
   tooltip?: string;
+}
+
+/**
+ * A link — identical to a real link in the skin, whichever form it takes. With `href` it is an
+ * `<a>` (open in new tab, copy link and middle click work); `onClick` then replaces navigation on a
+ * plain left click only, so an SPA can update the page while a modified click still opens a tab.
+ * Without `href` it is a `<button>` that looks the same.
+ */
+export interface LinkProps {
+  text: string;
+  href?: string;
+  onClick?: () => void;
+  /** `_blank` adds `rel="noreferrer noopener"`. */
+  target?: string;
+  ariaLabel?: string;
+  disabled?: boolean;
 }
 
 export interface IconButtonProps {
@@ -377,6 +390,7 @@ export interface SpeelUIAdapter {
   Spinner: ComponentType<SpinnerProps>;
   Button: ComponentType<ButtonProps>;
   IconButton: ComponentType<IconButtonProps>;
+  Link: ComponentType<LinkProps>;
   MessageBar: ComponentType<MessageBarProps>;
   ProgressBar: ComponentType<ProgressBarProps>;
   Dialog: ComponentType<DialogProps>;

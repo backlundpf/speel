@@ -105,7 +105,7 @@ export function DocumentFileBlock(props: {
     <div style={{ marginTop: 12 }}>
       <ui.FieldDisplay label="File">
         {entity.FileLeafRef && entity.FileRef ? (
-          <a href={entity.FileRef}>{entity.FileLeafRef}</a>
+          <ui.Link href={entity.FileRef} text={entity.FileLeafRef} />
         ) : (
           <span>—</span>
         )}

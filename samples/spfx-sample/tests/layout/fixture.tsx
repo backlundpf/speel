@@ -9,6 +9,7 @@ import type { TableColumn, TableLength } from "@speel/react";
 // The package exports the skin as an adapter, not its primitives: its Table is V8Table.
 const V8Table = fluentV8Adapter.Table;
 const V8Button = fluentV8Adapter.Button;
+const V8Link = fluentV8Adapter.Link;
 
 // Liberation Sans ships with Playwright's Linux dependencies: pinning it makes the skin's
 // canvas measurements and the browser's line breaking agree on every machine.
@@ -294,35 +295,29 @@ const scenarios: Scenario[] = [
     items: [{ n: "42", filler: "" }],
   },
   {
-    // A row title rendered as a link button, bare and tooltip-wrapped, each with a title as
-    // SpeelTable gives every data column.
+    // A row title rendered as a link with `href` (an `<a>` whose plain click stays in the
+    // page) beside a link without one (a `<button>`), each with a title as SpeelTable gives
+    // every data column.
     name: "link",
     containerWidth: 1200,
     columns: [
       col("t", "Title", {
         width: 120,
         render: (r) => (
-          <V8Button
-            appearance="link"
+          <V8Link
+            href={"#" + (r as Row)["t"]}
             text={(r as Row)["t"] ?? ""}
             onClick={() => undefined}
           />
         ),
         cellTitle: (r) => (r as Row)["t"] ?? "",
+      }),
+      col("b", "Action", {
+        width: 120,
+        render: () => <V8Link text="Action" onClick={() => undefined} />,
+        cellTitle: () => "Action",
       }),
       col("p", "Plain", { width: 120 }),
-      col("tt", "Tipped", {
-        width: 120,
-        render: (r) => (
-          <V8Button
-            appearance="link"
-            text={(r as Row)["t"] ?? ""}
-            tooltip="Open the item"
-            onClick={() => undefined}
-          />
-        ),
-        cellTitle: (r) => (r as Row)["t"] ?? "",
-      }),
       col("filler", "Filler", { width: 50 }),
     ],
     items: [

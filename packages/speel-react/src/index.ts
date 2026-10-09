@@ -34,6 +34,7 @@ export type {
   ProgressBarProps,
   ButtonProps,
   IconButtonProps,
+  LinkProps,
   MessageBarProps,
   DialogProps,
   DrawerProps,

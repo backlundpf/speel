@@ -457,14 +457,14 @@ test.describe("default widths", () => {
   });
 });
 
-test.describe("link buttons", () => {
-  test("a long link title shows its beginning, ends cut off, and hovers its full text", async ({
+test.describe("links", () => {
+  test("a long link shows its beginning, ends cut off, and hovers its full text", async ({
     page,
   }) => {
     await show(page);
     const s = scenario(page, "link");
     const cell = rowCells(s, 0).nth(0);
-    const link = cell.locator(".ms-Link");
+    const link = cell.locator("a.ms-Link");
     const firstCharLeft = await link.evaluate((el) => {
       const node = document
         .createTreeWalker(el, NodeFilter.SHOW_TEXT)
@@ -494,15 +494,51 @@ test.describe("link buttons", () => {
 
   test("a link row is no taller than a plain text row", async ({ page }) => {
     await show(page);
-    const s = scenario(page, "link");
-    const rows = s.locator('[data-automationid="DetailsRow"]');
-    const linkRow = (await rows.nth(1).boundingBox())!.height;
+    const rows = scenario(page, "link").locator(
+      '[data-automationid="DetailsRow"]',
+    );
     const authored = scenario(page, "authored-widths")
       .locator('[data-automationid="DetailsRow"]')
       .first();
-    expect(linkRow).toBeLessThanOrEqual(
-      (await authored.boundingBox())!.height + 0.5,
-    );
+    const plain = (await authored.boundingBox())!.height;
+    for (const row of [0, 1]) {
+      expect((await rows.nth(row).boundingBox())!.height).toBeLessThanOrEqual(
+        plain + 0.5,
+      );
+    }
+  });
+
+  test("a link with href and one without look the same, at rest and hovered", async ({
+    page,
+  }) => {
+    await show(page);
+    const s = scenario(page, "link");
+    const anchor = rowCells(s, 1).nth(0).locator("a.ms-Link");
+    const button = rowCells(s, 1).nth(1).locator("button.ms-Link");
+    const look = (l: Locator) =>
+      l.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return {
+          color: cs.color,
+          fontWeight: cs.fontWeight,
+          textDecorationLine: cs.textDecorationLine,
+          cursor: cs.cursor,
+        };
+      });
+    const decoration = (l: Locator) =>
+      l.evaluate((el) => getComputedStyle(el).textDecorationLine);
+
+    const [a, b] = [await look(anchor), await look(button)];
+    expect(b).toEqual(a);
+    expect(a.textDecorationLine).toBe("none");
+    expect(a.cursor).toBe("pointer");
+
+    await anchor.hover();
+    const aHovered = await decoration(anchor);
+    await button.hover();
+    const bHovered = await decoration(button);
+    expect(aHovered).toBe("underline");
+    expect(bHovered).toBe(aHovered);
   });
 });
 
@@ -525,27 +561,4 @@ test.describe("tooltip anchoring", () => {
       ).toBeLessThanOrEqual(1);
     });
   }
-
-  test("a link with a tooltip is its host's box and still cuts itself off in a cell", async ({
-    page,
-  }) => {
-    await show(page);
-    const cell = rowCells(scenario(page, "link"), 0).nth(2);
-    const link = cell.locator(".ms-Link");
-    const host = cell.locator(".ms-TooltipHost");
-    const [l, h] = [(await link.boundingBox())!, (await host.boundingBox())!];
-    expect(
-      Math.abs(l.x - h.x) + Math.abs(l.width - h.width),
-    ).toBeLessThanOrEqual(1);
-    expect(await link.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
-      true,
-    );
-    const cellContent = cell.locator(":scope > div");
-    expect(
-      await cellContent.evaluate((el) => el.scrollWidth <= el.clientWidth),
-    ).toBe(true);
-    await link.hover();
-    await expect(link).not.toHaveAttribute("title"); // the tooltip is the hover text
-    await expect(cellContent).not.toHaveAttribute("title");
-  });
 });

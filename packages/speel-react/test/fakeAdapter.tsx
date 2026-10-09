@@ -538,6 +538,45 @@ export const fakeAdapter: SpeelUIAdapter = {
     />
   ),
 
+  Link: ({ text, href, onClick, target, ariaLabel, disabled }) =>
+    href !== undefined ? (
+      <a
+        href={href}
+        target={target}
+        aria-label={ariaLabel}
+        aria-disabled={disabled ? "true" : undefined}
+        data-fake-link=""
+        onClick={(e) => {
+          if (disabled) return e.preventDefault();
+          if (
+            !onClick ||
+            e.button !== 0 ||
+            e.ctrlKey ||
+            e.metaKey ||
+            e.shiftKey ||
+            e.altKey
+          )
+            return;
+          e.preventDefault();
+          onClick();
+        }}
+      >
+        {text}
+      </a>
+    ) : (
+      <button
+        type="button"
+        data-fake-link=""
+        aria-label={ariaLabel}
+        aria-disabled={disabled ? "true" : undefined}
+        onClick={() => {
+          if (!disabled) onClick?.();
+        }}
+      >
+        {text}
+      </button>
+    ),
+
   MessageBar: ({ intent, children, onDismiss, actions, multiline }) => (
     <div role="alert" data-intent={intent} data-multiline={multiline}>
       {children}

@@ -88,6 +88,7 @@ import type {
   DrawerProps,
   TableProps,
   IconButtonProps,
+  LinkProps,
   ProgressBarProps,
   TableColumn,
   TableSort,
@@ -236,7 +237,7 @@ export function V8ProgressBar(p: ProgressBarProps): JSX.Element {
   );
 }
 
-/** An inline text button: one line, cut off at its end, never centred. */
+/** A link: one line, cut off at its end, never centred. */
 const LINK_STYLES = {
   root: {
     display: "inline-block",
@@ -258,83 +259,87 @@ const FILL_HOST = { root: { width: "100%" } };
 const TOOLTIP_HOST_STYLES = {
   root: { display: "inline-block" },
 } satisfies Partial<ITooltipHostStyles>;
-/**
- * A link's host also takes the link's `max-width`: a link fills its host, so an unbounded
- * host would let it outgrow a narrow cell and be clipped there instead of cutting itself off.
- */
-const LINK_TOOLTIP_HOST_STYLES = {
-  root: { ...TOOLTIP_HOST_STYLES.root, maxWidth: "100%" },
-} satisfies Partial<ITooltipHostStyles>;
-
-/**
- * A tooltip link's root. Fluent's `Link` puts the native `disabled` attribute on its
- * `<button>`, which swallows the pointer and focus events the tooltip opens on; this
- * button drops it. `Link` still marks it `aria-disabled`, styles it disabled and ignores
- * its clicks — what `allowDisabledFocus` does for the other appearances.
- */
-const FocusableButton = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement>
->(function FocusableButton({ disabled: _native, ...rest }, ref) {
-  return <button ref={ref} {...rest} />;
-});
 
 export function V8Button(p: ButtonProps): JSX.Element {
   const tooltipId = useStableId();
-  const button =
-    p.appearance === "link" ? (
-      <V8LinkButton {...p} tooltipId={tooltipId} />
-    ) : (
-      <V8FluentButton {...p} tooltipId={tooltipId} />
-    );
+  const button = <V8FluentButton {...p} tooltipId={tooltipId} />;
   if (p.tooltip === undefined) return button;
   return (
     <TooltipHost
       content={p.tooltip}
       id={tooltipId}
-      styles={
-        p.appearance === "link" ? LINK_TOOLTIP_HOST_STYLES : TOOLTIP_HOST_STYLES
-      }
+      styles={TOOLTIP_HOST_STYLES}
     >
       {button}
     </TooltipHost>
   );
 }
 
-function V8LinkButton(p: ButtonProps & { tooltipId: string }): JSX.Element {
+/** Whether a click on a link should be left to the browser — a new tab, window or download. */
+const browserHandlesClick = (e: React.MouseEvent): boolean =>
+  e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey;
+
+/**
+ * A disabled link's root. Fluent's `Link` disables its `<button>` natively and drops its
+ * `<a>`'s `href`, which takes either out of the tab order. This root keeps a disabled link
+ * focusable: the `<a>` keeps no `href` (nothing to follow, open in a new tab or copy) but
+ * keeps its link role and a tab stop; the `<button>` loses the native attribute. `Link`
+ * still marks either `aria-disabled`, styles it disabled and ignores its clicks.
+ */
+const DisabledLinkRoot = React.forwardRef<
+  HTMLElement,
+  React.AnchorHTMLAttributes<HTMLElement> & { disabled?: boolean }
+>(function DisabledLinkRoot(
+  { disabled: _native, href, target: _target, rel: _rel, ...rest },
+  ref,
+) {
+  return href !== undefined ? (
+    <a
+      ref={ref as React.Ref<HTMLAnchorElement>}
+      role="link"
+      tabIndex={0}
+      {...rest}
+    />
+  ) : (
+    <button
+      ref={ref as React.Ref<HTMLButtonElement>}
+      type="button"
+      {...(rest as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+    />
+  );
+});
+
+export function V8Link(p: LinkProps): JSX.Element {
+  const { onClick, href } = p;
   return (
     <Link
-      styles={
-        p.tooltip !== undefined
-          ? { root: { ...LINK_STYLES.root, ...FILL_HOST.root } }
-          : LINK_STYLES
-      }
-      type={p.type ?? "button"}
+      styles={LINK_STYLES}
+      {...(href !== undefined ? { href } : {})}
+      {...(p.target !== undefined
+        ? {
+            target: p.target,
+            ...(p.target === "_blank" ? { rel: "noreferrer noopener" } : {}),
+          }
+        : {})}
       disabled={!!p.disabled}
-      data-appearance="link"
+      {...(p.disabled ? { as: DisabledLinkRoot } : {})}
       {...(p.ariaLabel !== undefined ? { "aria-label": p.ariaLabel } : {})}
-      {...(p.onClick ? { onClick: p.onClick } : {})}
-      {...(p.tooltip !== undefined
-        ? // The tooltip is the hover text; the root keeps a disabled link hoverable.
-          { as: FocusableButton, "aria-describedby": p.tooltipId }
-        : {
-            // A cut-off link shows its full text natively.
-            onMouseEnter: (e: React.MouseEvent<HTMLElement>) =>
-              setOverflowTitle(e.currentTarget, () => p.text),
-          })}
+      {...(onClick
+        ? {
+            onClick: (e: React.MouseEvent<HTMLElement>) => {
+              if (href !== undefined) {
+                if (browserHandlesClick(e)) return;
+                e.preventDefault();
+              }
+              onClick();
+            },
+          }
+        : {})}
+      onMouseEnter={(e: React.MouseEvent<HTMLElement>) =>
+        setOverflowTitle(e.currentTarget, () => p.text)
+      }
     >
-      {p.iconName !== undefined ? (
-        <>
-          <Icon
-            iconName={p.iconName}
-            aria-hidden
-            style={{ marginInlineEnd: 4, verticalAlign: "middle" }}
-          />
-          {p.text}
-        </>
-      ) : (
-        p.text
-      )}
+      {p.text}
     </Link>
   );
 }
