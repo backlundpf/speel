@@ -1,6 +1,6 @@
 {
   "name": "@speel/migrations-cli",
-  "version": "0.1.0-beta.3",
+  "version": "0.1.0-beta.4",
   "description": "Design-time CLI that generates @speel/migrations files by diffing your model against a snapshot.",
   "keywords": [
     "sharepoint",
@@ -49,12 +49,12 @@
     "jiti": "^2.0.0"
   },
   "peerDependencies": {
-    "@speel/core": "^0.1.0-beta.3",
-    "@speel/migrations": "^0.1.0-beta.3"
+    "@speel/core": "^0.1.0-beta.4",
+    "@speel/migrations": "^0.1.0-beta.4"
   },
   "devDependencies": {
-    "@speel/core": "0.1.0-beta.3",
-    "@speel/migrations": "0.1.0-beta.3",
+    "@speel/core": "0.1.0-beta.4",
+    "@speel/migrations": "0.1.0-beta.4",
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
