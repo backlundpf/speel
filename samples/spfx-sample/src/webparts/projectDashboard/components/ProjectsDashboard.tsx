@@ -6,6 +6,7 @@ import {
   useOverlays,
   useSpeelUI,
   useUrlState,
+  urlNumber,
   urlString,
   type SpeelEntityTableHandle,
   type PeopleSearch,
@@ -92,6 +93,7 @@ const ProgramsSection: React.FC<{ ctx: ProjectDashboardContext }> = ({
           {
             key: "projects",
             header: "Projects",
+            align: "end", // a count lines up on its last digit
             render: (r) => r.OwnedProjects?.length ?? 0,
             sortValue: (r) => r.OwnedProjects?.length ?? 0,
           },
@@ -108,7 +110,20 @@ const ProgramsSection: React.FC<{ ctx: ProjectDashboardContext }> = ({
   );
 };
 
-const DashboardBody: React.FC<{ ctx: ProjectDashboardContext }> = ({ ctx }) => {
+/** This page's URL with `?project=<id>` — the dashboard's own `project` parameter — so a
+ *  project title opened in a new tab, or copied, lands here with that project open. */
+const projectHref = (id: number): string => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("project", String(id));
+  return url.toString();
+};
+
+const DashboardBody: React.FC<{
+  ctx: ProjectDashboardContext;
+  /** The project named in the URL (`?project=`), if any. */
+  project: number | undefined;
+  onProjectChange: (id: number | undefined) => void;
+}> = ({ ctx, project, onProjectChange }) => {
   const ui = useSpeelUI();
   const { toast, tasks, showForm, showDocumentForm } = useOverlays();
   const tableRef = React.useRef<SpeelEntityTableHandle>(null);
@@ -116,6 +131,21 @@ const DashboardBody: React.FC<{ ctx: ProjectDashboardContext }> = ({ ctx }) => {
   const reload = (): void => {
     void tableRef.current?.reload();
   };
+
+  // The select column: a box per row, and one in the header for every row the table matches.
+  const [matched, setMatched] = React.useState<readonly Project[]>([]);
+  const [selected, setSelected] = React.useState<ReadonlySet<number>>(
+    new Set(),
+  );
+  const idOf = (r: Project): number => r.Id ?? 0; // a loaded row always has its Id
+  const allSelected =
+    matched.length > 0 && matched.every((r) => selected.has(idOf(r)));
+  const toggleRow = (r: Project): void =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(idOf(r))) next.add(idOf(r));
+      return next;
+    });
 
   const uploadArtifact = async (p: Project): Promise<void> => {
     // Pre-set nav + FK: the form's lookup displays it without a fetch, and
@@ -163,15 +193,47 @@ const DashboardBody: React.FC<{ ctx: ProjectDashboardContext }> = ({ ctx }) => {
       reload();
     }
   };
-  const viewProject = (p: Project): void => {
-    void showForm({
+  // Opening a project names it in the URL for as long as its view is up (`showForm`
+  // resolves when the view closes), so the address bar is always the open project's link.
+  const openProject = (p: Project): void => {
+    onProjectChange(idOf(p));
+    showForm({
       surface: "modal",
       title: p.Title ?? "Project",
       entity: p,
       mode: "view",
       sections: SECTIONS,
-    });
+    })
+      .then(() => onProjectChange(undefined))
+      .catch((e) => toast.error(errMsg(e)));
   };
+  // Arriving with ?project=<id> (a title opened in a new tab, or a shared link): load that
+  // project and open its view. Mount-only on purpose — after that the URL follows the open
+  // view, not the other way round. An id that is not a list item id, matches nothing or
+  // fails to load is dropped from the URL.
+  React.useEffect(() => {
+    if (project === undefined) return;
+    if (!Number.isInteger(project) || project <= 0) {
+      onProjectChange(undefined);
+      return;
+    }
+    let live = true;
+    ctx.projects
+      .findAsync(project)
+      .then((p) => {
+        if (!live) return;
+        if (p) openProject(p);
+        else onProjectChange(undefined);
+      })
+      .catch((e) => {
+        if (!live) return;
+        toast.error(errMsg(e), { title: "Could not open project" });
+        onProjectChange(undefined);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
   const removeProject = (p: Project): void => {
     ctx.set(Project).remove(p);
     tasks
@@ -199,16 +261,63 @@ const DashboardBody: React.FC<{ ctx: ProjectDashboardContext }> = ({ ctx }) => {
       <SpeelEntityTable
         ref={tableRef}
         of={Project}
+        onMatchedRowsChange={setMatched}
+        // Column alignment on show: start (the default — Priority, Due date, Owner), center
+        // (Select, Status, Health) and end (Budget). `align` is text alignment, so the
+        // checkboxes — block-level controls — sit in inline-block spans to move with it.
         columns={(p) => [
-          p.Title,
-          p.Status,
+          {
+            key: "select",
+            header: "Select",
+            width: 40,
+            align: "center",
+            headerContent: (
+              <span style={{ display: "inline-block" }}>
+                <ui.Checkbox
+                  ariaLabel="Select all projects"
+                  checked={allSelected}
+                  onChange={() =>
+                    setSelected(
+                      allSelected ? new Set() : new Set(matched.map(idOf)),
+                    )
+                  }
+                />
+              </span>
+            ),
+            render: (r) => (
+              <span style={{ display: "inline-block" }}>
+                <ui.Checkbox
+                  ariaLabel={`Select ${r.Title ?? "project"}`}
+                  checked={selected.has(idOf(r))}
+                  onChange={() => toggleRow(r)}
+                />
+              </span>
+            ),
+          },
+          // The title opens the project in place. It is a real link to this page with
+          // ?project=<id>, so the link's own menu (or a middle click) opens the project in
+          // a new tab. It stays on one line, keeps the start of a long title, and shows the
+          // whole title on hover when cut off.
+          p.Title.with({
+            render: (r) => (
+              <ui.Link
+                href={projectHref(idOf(r))}
+                // An empty title would leave the link with no text and no name.
+                text={r.Title?.trim() || "(Untitled project)"}
+                onClick={() => openProject(r)}
+              />
+            ),
+          }),
+          p.Description.with({ wrap: true }),
+          p.Status.with({ align: "center" }),
           p.Priority,
-          p.Budget,
+          p.Budget.with({ align: "end" }),
           p.DueDate,
           p.Owner,
           {
             key: "health",
             header: "Health",
+            align: "center",
             render: (r) =>
               r.DueDate && r.DueDate < new Date() ? (
                 <span style={{ color: "crimson" }}>Late</span>
@@ -219,7 +328,7 @@ const DashboardBody: React.FC<{ ctx: ProjectDashboardContext }> = ({ ctx }) => {
           },
         ]}
         rowActions={{
-          onView: viewProject,
+          onView: openProject,
           onEdit: (p) => void editProject(p),
           onDelete: removeProject,
           custom: [
@@ -281,7 +390,10 @@ export const ProjectsDashboard: React.FC<{
   ctx: ProjectDashboardContext;
   peopleSearch?: PeopleSearch;
 }> = ({ ctx, peopleSearch }) => {
-  const [params, setParams] = useUrlState({ skin: urlString() });
+  const [params, setParams] = useUrlState({
+    skin: urlString(),
+    project: urlNumber(),
+  });
   const skin: Skin = isSkin(params.skin) ? params.skin : "fluent";
   const tree = (
     <SpeelProvider
@@ -299,7 +411,11 @@ export const ProjectsDashboard: React.FC<{
           setParams({ skin: next === "fluent" ? null : next })
         }
       />
-      <DashboardBody ctx={ctx} />
+      <DashboardBody
+        ctx={ctx}
+        project={params.project ?? undefined}
+        onProjectChange={(id) => setParams({ project: id ?? null })}
+      />
     </SpeelProvider>
   );
   return skin === "shadcn" ? <div className="speel-shadcn">{tree}</div> : tree;

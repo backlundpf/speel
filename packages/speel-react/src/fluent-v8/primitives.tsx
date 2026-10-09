@@ -26,10 +26,13 @@ import {
   DEFAULT_CELL_STYLE_PROPS,
   SelectionMode,
   type IColumn,
+  type IDetailsList,
   ColumnActionsMode,
+  FontWeights,
   ProgressIndicator,
   Callout,
   Icon,
+  Link,
   ContextualMenu,
   ContextualMenuItemType,
   useTheme,
@@ -47,11 +50,24 @@ import type {
   IDetailsHeaderProps,
   IContextualMenuItem,
   IButtonStyles,
+  ILinkStyleProps,
+  ILinkStyles,
+  IRawStyle,
+  ITooltipHostStyles,
   Theme,
 } from "@fluentui/react";
 import { V8Field, chromeFrom, useFieldAria } from "./Field.js";
 import { useStableId } from "./useStableId.js";
-import { columnBounds, heldWidth } from "./columnBounds.js";
+import { columnBounds } from "./columnBounds.js";
+import {
+  headerFloor,
+  textMeasurer,
+  type HeaderRoom,
+} from "../table/layout/headerFloor.js";
+import { toFlexColumn } from "../table/layout/columnFlex.js";
+import { resolveColumnWidths } from "../table/layout/resolveColumnWidths.js";
+import { useContainerWidth } from "../table/layout/useContainerWidth.js";
+import { setOverflowTitle } from "../table/overflowTitle.js";
 import { useResizable } from "../surface/useResizable.js";
 import { useDragResize } from "../surface/useDragResize.js";
 import { SpeelActionBar } from "../actions.js";
@@ -74,6 +90,7 @@ import type {
   DrawerProps,
   TableProps,
   IconButtonProps,
+  LinkProps,
   ProgressBarProps,
   TableColumn,
   TableSort,
@@ -222,8 +239,123 @@ export function V8ProgressBar(p: ProgressBarProps): JSX.Element {
   );
 }
 
+/** A link: one line, cut off at its end, never centred, on its text's line height. */
+const LINK_ROOT = {
+  display: "inline-block",
+  maxWidth: "100%",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  verticalAlign: "top",
+  textAlign: "start",
+  // The browser gives a `<button>` `line-height: normal`: in text with a line height of its
+  // own, the button form would sit higher than the anchor.
+  lineHeight: "inherit",
+} satisfies IRawStyle;
+/**
+ * The button form keeps Fluent's transparent 1px bottom border (it shows in high contrast),
+ * which makes its box 1px taller than the line; a matching negative margin cancels it.
+ */
+const linkStyles = ({ isButton }: ILinkStyleProps): ILinkStyles => ({
+  root: [LINK_ROOT, isButton && { marginBottom: -1 }],
+});
+/** The wrapped button fills its tooltip host, so the host and the button are one box. */
+const FILL_HOST = { root: { width: "100%" } };
+/**
+ * Fluent's host is `inline`, which can't take its child's box: in a stretching flex container
+ * it stretches while the button doesn't, and the tooltip centres on the wider host.
+ * `inline-block` and a button that fills it make them one box in any container.
+ */
+const TOOLTIP_HOST_STYLES = {
+  root: { display: "inline-block" },
+} satisfies Partial<ITooltipHostStyles>;
+
 export function V8Button(p: ButtonProps): JSX.Element {
   const tooltipId = useStableId();
+  const button = <V8FluentButton {...p} tooltipId={tooltipId} />;
+  if (p.tooltip === undefined) return button;
+  return (
+    <TooltipHost
+      content={p.tooltip}
+      id={tooltipId}
+      styles={TOOLTIP_HOST_STYLES}
+    >
+      {button}
+    </TooltipHost>
+  );
+}
+
+/** Whether a click on a link should be left to the browser — a new tab, window or download. */
+const browserHandlesClick = (e: React.MouseEvent): boolean =>
+  e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey;
+
+/**
+ * The link's root, enabled or disabled: one component type, so toggling `disabled` updates
+ * the element in place and focus stays on it. Fluent's own string root can't keep a disabled
+ * link focusable — it disables its `<button>` natively and drops its `<a>`'s `href`, which
+ * takes either out of the tab order. Here a disabled `<a>` keeps no `href`, `target` or `rel`
+ * (nothing to follow, open in a new tab or copy) but keeps its link role and a tab stop; the
+ * `<button>` never takes the native attribute. `Link` still marks either `aria-disabled`,
+ * styles it disabled and ignores its clicks.
+ */
+const LinkRoot = React.forwardRef<
+  HTMLElement,
+  React.AnchorHTMLAttributes<HTMLElement> & { disabled?: boolean }
+>(function LinkRoot({ disabled, href, target, rel, ...rest }, ref) {
+  if (href === undefined) {
+    return (
+      <button
+        ref={ref as React.Ref<HTMLButtonElement>}
+        type="button"
+        {...(rest as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+      />
+    );
+  }
+  return (
+    <a
+      ref={ref as React.Ref<HTMLAnchorElement>}
+      {...rest}
+      {...(disabled ? { role: "link", tabIndex: 0 } : { href, target, rel })}
+    />
+  );
+});
+
+export function V8Link(p: LinkProps): JSX.Element {
+  const { onClick, href } = p;
+  return (
+    <Link
+      as={LinkRoot}
+      styles={linkStyles}
+      {...(href !== undefined ? { href } : {})}
+      {...(p.target !== undefined
+        ? {
+            target: p.target,
+            ...(p.target === "_blank" ? { rel: "noreferrer noopener" } : {}),
+          }
+        : {})}
+      disabled={!!p.disabled}
+      {...(p.ariaLabel !== undefined ? { "aria-label": p.ariaLabel } : {})}
+      {...(onClick
+        ? {
+            onClick: (e: React.MouseEvent<HTMLElement>) => {
+              if (href !== undefined) {
+                if (browserHandlesClick(e)) return;
+                e.preventDefault();
+              }
+              onClick();
+            },
+          }
+        : {})}
+      onMouseEnter={(e: React.MouseEvent<HTMLElement>) =>
+        setOverflowTitle(e.currentTarget, () => p.text)
+      }
+    >
+      {p.text}
+    </Link>
+  );
+}
+
+function V8FluentButton(p: ButtonProps & { tooltipId: string }): JSX.Element {
   const theme = useTheme();
   const Btn =
     p.appearance === "primary" || p.appearance === "danger"
@@ -231,11 +363,16 @@ export function V8Button(p: ButtonProps): JSX.Element {
       : p.appearance === "subtle"
         ? ActionButton
         : DefaultButton;
-  const button = (
+  const danger = p.appearance === "danger" ? dangerStyles(theme) : undefined;
+  const styles: IButtonStyles | undefined =
+    p.tooltip !== undefined
+      ? { ...danger, root: [danger?.root, FILL_HOST.root] }
+      : danger;
+  return (
     <Btn
       text={p.text}
       data-appearance={p.appearance ?? "secondary"}
-      {...(p.appearance === "danger" ? { styles: dangerStyles(theme) } : {})}
+      {...(styles ? { styles } : {})}
       type={p.type ?? "button"}
       disabled={!!p.disabled}
       {...(p.iconName !== undefined
@@ -249,16 +386,10 @@ export function V8Button(p: ButtonProps): JSX.Element {
             // tooltip could never open on it. `allowDisabledFocus` keeps it disabled
             // (aria-disabled, styled, clicks ignored) without the native attribute.
             allowDisabledFocus: true,
-            "aria-describedby": tooltipId,
+            "aria-describedby": p.tooltipId,
           }
         : {})}
     />
-  );
-  if (p.tooltip === undefined) return button;
-  return (
-    <TooltipHost content={p.tooltip} id={tooltipId}>
-      {button}
-    </TooltipHost>
   );
 }
 
@@ -585,16 +716,28 @@ export function V8Popover(p: PopoverProps): JSX.Element {
 }
 
 /**
- * A header label is inline text in a block, with the filter button floated at the top
- * right: the first line is shortened by the button, later lines get the whole column, and a
- * single word that cannot fit beside the button drops under it rather than breaking. The
- * header row grows to fit (see `V8Table`). `break-word` is the last resort, for a word wider
- * than the column itself; the `title` is the hover for whatever still reads badly.
+ * The header's text box. It takes whatever the filter button leaves, and breaks a label only
+ * at spaces; a word wider than the box ends in "…" (`text-overflow` applies to every line).
+ * The `title` on the label is the hover for whatever is cut off. The header row grows to fit
+ * the lines (see `V8Table`).
  */
-const HEADER_LABEL_STYLE: React.CSSProperties = {
+const HEADER_LABEL_BOX_STYLE: React.CSSProperties = {
+  flex: "1 1 auto",
+  minWidth: 0,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
   whiteSpace: "normal",
-  overflowWrap: "break-word",
+  overflowWrap: "normal",
+  wordBreak: "normal",
   lineHeight: "normal",
+};
+
+/** Label box and filter button side by side, the button level with the first line. */
+const HEADER_ROW_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: 4,
+  width: "100%",
 };
 
 /** The filter button, smaller than the 32px default: every pixel here comes off the label. */
@@ -623,11 +766,73 @@ function V8HeaderCell({
       ? "SortUp"
       : "SortDown"
     : undefined;
+  const label =
+    column.headerContent !== undefined ? (
+      // A control in the header owns its clicks: it is never wrapped in the sort button.
+      column.headerContent
+    ) : column.sortable && onSortChange ? (
+      <span
+        role="button"
+        tabIndex={0}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          cursor: "pointer",
+          display: "inline",
+          padding: "2px 4px",
+          borderRadius: 2,
+          // Each line of a wrapped label gets its own rounded hover fragment.
+          boxDecorationBreak: "clone",
+          WebkitBoxDecorationBreak: "clone",
+          background: hovered ? "rgba(0,0,0,0.06)" : "transparent",
+        }}
+        aria-label={
+          sorted
+            ? `${column.header}, sorted ${sort!.direction === "asc" ? "ascending" : "descending"}`
+            : `${column.header}, sortable`
+        }
+        onClick={() => onSortChange(column.key)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSortChange(column.key);
+          }
+        }}
+      >
+        <span title={column.header}>{column.header}</span>
+        {sortIcon ? (
+          // An ordinary space, so a last word that fits but not with its arrow keeps the
+          // line and the arrow takes the next one — the word is never cut for the arrow.
+          <>
+            {" "}
+            <Icon
+              iconName={sortIcon}
+              aria-hidden
+              style={{
+                fontSize: 12,
+                display: "inline",
+                verticalAlign: "middle",
+              }}
+            />
+          </>
+        ) : null}
+      </span>
+    ) : (
+      <span title={column.header}>{column.header}</span>
+    );
   return (
-    <span style={{ display: "block", width: "100%" }}>
-      {/* First in the DOM so the float anchors to the first line, not wherever the text ends. */}
+    <span style={HEADER_ROW_STYLE}>
+      <span
+        data-header-label=""
+        style={{
+          ...HEADER_LABEL_BOX_STYLE,
+          ...(column.align ? { textAlign: column.align } : {}),
+        }}
+      >
+        {label}
+      </span>
       {column.headerFilter ? (
-        <span style={{ float: "right", marginLeft: 4 }}>
+        <span style={{ flex: "none" }}>
           <V8Popover
             open={open}
             onOpenChange={setOpen}
@@ -646,63 +851,6 @@ function V8HeaderCell({
           </V8Popover>
         </span>
       ) : null}
-      {column.sortable && onSortChange ? (
-        <span
-          role="button"
-          tabIndex={0}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          style={{
-            ...HEADER_LABEL_STYLE,
-            cursor: "pointer",
-            display: "inline",
-            padding: "2px 4px",
-            borderRadius: 2,
-            // Each line of a wrapped label gets its own rounded hover fragment.
-            boxDecorationBreak: "clone",
-            WebkitBoxDecorationBreak: "clone",
-            background: hovered ? "rgba(0,0,0,0.06)" : "transparent",
-          }}
-          aria-label={
-            sorted
-              ? `${column.header}, sorted ${sort!.direction === "asc" ? "ascending" : "descending"}`
-              : `${column.header}, sortable`
-          }
-          onClick={() => onSortChange(column.key)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onSortChange(column.key);
-            }
-          }}
-        >
-          <span title={column.header} style={HEADER_LABEL_STYLE}>
-            {column.header}
-          </span>
-          {sortIcon ? (
-            // A no-break space rather than a margin glues the arrow to the last word, and the
-            // icon is rendered inline rather than as Fluent's inline-block: a break is allowed
-            // before an atomic inline whatever precedes it, so the arrow would still wrap
-            // onto a line of its own.
-            <>
-              {" "}
-              <Icon
-                iconName={sortIcon}
-                aria-hidden
-                style={{
-                  fontSize: 12,
-                  display: "inline",
-                  verticalAlign: "middle",
-                }}
-              />
-            </>
-          ) : null}
-        </span>
-      ) : (
-        <span title={column.header} style={HEADER_LABEL_STYLE}>
-          {column.header}
-        </span>
-      )}
     </span>
   );
 }
@@ -711,6 +859,16 @@ function V8HeaderCell({
 const CELL_PADDING =
   DEFAULT_CELL_STYLE_PROPS.cellLeftPadding +
   DEFAULT_CELL_STYLE_PROPS.cellRightPadding;
+
+/**
+ * What the v8 header puts around its label: the sort label's `padding: 2px 4px`, a space and
+ * the 12px sort arrow, and the 24px filter button plus its 4px gap.
+ */
+const V8_HEADER_ROOM: HeaderRoom = {
+  label: 8,
+  sortArrow: 16,
+  filterButton: 28,
+};
 
 /** Fluent's header height, which it pins on the row AND on every cell; it is not exported. */
 const HEADER_HEIGHT = 42;
@@ -732,6 +890,71 @@ const HEADER_ROW_STYLES: NonNullable<IDetailsHeaderProps["styles"]> = {
   cellSizer: { flexShrink: 0 },
 };
 
+/**
+ * Room for a focus ring around the cell box's content. `overflow: hidden` clips at the padding
+ * edge, and a content-tight box would cut the outline of a link or checkbox in the cell — the
+ * UA ring reaches 3px past the element (2px ring + 1px offset), a Fluent Checkbox's 3px.
+ * Padding moves the clip edge out into Fluent's own cell padding (12px left, 8px right, 11px
+ * — 6px compact — above and below); the equal negative margin keeps the content box, where
+ * text breaks and the ellipsis sits, and the row's layout exactly where they were. Padding
+ * counts in both `scrollWidth` and `clientWidth`, so `setOverflowTitle` still reads a value
+ * that just fits as fitting.
+ */
+const CELL_FOCUS_SLACK: React.CSSProperties = { padding: 3, margin: -3 };
+
+/** A single-line cell: cut off with an ellipsis, as DetailsList's own cell style does. */
+const CELL_LINE_STYLE: React.CSSProperties = {
+  ...CELL_FOCUS_SLACK,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+/**
+ * A wrapping cell: the header's rule — break only at spaces, and end a word wider than the
+ * column in "…" — rather than Fluent's `isMultiline` `word-break: break-word`.
+ */
+const CELL_WRAP_STYLE: React.CSSProperties = {
+  ...CELL_FOCUS_SLACK,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "normal",
+  overflowWrap: "normal",
+  wordBreak: "normal",
+};
+
+/**
+ * A cell's content in a box the skin can measure: on hover, a cut-off cell gets its full text
+ * as a title. Only for columns that wrap, have a title, or align — the rest (the actions column)
+ * render bare. The box keeps `CELL_FOCUS_SLACK` around its content, so a control in it keeps
+ * its whole focus ring.
+ */
+function V8Cell({
+  column,
+  row,
+}: {
+  column: TableColumn;
+  row: unknown;
+}): JSX.Element {
+  const { cellTitle } = column;
+  return (
+    <div
+      style={{
+        ...(column.wrap ? CELL_WRAP_STYLE : CELL_LINE_STYLE),
+        ...(column.align ? { textAlign: column.align } : {}),
+      }}
+      {...(cellTitle
+        ? {
+            onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) =>
+              setOverflowTitle(e.currentTarget, () => cellTitle(row)),
+          }
+        : {})}
+    >
+      {column.render(row)}
+    </div>
+  );
+}
+
 export function V8Table(
   p: TableProps & {
     /** The width to lay out against, instead of measuring. A seam for tests, which have no
@@ -742,32 +965,13 @@ export function V8Table(
   // Called before the empty early-return: hooks may not sit behind a conditional.
   const theme = useTheme();
   const wrapper = React.useRef<HTMLDivElement>(null);
-  const [measured, setMeasured] = React.useState(0);
+  const list = React.useRef<IDetailsList>(null);
 
-  // How wide the table may lay out in. Fluent measures this itself, but only ever reports the
-  // visible width — which is the number that makes it squash. We measure the same box and use
-  // it as a floor rather than a ceiling (see `viewport` below).
-  React.useLayoutEffect(() => {
-    const el = wrapper.current;
-    if (!el) return undefined;
-    const read = (): void => setMeasured(el.clientWidth);
-    read();
-    const RO = (
-      window as unknown as {
-        ResizeObserver?: new (cb: () => void) => {
-          observe: (target: Element) => void;
-          disconnect: () => void;
-        };
-      }
-    ).ResizeObserver;
-    if (!RO) {
-      window.addEventListener("resize", read);
-      return () => window.removeEventListener("resize", read);
-    }
-    const observer = new RO(read);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  // How wide the table may lay out in: what a percentage bound is a percentage of. Fluent
+  // measures a box itself, but lays out against it directly — squashing the columns into it
+  // or stretching the last one across it — so the resolver gets this width instead and
+  // Fluent is handed the result (see `viewport` below).
+  const measured = useContainerWidth(wrapper);
 
   const rowBackground = (intent: RowIntent | undefined): string | undefined => {
     switch (intent) {
@@ -785,13 +989,49 @@ export function V8Table(
   };
   if (p.items.length === 0)
     return <div ref={wrapper}>{p.emptyMessage ?? "No items."}</div>;
-  const columns: IColumn[] = p.columns.map((c) => ({
+  // The font DetailsColumn renders a header name in: semibold, at the medium size.
+  const headerFont = theme.fonts.medium;
+  const headerSize =
+    typeof headerFont.fontSize === "number"
+      ? headerFont.fontSize
+      : parseFloat(headerFont.fontSize ?? "14");
+  const measure = textMeasurer(
+    `${FontWeights.semibold} ${headerSize}px ${headerFont.fontFamily ?? "sans-serif"}`,
+    headerSize,
+  );
+  const layout = resolveColumnWidths(
+    p.columns.map((c) =>
+      toFlexColumn(
+        c,
+        headerFloor(
+          c,
+          c.sortable === true &&
+            p.onSortChange !== undefined &&
+            c.headerContent === undefined,
+          measure,
+          V8_HEADER_ROOM,
+        ),
+        CELL_PADDING,
+      ),
+    ),
+    {
+      ...(p.minWidth !== undefined ? { minWidth: p.minWidth } : {}),
+      ...(p.width !== undefined ? { width: p.width } : {}),
+      ...(p.maxWidth !== undefined ? { maxWidth: p.maxWidth } : {}),
+    },
+    p.containerWidth ?? measured,
+  );
+  const columns: IColumn[] = p.columns.map((c, i) => ({
     key: c.key,
     name: c.header,
+    // Fluent names the columnheader from the content it renders; with a control there, that
+    // is the control's name ("Select all"). `ariaLabel` names it by `header` instead.
+    ...(c.headerContent !== undefined ? { ariaLabel: c.header } : {}),
     isResizable: true,
-    // The held width rides in maxWidth, NOT minWidth: DetailsList clamps a drag to minWidth,
-    // so a floor equal to the current width lets a column grow and never shrink.
-    ...columnBounds(c.width),
+    // The resolved width rides in maxWidth, NOT minWidth: DetailsList clamps a drag to
+    // minWidth, so a floor equal to the current width lets a column grow and never shrink.
+    // The floor is the column's own minWidth, so a drag stops there.
+    ...columnBounds(layout.widths[i]!, c.minWidth),
     // We render our own sort/filter affordances, so disable Fluent's clickable-cell hover (the whole
     // header highlighting) — the sort label gets its own hover instead.
     columnActionsMode: ColumnActionsMode.disabled,
@@ -819,7 +1059,14 @@ export function V8Table(
       // the far right, and let the label wrap.
       cellName: { flexGrow: 1, width: "100%", whiteSpace: "normal" },
     },
-    onRender: (item: unknown) => c.render(item),
+    // A wrapping column lets DetailsList grow the row; V8Cell sets how the text breaks.
+    ...(c.wrap ? { isMultiline: true } : {}),
+    onRender: (item: unknown) =>
+      c.cellTitle || c.wrap || c.align ? (
+        <V8Cell column={c} row={item} />
+      ) : (
+        c.render(item)
+      ),
     onRenderHeader: () => (
       <V8HeaderCell
         column={c}
@@ -829,88 +1076,113 @@ export function V8Table(
     ),
   }));
 
-  // What the columns need, padding included — the width the table would like to be.
-  const content = p.columns.reduce(
-    (sum, c) => sum + heldWidth(c.width) + CELL_PADDING,
-    0,
-  );
+  // The resolved columns, padding included.
+  const content = layout.widths.reduce((sum, w) => sum + w + CELL_PADDING, 0);
   return (
+    // The outer box is the one measured: as wide as the space the table may lay out in.
     <div ref={wrapper}>
-      <DetailsList
-        items={[...p.items]}
-        columns={columns}
-        selectionMode={SelectionMode.none}
-        layoutMode={DetailsListLayoutMode.justified}
-        /**
-         * The justified pass lays out against `viewport.width` and, when the columns do not
-         * fit it, shrinks every one of them toward its `minWidth` floor — sixteen authored
-         * widths in a narrower container render as unreadable slivers. So we hand it the
-         * width the columns NEED whenever that exceeds the container: no shrinking to do,
-         * every column lands on its held width, and the overflow becomes a horizontal
-         * scroll instead of a squash. When they do fit, this is the measured container and
-         * the last column stretches into the slack exactly as before.
-         *
-         * Passing `viewport` explicitly is supported: `withViewport` spreads our props over
-         * the value it measured, so ours wins. Only `width` is read for layout.
-         */
-        viewport={{
-          width: Math.max(p.containerWidth ?? measured, content),
-          height: 0,
-        }}
-        // Fluent's own root is the scroller: header and rows are inline blocks with
-        // `min-width: 100%`, so they overflow it together. Passed explicitly (it is also the
-        // default) because the width behaviour above depends on it.
-        constrainMode={ConstrainMode.horizontalConstrained}
-        onRenderDetailsHeader={(headerProps, defaultRender) =>
-          headerProps && defaultRender
-            ? defaultRender({ ...headerProps, styles: HEADER_ROW_STYLES })
-            : null
-        }
-        {...(p.getRowKey
-          ? {
-              getKey: (item: unknown, i?: number) => p.getRowKey!(item, i ?? 0),
-            }
-          : {})}
-        {...(p.onColumnResize
-          ? {
-              onColumnResize: (column?: IColumn, newWidth?: number) => {
-                if (column && newWidth !== undefined)
-                  p.onColumnResize!(column.key, newWidth);
-              },
-            }
-          : {})}
-        {...(p.getRowIntent || p.getRowClassName
-          ? {
-              onRenderRow: (
-                rowProps?: IDetailsRowProps,
-                defaultRender?: (rp?: IDetailsRowProps) => JSX.Element | null,
-              ) => {
-                if (!rowProps || !defaultRender) return null;
-                const item = rowProps.item as unknown;
-                const intent = p.getRowIntent?.(item, rowProps.itemIndex);
-                const cls = p.getRowClassName?.(item, rowProps.itemIndex);
-                const background = rowBackground(intent);
-                return defaultRender({
-                  ...rowProps,
-                  ...(cls ? { className: cls } : {}),
-                  ...(background
-                    ? {
-                        styles: {
-                          root: {
-                            background,
-                            ...(intent === "muted"
-                              ? { color: theme.palette.neutralSecondary }
-                              : {}),
-                            selectors: { ":hover": { background } },
+      {/* The table's own box: the columns' total, so rows and borders end where the columns
+          do — spare width that nothing can grow into stays outside it, as in the shadcn skin —
+          capped at the container so a wider table scrolls inside DetailsList rather than past
+          the page. */}
+      <div style={{ width: content, maxWidth: "100%" }}>
+        <DetailsList
+          componentRef={list}
+          items={[...p.items]}
+          columns={columns}
+          selectionMode={SelectionMode.none}
+          layoutMode={DetailsListLayoutMode.justified}
+          /**
+           * The justified pass lays out against `viewport.width`: it shrinks columns toward
+           * their `minWidth` floors when they do not fit, and gives any width beyond them to
+           * the LAST column. So it is handed exactly the columns' total. The resolver has
+           * already decided growing, shrinking and overflow — each column's width rides in
+           * its `maxWidth` — and leaves the justified pass nothing to do. When that total is
+           * wider than the box, the DetailsList root scrolls it horizontally.
+           *
+           * Passing `viewport` explicitly is supported: `withViewport` spreads our props over
+           * the value it measured, so ours wins. Only `width` is read for layout.
+           */
+          viewport={{ width: content, height: 0 }}
+          // Fluent's own root is the scroller: header and rows are inline blocks with
+          // `min-width: 100%`, so they overflow it together. Passed explicitly (it is also the
+          // default) because the width behaviour above depends on it.
+          constrainMode={ConstrainMode.horizontalConstrained}
+          onRenderDetailsHeader={(headerProps, defaultRender) =>
+            headerProps && defaultRender
+              ? defaultRender({ ...headerProps, styles: HEADER_ROW_STYLES })
+              : null
+          }
+          {...(p.getRowKey
+            ? {
+                getKey: (item: unknown, i?: number) =>
+                  p.getRowKey!(item, i ?? 0),
+              }
+            : {})}
+          {...(p.onColumnResize
+            ? {
+                onColumnResize: (column?: IColumn, newWidth?: number) => {
+                  if (!column || newWidth === undefined) return;
+                  // Fluent stops a drag at the column's minWidth (see columnBounds) but has
+                  // no ceiling: past the column's own maxWidth, report the width it stops at.
+                  const max = p.columns.find(
+                    (c) => c.key === column.key,
+                  )?.maxWidth;
+                  const held =
+                    max !== undefined && newWidth > max
+                      ? Math.max(max, column.minWidth ?? 0)
+                      : newWidth;
+                  p.onColumnResize!(column.key, held);
+                  // Fluent pins the dragged width as an override that outranks the column's
+                  // props, so the layout would hold the column at `held` while Fluent drew it
+                  // at `newWidth`, taking the difference from the columns after it — and the
+                  // next drag would start from `newWidth`. `updateColumn` re-pins it at `held`.
+                  // Fluent calls this BEFORE recording `newWidth`, so it is deferred: a
+                  // microtask runs once Fluent's own bookkeeping and render are done, yet
+                  // before the browser paints, so the overshoot is never drawn. Re-keying the
+                  // DetailsList instead would remount it mid-drag and end the drag (the drag
+                  // lives in its header's state). Optional-chained: the `>=8` peer range
+                  // reaches back to early 8.x releases that predate `updateColumn`.
+                  if (held !== newWidth)
+                    void Promise.resolve().then(() =>
+                      list.current?.updateColumn?.(column, { width: held }),
+                    );
+                },
+              }
+            : {})}
+          {...(p.getRowIntent || p.getRowClassName
+            ? {
+                onRenderRow: (
+                  rowProps?: IDetailsRowProps,
+                  defaultRender?: (rp?: IDetailsRowProps) => JSX.Element | null,
+                ) => {
+                  if (!rowProps || !defaultRender) return null;
+                  const item = rowProps.item as unknown;
+                  const intent = p.getRowIntent?.(item, rowProps.itemIndex);
+                  const cls = p.getRowClassName?.(item, rowProps.itemIndex);
+                  const background = rowBackground(intent);
+                  return defaultRender({
+                    ...rowProps,
+                    ...(cls ? { className: cls } : {}),
+                    ...(background
+                      ? {
+                          styles: {
+                            root: {
+                              background,
+                              ...(intent === "muted"
+                                ? { color: theme.palette.neutralSecondary }
+                                : {}),
+                              selectors: { ":hover": { background } },
+                            },
                           },
-                        },
-                      }
-                    : {}),
-                });
-              },
-            }
-          : {})}
-      />
+                        }
+                      : {}),
+                  });
+                },
+              }
+            : {})}
+        />
+      </div>
     </div>
   );
 }

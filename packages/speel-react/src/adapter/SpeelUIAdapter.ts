@@ -191,6 +191,22 @@ export interface ButtonProps {
   tooltip?: string;
 }
 
+/**
+ * A link — identical to a real link in the skin, whichever form it takes. With `href` it is an
+ * `<a>` (open in new tab, copy link and middle click work); `onClick` then replaces navigation on a
+ * plain left click only, so an SPA can update the page while a modified click still opens a tab.
+ * Without `href` it is a `<button>` that looks the same.
+ */
+export interface LinkProps {
+  text: string;
+  href?: string;
+  onClick?: () => void;
+  /** `_blank` adds `rel="noreferrer noopener"`. */
+  target?: string;
+  ariaLabel?: string;
+  disabled?: boolean;
+}
+
 export interface IconButtonProps {
   iconName: string; // skin icon name (Fluent icon name in the v8 skin)
   title: string; // tooltip + accessible name (icon-only button)
@@ -282,13 +298,39 @@ export interface PopoverProps {
 /** Semantic row emphasis a skin renders consistently. `undefined` is the normal row. */
 export type RowIntent = "success" | "warning" | "error" | "muted";
 
+/** A table width: pixels, or a percentage of the container the table sits in. */
+export type TableLength = number | `${number}%`;
+
+/** Horizontal alignment of a column's header and cells. */
+export type ColumnAlign = "start" | "center" | "end";
+
 export interface TableColumn {
+  /** Header and cell alignment; absent = start. */
+  align?: ColumnAlign;
   key: string;
   header: string;
   render: (row: unknown) => ReactNode;
   width?: number;
+  /** The width the column starts from when `width` is absent: the built-in skins take it as
+   *  the column's flex basis, raised to the header floor. */
+  defaultWidth?: number;
+  /** Share of the table's spare width (CSS `flex-grow`); absent = 0. */
+  grow?: number;
+  /** Share of the table's shortfall, scaled by width (CSS `flex-shrink`); absent = 0. */
+  shrink?: number;
+  /** Narrowest the layout may make the column; absent = the skin's header floor. */
+  minWidth?: number;
+  /** Widest the layout may make the column; absent = unbounded. */
+  maxWidth?: number;
   sortable?: boolean;
   headerFilter?: { active: boolean; content: ReactNode };
+  /** Break long values onto more lines, at spaces, instead of cutting them off. */
+  wrap?: boolean;
+  /** A cell's full text, for a hover title when the skin has cut the cell off. */
+  cellTitle?: (row: unknown) => string;
+  /** Rendered in the header cell in place of `header`'s text — never as a sort button.
+   *  `header` still names the column everywhere else. */
+  headerContent?: ReactNode;
 }
 
 export interface TableSort {
@@ -315,6 +357,11 @@ export interface TableProps {
   getRowIntent?: (row: unknown, index: number) => RowIntent | undefined;
   getRowClassName?: (row: unknown, index: number) => string | undefined;
   onColumnResize?: (key: string, width: number) => void;
+  /** The table's width bounds (CSS `min-width` / `width` / `max-width`). With none, the table
+   *  is exactly as wide as its columns. */
+  minWidth?: TableLength;
+  width?: TableLength;
+  maxWidth?: TableLength;
 }
 
 /** Chrome (label/required/error/description) wrapped around an arbitrary node —
@@ -343,6 +390,7 @@ export interface SpeelUIAdapter {
   Spinner: ComponentType<SpinnerProps>;
   Button: ComponentType<ButtonProps>;
   IconButton: ComponentType<IconButtonProps>;
+  Link: ComponentType<LinkProps>;
   MessageBar: ComponentType<MessageBarProps>;
   ProgressBar: ComponentType<ProgressBarProps>;
   Dialog: ComponentType<DialogProps>;

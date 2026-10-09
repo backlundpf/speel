@@ -26,6 +26,49 @@ const headerWidths = (container: HTMLElement): number[] =>
   ).map((el) => parseFloat(el.style.width));
 
 describe("V8Table column widths", () => {
+  /** A last column that overflows the container, so nothing stretches into slack. */
+  const filler: TableColumn = {
+    key: "filler",
+    header: "F",
+    render: () => "",
+    width: 300,
+  };
+
+  it("holds a column with no width at its default hint", () => {
+    const { container } = render(
+      <V8Table
+        columns={[{ ...cols([undefined])[0]!, defaultWidth: 70 }, filler]}
+        items={items}
+        containerWidth={100}
+      />,
+    );
+    expect(headerWidths(container)).toEqual([90, 320]);
+  });
+
+  it("raises a defaulted column to its header floor, and leaves an authored one alone", () => {
+    const long: TableColumn = {
+      key: "c0",
+      header: "Separation Date Confirmed",
+      render: () => "",
+      defaultWidth: 70,
+      sortable: true,
+      headerFilter: { active: false, content: null },
+    };
+    const { container } = render(
+      <V8Table
+        columns={[long, { ...long, key: "authored", width: 60 }, filler]}
+        items={items}
+        onSortChange={() => undefined}
+        containerWidth={100}
+      />,
+    );
+    // jsdom has no canvas: "Separation" estimates at 10 × 0.6 × 14px = 84, plus 8 + 16 + 28.
+    const floor = Math.ceil(84 + 8 + 16 + 28);
+    const widths = headerWidths(container);
+    expect(widths[0]).toBe(floor + 20);
+    expect(widths[1]).toBe(60 + 20);
+  });
+
   it("renders every column at its held width when they overflow the container", () => {
     const { container } = render(
       <V8Table columns={cols([200, 300])} items={items} containerWidth={300} />,
@@ -34,7 +77,7 @@ describe("V8Table column widths", () => {
     expect(headerWidths(container)).toEqual([220, 320]);
   });
 
-  it("still fills the container when the held widths fit inside it", () => {
+  it("does not stretch the last column into spare width", () => {
     const { container } = render(
       <V8Table
         columns={cols([200, 300])}
@@ -42,10 +85,38 @@ describe("V8Table column widths", () => {
         containerWidth={1000}
       />,
     );
-    const widths = headerWidths(container);
-    expect(widths[0]).toBe(220);
-    expect(widths[1]).toBeGreaterThan(320); // the last column absorbs the slack
-    expect(widths[0]! + widths[1]!).toBe(1000);
+    expect(headerWidths(container)).toEqual([220, 320]);
+  });
+
+  it("fills a minWidth of 100% through the columns that grow", () => {
+    const columns = cols([200, 300]).map((c, i) => ({
+      ...c,
+      grow: i === 0 ? 1 : 0,
+    }));
+    const { container } = render(
+      <V8Table
+        columns={columns}
+        items={items}
+        containerWidth={1000}
+        minWidth="100%"
+      />,
+    );
+    // 1000 − 40 padding − 500 bases = 460 spare, all to the first column.
+    expect(headerWidths(container)).toEqual([680, 320]);
+  });
+
+  it("squeezes shrinking columns to meet a maxWidth", () => {
+    const columns = cols([200, 300]).map((c) => ({ ...c, shrink: 1 }));
+    const { container } = render(
+      <V8Table
+        columns={columns}
+        items={items}
+        containerWidth={1000}
+        maxWidth={440}
+      />,
+    );
+    // 440 − 40 padding = 400 content: a 100px shortfall split 2:3 by shrink × basis.
+    expect(headerWidths(container)).toEqual([180, 260]);
   });
 
   it("gives a column with no width of its own the default floor", () => {

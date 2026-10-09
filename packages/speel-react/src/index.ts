@@ -17,6 +17,7 @@ export type { PeopleSearch, ResolvedSpeelConfig } from "./context.js";
 // UI-adapter contract (a skin implements this; the Fluent v8 skin is @speel/react/fluent-v8)
 export type {
   SpeelUIAdapter,
+  ColumnAlign,
   FieldChrome,
   TextInputProps,
   RichTextInputProps,
@@ -33,11 +34,13 @@ export type {
   ProgressBarProps,
   ButtonProps,
   IconButtonProps,
+  LinkProps,
   MessageBarProps,
   DialogProps,
   DrawerProps,
   PopoverProps,
   TableColumn,
+  TableLength,
   TableProps,
   TableSort,
   RowIntent,
@@ -117,6 +120,9 @@ export type {
 export type {
   ColumnSpec,
   ColumnDescriptor,
+  ColumnOptions,
+  ColumnRef,
+  ColumnRefs,
   ResolvedColumn,
 } from "./table/columns.js";
 export type { TableFilterConfig, DatePreset } from "@speel/core";
@@ -234,3 +240,14 @@ export type {
   ResizeState,
   ResizeHandleProps,
 } from "./surface/useResizable.js";
+export { setOverflowTitle } from "./table/overflowTitle.js";
+export { resolveColumnWidths } from "./table/layout/resolveColumnWidths.js";
+export type {
+  FlexColumn,
+  TableBounds,
+  ColumnLayout,
+} from "./table/layout/resolveColumnWidths.js";
+export { headerFloor, textMeasurer } from "./table/layout/headerFloor.js";
+export type { HeaderRoom } from "./table/layout/headerFloor.js";
+export { MIN_RESIZE_WIDTH, toFlexColumn } from "./table/layout/columnFlex.js";
+export { useContainerWidth } from "./table/layout/useContainerWidth.js";

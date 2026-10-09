@@ -26,3 +26,27 @@ declare const props: Props;
 expectType<
   { columns: { key: string; hidden?: boolean; width?: number }[] } | undefined
 >(props.defaultTableState);
+
+// ── #65: the columns callback's parameter is a map of column refs ──
+class Task implements IEntity {
+  Id?: number;
+  Title?: string;
+  Status?: string;
+  describe(): string {
+    return this.Title ?? "";
+  }
+}
+type Cols = NonNullable<SpeelTableProps<Task>["columns"]>;
+
+// A bare ref and a ref with options both type-check.
+expectType<Cols>((p) => [p.Title, p.Status.with({ width: 120 })]);
+// render's row is the entity, with no annotation.
+expectType<Cols>((p) => [p.Title.with({ render: (r) => r.Status ?? "" })]);
+// @ts-expect-error — a misspelt field is a compile error
+expectType<Cols>((p) => [p.Titel]);
+// @ts-expect-error — render's row is the entity, so a misspelt field fails there too
+expectType<Cols>((p) => [p.Title.with({ render: (r) => r.Titel })]);
+// @ts-expect-error — methods are not columns
+expectType<Cols>((p) => [p.describe]);
+// @ts-expect-error — the parameter is a map of column refs, not the entity
+expectType<Cols>((p: Task) => [p.Title]);

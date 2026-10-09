@@ -37,6 +37,15 @@ export default defineConfig({
     // path-filters to tests/helpers so only this project's tests run.
     { name: "unit", testMatch: /helpers\/.*\.spec\.ts$/ },
     {
+      // Real-layout checks of the v8 table skin, against a fixture page bundled from the
+      // sample's own @speel/react, React and Fluent. Offline — no tenant, no serve — so it
+      // runs in `verify`. `test:layout` selects it.
+      name: "layout",
+      testMatch: /layout\/.*\.spec\.ts$/,
+      timeout: 30_000,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       // E2E specs. Auth is handled by the worker-scoped storageState fixture
       // (tests/fixtures/auth.fixtures.ts), not a setup project. Desktop Chrome
       // UA so headless presents as real Chrome — Microsoft serves a different

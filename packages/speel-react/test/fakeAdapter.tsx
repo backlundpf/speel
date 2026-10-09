@@ -92,7 +92,9 @@ const FakeTableHeaderCell = ({
   const sorted = sort && sort.key === column.key;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-      {column.sortable && onSortChange ? (
+      {column.headerContent !== undefined ? (
+        <span>{column.headerContent}</span>
+      ) : column.sortable && onSortChange ? (
         <button type="button" onClick={() => onSortChange(column.key)}>
           {column.header}
           <span aria-hidden="true">
@@ -536,6 +538,48 @@ export const fakeAdapter: SpeelUIAdapter = {
     />
   ),
 
+  Link: ({ text, href, onClick, target, ariaLabel, disabled }) =>
+    href !== undefined ? (
+      // A disabled link goes nowhere but stays a focusable link, as in the skins.
+      <a
+        href={disabled ? undefined : href}
+        target={disabled ? undefined : target}
+        role={disabled ? "link" : undefined}
+        tabIndex={disabled ? 0 : undefined}
+        aria-label={ariaLabel}
+        aria-disabled={disabled ? "true" : undefined}
+        data-fake-link=""
+        onClick={(e) => {
+          if (disabled) return e.preventDefault();
+          if (
+            !onClick ||
+            e.button !== 0 ||
+            e.ctrlKey ||
+            e.metaKey ||
+            e.shiftKey ||
+            e.altKey
+          )
+            return;
+          e.preventDefault();
+          onClick();
+        }}
+      >
+        {text}
+      </a>
+    ) : (
+      <button
+        type="button"
+        data-fake-link=""
+        aria-label={ariaLabel}
+        aria-disabled={disabled ? "true" : undefined}
+        onClick={() => {
+          if (!disabled) onClick?.();
+        }}
+      >
+        {text}
+      </button>
+    ),
+
   MessageBar: ({ intent, children, onDismiss, actions, multiline }) => (
     <div role="alert" data-intent={intent} data-multiline={multiline}>
       {children}
@@ -637,17 +681,31 @@ export const fakeAdapter: SpeelUIAdapter = {
     getRowIntent,
     getRowClassName,
     onColumnResize,
+    minWidth,
+    width,
+    maxWidth,
   }) =>
     items.length === 0 ? (
       <div>{emptyMessage ?? "No items."}</div>
     ) : (
-      <table>
+      <table
+        data-min-width={minWidth}
+        data-width={width}
+        data-max-width={maxWidth}
+      >
         <thead>
           <tr>
             {columns.map((c) => (
               <th
                 key={c.key}
                 data-width={c.width}
+                data-default-width={c.defaultWidth}
+                data-grow={c.grow}
+                data-shrink={c.shrink}
+                data-min-width={c.minWidth}
+                data-max-width={c.maxWidth}
+                data-wrap={c.wrap ? "" : undefined}
+                data-align={c.align}
                 {...(sort && sort.key === c.key
                   ? {
                       "aria-sort":
@@ -684,7 +742,13 @@ export const fakeAdapter: SpeelUIAdapter = {
                 {...(cls ? { className: cls } : {})}
               >
                 {columns.map((c) => (
-                  <td key={c.key}>{c.render(row)}</td>
+                  <td
+                    key={c.key}
+                    data-cell-title={c.cellTitle?.(row)}
+                    data-align={c.align}
+                  >
+                    {c.render(row)}
+                  </td>
                 ))}
               </tr>
             );

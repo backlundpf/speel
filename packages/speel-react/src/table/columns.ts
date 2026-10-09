@@ -5,15 +5,35 @@ import type {
   FieldContext,
   TableFilterConfig,
 } from "@speel/core";
+import type { ColumnAlign } from "../adapter/SpeelUIAdapter.js";
 import { formatFieldValue } from "../fields/format.js";
 import { comparatorFor, type Comparator } from "./sort.js";
 import { defaultFilterFor } from "./filter/defaults.js";
+import { defaultFlexFor, defaultWidthFor } from "./defaultWidth.js";
 
-export interface ColumnDescriptor<T> {
-  key: string;
+/** Every column option except `key` — what `p.Field.with(...)` takes. */
+export interface ColumnOptions<T> {
   header?: string;
+  /** Rendered in the header cell in place of `header`'s text. `header` still names the
+   *  column everywhere else — export, the column chooser, filter chips, hover titles. */
+  headerContent?: ReactNode;
   render?: (row: T) => ReactNode;
+  /** The column's starting width (CSS `flex-basis`). Defaults by field kind. */
   width?: number;
+  /** Share of a table's spare width (CSS `flex-grow`). Defaults by field kind. */
+  grow?: number;
+  /** Share of a table's shortfall, scaled by width (CSS `flex-shrink`). Defaults by field kind. */
+  shrink?: number;
+  /** Narrowest the table's layout may make this column. Defaults to its header's longest word. */
+  minWidth?: number;
+  /** Widest the table's layout may make this column. */
+  maxWidth?: number;
+  /** Break long values onto more lines, at spaces, instead of cutting them off. */
+  wrap?: boolean;
+  /** Header and cell alignment. Default "start". */
+  align?: ColumnAlign;
+  /** `false` opts the column out of the hover title a cut-off cell shows. */
+  cellTitle?: false;
   sortable?: boolean;
   sortValue?: (row: T) => string | number | Date | boolean;
   tableFilter?: TableFilterConfig;
@@ -21,13 +41,51 @@ export interface ColumnDescriptor<T> {
   /** The text this column exports to CSV. Wins over everything the exporter can infer. */
   exportValue?: (row: T) => string | number | Date | boolean | null | undefined;
 }
+export interface ColumnDescriptor<T> extends ColumnOptions<T> {
+  key: string;
+}
 export type ColumnSpec<T> = string | ColumnDescriptor<T>;
+
+/** A field column picked through the `columns` callback: `p.Title`, or `p.Title.with({...})`. */
+export interface ColumnRef<T> {
+  readonly key: string;
+  /** This field's column with options — a width, a header, a render — still keyed to the field. */
+  with(options: ColumnOptions<T>): ColumnDescriptor<T>;
+}
+
+/** The keys of `T` that hold data — methods are not columns. */
+type DataKeys<T> = {
+  [K in keyof T & string]-?: T[K] extends (...args: never[]) => unknown
+    ? never
+    : K;
+}[keyof T & string];
+
+/** What the `columns` callback receives: one column ref per data property of the entity. */
+export type ColumnRefs<T> = { readonly [K in DataKeys<T>]-?: ColumnRef<T> };
 
 export interface ResolvedColumn<T> {
   key: string;
   header: string;
   render: (row: T) => ReactNode;
   width?: number;
+  /** The width the column starts from when nobody has given it one — `defaultWidthFor`. */
+  defaultWidth?: number;
+  /** Share of the table's spare width (CSS `flex-grow`). */
+  grow?: number;
+  /** Share of the table's shortfall (CSS `flex-shrink`). */
+  shrink?: number;
+  /** Narrowest the layout may make the column. */
+  minWidth?: number;
+  /** Widest the layout may make the column. */
+  maxWidth?: number;
+  /** Break long values onto more lines instead of cutting them off. */
+  wrap?: boolean;
+  /** Header and cell alignment; absent means start. */
+  align?: ColumnAlign;
+  /** `false` when the column opted out of the cut-off hover title. */
+  cellTitle?: false;
+  /** Shown in the header cell in place of `header`'s text. */
+  headerContent?: ReactNode;
   sortable: boolean;
   sortAccessor?: (row: T) => unknown;
   comparator?: Comparator;
@@ -50,11 +108,11 @@ interface Field {
 }
 
 const COL_REF = Symbol("speelColumnRef");
-interface ColumnRef {
+/** The runtime shape of a `ColumnRef`, branded so `resolveColumns` can tell it from a descriptor. */
+interface BrandedRef<T> extends ColumnRef<T> {
   [COL_REF]: true;
-  key: string;
 }
-function isColumnRef(x: unknown): x is ColumnRef {
+function isColumnRef(x: unknown): x is BrandedRef<unknown> {
   return (
     typeof x === "object" &&
     x !== null &&
@@ -145,7 +203,23 @@ function autoColumn<T>(et: EntityType, key: string): ResolvedColumn<T> {
     key,
     header: field.displayName,
     render: cellFor<T>(field, key),
+    defaultWidth: defaultWidthFor(field.config),
+    ...flexFor<T>(field.config),
     ...fieldMeta<T>(field, key),
+  };
+}
+
+/** grow/shrink from the descriptor, else the field kind's default; min/max only when given. */
+function flexFor<T>(
+  config: FieldConfig | undefined,
+  d?: ColumnDescriptor<T>,
+): Pick<ResolvedColumn<T>, "grow" | "shrink" | "minWidth" | "maxWidth"> {
+  const kind = defaultFlexFor(config);
+  return {
+    grow: d?.grow ?? kind.grow,
+    shrink: d?.shrink ?? kind.shrink,
+    ...(d?.minWidth !== undefined ? { minWidth: d.minWidth } : {}),
+    ...(d?.maxWidth !== undefined ? { maxWidth: d.maxWidth } : {}),
   };
 }
 
@@ -164,8 +238,16 @@ function descriptorColumn<T>(
     key: d.key,
     header: d.header ?? field?.displayName ?? d.key,
     render,
+    defaultWidth: defaultWidthFor(field?.config),
+    ...flexFor<T>(field?.config, d),
     ...(d.width !== undefined ? { width: d.width } : {}),
     ...(d.exportValue !== undefined ? { exportValue: d.exportValue } : {}),
+    ...(d.wrap ? { wrap: true } : {}),
+    ...(d.align !== undefined && d.align !== "start" ? { align: d.align } : {}),
+    ...(d.cellTitle === false ? { cellTitle: false as const } : {}),
+    ...(d.headerContent !== undefined
+      ? { headerContent: d.headerContent }
+      : {}),
     sortable: false,
   };
 
@@ -202,6 +284,8 @@ function defaultColumns<T>(et: EntityType): ResolvedColumn<T>[] {
       key: p.propertyName,
       header: p.displayName,
       render: cellFor<T>(p as Field, p.propertyName),
+      defaultWidth: defaultWidthFor(p.config),
+      ...flexFor<T>(p.config),
       ...fieldMeta<T>(p as Field, p.propertyName),
     });
   }
@@ -215,6 +299,8 @@ function defaultColumns<T>(et: EntityType): ResolvedColumn<T>[] {
       key: n.name,
       header: n.displayName,
       render: cellFor<T>(nav, n.name),
+      defaultWidth: defaultWidthFor(nav.config),
+      ...flexFor<T>(nav.config),
       ...fieldMeta<T>(nav, n.name),
     });
   }
@@ -276,22 +362,29 @@ export function resolveKeyTarget<T>(
   };
 }
 
-function columnProxy<T>(): T {
+function columnProxy<T>(): ColumnRefs<T> {
   return new Proxy(
     {},
     {
       get(_t, prop): unknown {
         if (typeof prop === "symbol") return undefined;
-        return { [COL_REF]: true, key: prop } as ColumnRef;
+        const ref: BrandedRef<T> = {
+          [COL_REF]: true,
+          key: prop,
+          // A plain descriptor, unbranded, so it resolves down the descriptor path with its
+          // options intact. `key` last: the ref's field wins over anything smuggled in.
+          with: (options) => ({ ...options, key: prop }),
+        };
+        return ref;
       },
     },
-  ) as T;
+  ) as ColumnRefs<T>;
 }
 
 /** Resolve `columns` (default / array / proxy-accessor) into render-ready columns. */
 export function resolveColumns<T>(
   et: EntityType,
-  columns: ColumnSpec<T>[] | ((p: T) => unknown[]) | undefined,
+  columns: ColumnSpec<T>[] | ((p: ColumnRefs<T>) => unknown[]) | undefined,
 ): ResolvedColumn<T>[] {
   if (!columns) return defaultColumns<T>(et);
   const list =

@@ -77,7 +77,7 @@ describe("SpeelDocumentForm (create)", () => {
 });
 
 describe("SpeelDocumentForm (view)", () => {
-  it("shows the stored file as a link and no file input", () => {
+  it("shows the stored file as the skin's link and no file input", () => {
     const doc = Object.assign(new Artifact(), {
       Id: 7,
       Title: "Stored",
@@ -87,6 +87,7 @@ describe("SpeelDocumentForm (view)", () => {
     setup({ mode: "view", entity: doc });
     const link = screen.getByRole("link", { name: "stored.pdf" });
     expect(link).toHaveAttribute("href", "/sites/dev/Artifacts/stored.pdf");
+    expect(link).toHaveAttribute("data-fake-link"); // rendered through ui.Link
     expect(screen.queryByLabelText(/^File$/)).not.toBeInTheDocument();
   });
 });

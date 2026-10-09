@@ -1,33 +1,31 @@
-/** How narrow a user may drag a column. Below this a header is unreadable, not useful. */
-export const MIN_RESIZE_WIDTH = 40;
+import { MIN_RESIZE_WIDTH } from "../table/layout/columnFlex.js";
 
-/** The width a column that has never been given one is laid out at — enough to read a header. */
-const DEFAULT_WIDTH = 100;
+export { MIN_RESIZE_WIDTH };
 
 /**
- * The width a column is actually held at: a live drag width or a view/descriptor width when
- * there is one, else the default. The table hands the first two in as `width`.
- */
-export function heldWidth(width: number | undefined): number {
-  return width ?? DEFAULT_WIDTH;
-}
-
-/**
- * `DetailsList`'s min/max bounds for one column.
+ * `DetailsList`'s min/max bounds for a column laid out at the resolved width `held`, whose
+ * own `minWidth` (if it sets one) is `authoredMin`.
  *
- * `minWidth` must be a genuine floor, never the column's current width: `DetailsList` clamps
- * a resize drag to `minWidth`, so binding it to the current width means every drag raises the
- * column's own floor and the column can only ever grow.
+ * `minWidth` is where `DetailsList` stops a resize drag, so it must be a genuine floor — the
+ * column's own `minWidth`, or the drag floor `MIN_RESIZE_WIDTH` when that is higher — and
+ * never the column's current width: binding it to the current width means every drag raises
+ * the column's own floor and the column can only ever grow. It never exceeds `held` either.
  *
- * The held width rides in `maxWidth`, which is where the justified layout pass stops growing
- * a column — so every column gets its held width and no more, and only the last one absorbs
- * whatever the container has left over. A column with no `maxWidth` would swallow that slack
- * whole and starve the columns after it.
+ * The resolved width rides in `maxWidth`, which is where the justified layout pass stops growing
+ * a column — so every column gets its resolved width and no more. The pass would give any width
+ * left over to the last column; `V8Table` leaves none, handing it a viewport exactly as wide as
+ * the columns. A column with no `maxWidth` would swallow slack whole and starve the columns
+ * after it.
  */
-export function columnBounds(width: number | undefined): {
+export function columnBounds(
+  held: number,
+  authoredMin?: number,
+): {
   minWidth: number;
   maxWidth: number;
 } {
-  const held = heldWidth(width);
-  return { minWidth: Math.min(MIN_RESIZE_WIDTH, held), maxWidth: held };
+  return {
+    minWidth: Math.min(Math.max(MIN_RESIZE_WIDTH, authoredMin ?? 0), held),
+    maxWidth: held,
+  };
 }

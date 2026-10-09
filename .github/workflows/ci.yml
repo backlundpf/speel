@@ -32,6 +32,8 @@ jobs:
       - run: npm ci
       - run: npm ci --prefix registry
       - run: npm ci --prefix samples/spfx-sample
+      # Chromium (and the Liberation fonts the layout fixture pins) for test:layout.
+      - run: npm --prefix samples/spfx-sample run playwright:install
       - run: npm run format:check
       - run: npm run verify
 

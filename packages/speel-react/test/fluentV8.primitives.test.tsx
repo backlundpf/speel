@@ -90,6 +90,33 @@ describe("V8Button tooltip", () => {
   });
 });
 
+describe("V8Button tooltip anchoring", () => {
+  it("makes the tooltip host inline-block and the button fill it", () => {
+    const { container } = render(<V8Button text="Submit" tooltip="Sends it" />);
+    const host = container.firstElementChild as HTMLElement;
+    expect(host.className).toContain("ms-TooltipHost");
+    expect(getComputedStyle(host).display).toBe("inline-block");
+    const button = screen.getByRole("button", { name: "Submit" });
+    expect(getComputedStyle(button).width).toBe("100%");
+  });
+
+  it("keeps a danger button's red fill while it fills the host", () => {
+    render(
+      <V8Button text="Delete" appearance="danger" tooltip="Gone for good" />,
+    );
+    const button = screen.getByRole("button", { name: "Delete" });
+    const cs = getComputedStyle(button);
+    expect(cs.width).toBe("100%");
+    expect(cs.backgroundColor).toBe("rgb(164, 38, 44)"); // the default theme's redDark
+  });
+
+  it("leaves a button without a tooltip its natural width", () => {
+    render(<V8Button text="Submit" />);
+    const button = screen.getByRole("button", { name: "Submit" });
+    expect(getComputedStyle(button).width).not.toBe("100%");
+  });
+});
+
 describe("placeholder", () => {
   it("shows a Dropdown's placeholder while nothing is picked", () => {
     render(

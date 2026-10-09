@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import type { KeyboardEvent, ReactElement, ReactNode } from "react";
+import type { KeyboardEvent, MouseEvent, ReactElement, ReactNode } from "react";
 import {
   CalendarIcon,
   Check,
@@ -50,6 +50,7 @@ import type {
   FieldDisplayProps,
   FileInputProps,
   IconButtonProps,
+  LinkProps,
   MessageBarProps,
   NumberInputProps,
   OptionItem,
@@ -59,7 +60,7 @@ import type {
   SpinnerProps,
   TextInputProps,
 } from "@speel/react";
-import { SpeelActionBar } from "@speel/react";
+import { SpeelActionBar, setOverflowTitle } from "@speel/react";
 
 import { useStableId } from "./compat";
 import { Chrome, fieldAria } from "./chrome";
@@ -265,19 +266,22 @@ const BUTTON_VARIANT = {
 
 export function ShadButton(p: ButtonProps): ReactElement {
   const tipId = useStableId();
+  const tipped = p.tooltip !== undefined;
   const button = (
     <Button
       type={p.type ?? "button"}
       variant={BUTTON_VARIANT[p.appearance ?? "secondary"]}
       disabled={!!p.disabled}
       aria-label={p.ariaLabel}
-      aria-describedby={p.tooltip !== undefined ? tipId : undefined}
+      aria-describedby={tipped ? tipId : undefined}
+      // A tooltip-wrapped button fills its trigger, so the tooltip anchors on the button.
+      className={cn(tipped && "w-full")}
       onClick={p.onClick}
     >
       {p.text}
     </Button>
   );
-  if (p.tooltip === undefined) return button;
+  if (!tipped) return button;
   // A disabled button takes no pointer or focus events, so the trigger is a wrapper
   // around it — focusable itself while the button is not — and the hint still shows.
   return (
@@ -294,6 +298,76 @@ export function ShadButton(p: ButtonProps): ReactElement {
         {p.tooltip}
       </span>
     </TooltipProvider>
+  );
+}
+
+/**
+ * One look for both link forms — an `<a>` and a `<button>` must be indistinguishable. Theme
+ * colour, underlined on hover only, one line cut off at its end (never centred), and muted
+ * while disabled. The underline keeps the font's own offset: `truncate` makes the link's box
+ * clip, and a pushed-down underline (`underline-offset-*`) falls below it with fonts whose
+ * baseline sits low, such as Segoe UI — painted on some rows and cut off on others.
+ */
+const LINK_CLASSES =
+  "text-primary inline-block max-w-full truncate align-top text-start font-normal hover:underline cursor-pointer rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-disabled:cursor-not-allowed aria-disabled:text-muted-foreground aria-disabled:no-underline";
+
+/** Whether a click on a link should be left to the browser — a new tab, window or download. */
+const browserHandlesClick = (e: MouseEvent): boolean =>
+  e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey;
+
+/**
+ * A link: with `href` a real `<a>` (open in a new tab, copy link and middle-click all work)
+ * whose plain left click runs `onClick` in place of navigating; without `href` a `<button>`
+ * that looks the same. A disabled link stays focusable but goes nowhere: the `<a>` drops its
+ * `href` and keeps its link role and a tab stop; the `<button>` is `aria-disabled`, never
+ * natively disabled.
+ */
+export function ShadLink(p: LinkProps): ReactElement {
+  const { onClick, href, disabled } = p;
+  const shared = {
+    className: LINK_CLASSES,
+    "aria-label": p.ariaLabel,
+    "aria-disabled": disabled ? true : undefined,
+    // A cut-off link shows its full text natively.
+    onMouseEnter: (e: MouseEvent<HTMLElement>) =>
+      setOverflowTitle(e.currentTarget, () => p.text),
+  };
+  if (href === undefined) {
+    return (
+      <button
+        type="button"
+        {...shared}
+        onClick={disabled ? undefined : onClick}
+      >
+        {p.text}
+      </button>
+    );
+  }
+  if (disabled) {
+    return (
+      <a role="link" tabIndex={0} {...shared}>
+        {p.text}
+      </a>
+    );
+  }
+  return (
+    <a
+      {...shared}
+      href={href}
+      target={p.target}
+      rel={p.target === "_blank" ? "noreferrer noopener" : undefined}
+      onClick={
+        onClick
+          ? (e: MouseEvent<HTMLAnchorElement>) => {
+              if (browserHandlesClick(e)) return;
+              e.preventDefault();
+              onClick();
+            }
+          : undefined
+      }
+    >
+      {p.text}
+    </a>
   );
 }
 

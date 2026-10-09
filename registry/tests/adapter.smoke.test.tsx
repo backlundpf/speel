@@ -8,7 +8,7 @@ import { shadcnAdapter } from "@/speel-shadcn/adapter";
 const noop = (): void => {};
 
 describe("shadcnAdapter smoke", () => {
-  it("exposes all 22 members", () => {
+  it("exposes all 23 members", () => {
     expect(Object.keys(shadcnAdapter).sort()).toEqual([
       "Button",
       "Checkbox",
@@ -20,6 +20,7 @@ describe("shadcnAdapter smoke", () => {
       "FieldDisplay",
       "FileInput",
       "IconButton",
+      "Link",
       "Menu",
       "MessageBar",
       "NumberInput",
@@ -88,6 +89,8 @@ describe("shadcnAdapter smoke", () => {
         <a.ProgressBar label="indet" />
         <a.Button text="go" appearance="primary" />
         <a.IconButton iconName="Edit" title="edit" />
+        <a.Link text="spec" href="/spec" />
+        <a.Link text="act" onClick={noop} />
         <a.IconButton iconName="PencilRuler" title="lucide fallback" />
         <a.MessageBar intent="warning" onDismiss={noop}>
           warn

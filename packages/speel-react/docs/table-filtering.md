@@ -6,7 +6,7 @@
 type, with no per-column configuration, and can add a search box that reads what the screen
 shows. Reach here when a table should open already narrowed, when a column should sort or
 filter on something other than its stored value, or when users need to find a row by typing.
-Column definitions and the components themselves are on [tables](tables.md).
+Column definitions are on [table columns](table-columns.md), the components on [tables](tables.md).
 
 ## Canonical example
 

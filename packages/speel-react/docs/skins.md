@@ -16,9 +16,8 @@ shadcn registry — install it into your own project, own the code, and use it i
 (Next.js, Vite, Remix, or SPFx via a sidecar recipe) that runs Tailwind. React 17 is
 supported; React 18 works equally well.
 
-Skins are interchangeable per-provider: swap the `ui` prop on `SpeelProvider` and every
-component in that tree renders with the new skin. You can run different skins in different
-subtrees if your app hosts both SPFx and non-SPFx sections.
+Skins are interchangeable per provider: swap `SpeelProvider`'s `ui` and every component in
+that tree renders with the new skin, so SPFx and non-SPFx subtrees can run different skins.
 
 ## Canonical example
 
@@ -113,9 +112,15 @@ open state, title, body and footer slots, `resizable`, `draggable` (dialog only)
 shadcn skins implement all flags, so drag/resize/fullscreen parity is maintained across
 skins out of the box.
 
-**Table** — `TableProps` with `TableColumn` descriptors and `TableSort` carries sort
-state. The skin owns header rendering, cell rendering, and sort indicator placement;
-column order, widths, and custom cells come from the `TableColumn` spec.
+**Table** — `TableProps` carries `TableColumn` specs, `TableSort`, and the table's `minWidth` /
+`width` / `maxWidth`; the skin owns header, cell, and sort rendering. Optional column hints:
+`defaultWidth`, `grow` / `shrink` / `minWidth` / `maxWidth`, `wrap`, `cellTitle` (hover via
+`setOverflowTitle`), `headerContent` (replaces the label), `align` (a `ColumnAlign`, absent =
+start; the logical `text-align` of the header label and the cells). To lay columns out as the
+built-in skins do, measure the container with `useContainerWidth`, map each column through
+`toFlexColumn` with its `headerFloor` (your header's `HeaderRoom`, a `textMeasurer` for its
+font) and whole-pixel cell padding, render the widths `resolveColumnWidths` returns in a table
+box as wide as their total, and stop drags at `MIN_RESIZE_WIDTH` and the column's own bounds.
 
 **Menu** — `MenuProps` carries titled sections of items with icons and optional checkmarks.
 Map it to the library's own menu (Fluent's `ContextualMenu`, radix's dropdown menu), not
@@ -123,28 +128,32 @@ a popover of buttons: roles, arrow keys and checkmark alignment are the point.
 
 **Feedback primitives** — `ButtonProps`, `IconButtonProps`, `MessageBarProps`, and
 `PopoverProps` serve every generic action or message. `appearance: "danger"` is a
-destructive `Button` in the error color; render `MessageBarProps.actions` (array or node;
-`multiline` puts it below or beside the text) with the exported `SpeelActionBar`.
+destructive `Button` in the error color. `LinkProps` is the skin's link: `href` renders an
+`<a>` and `onClick` replaces navigation on a plain left click only (modified and middle clicks
+are the browser's); without `href` a `<button>` that looks identical. It is cut off at its
+**end**, shows its full text on hover (`setOverflowTitle`), and a disabled link stays
+focusable and never navigates. Render `MessageBarProps.actions` (array or node; `multiline` puts it below
+or beside the text) with the exported `SpeelActionBar`.
 
 **Standalone controls** — `ariaLabel` names an unlabelled `Checkbox`; `indeterminate` shows
 "some selected" (a click reports `true`); `placeholder` explains an empty `Dropdown` or
-`Combobox`; a `Button`'s `tooltip` is its description and shows even while it is disabled.
+`Combobox`; a `Button`'s `tooltip` is its description and shows even while it is disabled. A
+tooltip's host and its button are **one box**, so it anchors to the button in any container:
+v8 makes the host `inline-block` and the button fill it, shadcn gives the button `w-full`
+inside its `inline-flex` trigger.
 
 ### Skin-support hooks
 
-Two hooks in `@speel/react` exist specifically to help skin authors implement dialog and
-drawer chrome without duplicating the resize/drag logic:
+Two hooks in `@speel/react` spare a skin the dialog and drawer resize/drag logic; both built-in
+skins use them:
 
 - **`useDragResize`** — title-bar drag + corner resize for a dialog; the corner handle is a
   tab stop the arrow keys resize, and `max`/`bounds` keep the dialog on screen.
-- **`useResizable`** — manages single-edge resize (typically the leading edge of a
-  drawer). Returns width state and the handle props: pointer and keyboard handlers plus
-  the `separator` role and tab stop that make the edge reachable without a mouse.
-- **`useStableId`** — one id per field, `React.useId` where the host is on React 18 and a
-  per-mount counter on React 17, which is what SPFx runs.
+- **`useResizable`** — single-edge resize (a drawer's leading edge): width state plus handle
+  props — pointer and keyboard handlers, the `separator` role, and a tab stop.
 
-All three are exported from `@speel/react` and used internally by the Fluent v8 skin.
-The shadcn skin imports them the same way.
+Each built-in skin also keeps a small `useStableId` — one id per field, `React.useId` on React 18
+and a per-mount counter on React 17, which SPFx runs. It is not exported; copy the shadcn one.
 
 ### Naming a field's control
 
@@ -169,13 +178,9 @@ the hint that would have avoided it.
 ### Icon vocabulary
 
 High-level components (`@speel/react`) emit icon names using Fluent icon identifiers
-(`"Cancel"`, `"View"`, `"Edit"`, `"Delete"`, `"Filter"`). A skin maps those names to whatever
-icon library it uses. The shadcn skin maps them to `lucide-react` equivalents in
-`src/components/speel/icons.tsx`.
-
-Custom `iconName` values that consumers pass (e.g. on `IconButtonProps`) use the
-skin's native vocabulary — lucide names in the shadcn skin, Fluent names in v8. Icon
-names are therefore skin-specific strings and are not portable across skins.
+(`"Cancel"`, `"View"`, `"Edit"`, `"Delete"`, `"Filter"`), and a skin maps them to its own icon
+library — the shadcn skin to `lucide-react` equivalents in `src/components/speel/icons.tsx`. An
+`iconName` you pass yourself (on `IconButtonProps`, say) is in the skin's native vocabulary.
 
 ### The speel default theme
 
@@ -191,16 +196,16 @@ at render time, so a single token change propagates everywhere.
 
 ### Writing your own skin
 
-Implement `SpeelUIAdapter` (imported from `@speel/react`), then pass the object as the
-`ui` prop to `SpeelProvider`. You do not need to extend any base class. The shadcn skin
-in `registry/src/speel-shadcn/` is the reference implementation for the full adapter.
+Implement `SpeelUIAdapter` (imported from `@speel/react`) and pass the object as
+`SpeelProvider`'s `ui` — there is no base class to extend. The shadcn skin in
+`registry/src/speel-shadcn/` is the reference implementation of the full adapter.
 
 ## Boundaries & gotchas
 
 **The shadcn skin is copy-in source — you own it.** It is not an npm package. After
 installing it once you are responsible for keeping it up to date when `@speel/react`
-adds new adapter members. Re-run the registry `add` command to receive updates, or
-patch the files manually.
+adds new adapter members: re-run the registry `add` command, or patch the files manually. The
+item adds `@speel/react` and `lucide-react` but not `@speel/core` — install that and configure a `DbContext` for `SpeelProvider` yourself.
 
 **SPFx hosts: fluent-v8 is the zero-setup default; the shadcn skin is supported via the sidecar recipe.** The Fabric-singleton constraint forbids bundling a second _Fluent_ runtime — it does not forbid non-Fluent skins. Running the shadcn skin in a web part requires the React 17-compatible skin build, a Tailwind sidecar whose preflight is isolated in the lowest cascade layer (so SharePoint's unlayered styles override it and the shared page is left untouched), and the `speel-shadcn` wrapper class; follow the recipe in `samples/spfx-sample/README.md`.
 
@@ -237,14 +242,9 @@ the box to revert. `allowFreeform` is not negotiable: with it off, Fluent's inpu
 a text box (printable keys are reported one at a time, a paste produces no query at all, and
 IME composition breaks).
 
-**One skin per SpeelProvider.** Each `SpeelProvider` accepts exactly one `ui` adapter.
-If you need to mix skins across different sections of a page, mount separate
-`SpeelProvider` trees with different `ui` values and separate `DbContext` instances.
+**One skin per SpeelProvider.** Each `SpeelProvider` accepts exactly one `ui` adapter. To mix
+skins on one page, mount separate `SpeelProvider` trees with their own `ui` and `DbContext`.
 
 **`iconName` is not a portable string.** An icon name that works in the shadcn skin
 (`"Pencil"` from lucide) will not resolve in the Fluent v8 skin (`"Edit"` is the
 Fluent name). Do not hard-code skin-specific icon names in shared component code.
-
-**Registry item does not install `@speel/core`.** The `speel-shadcn` registry item
-adds `@speel/react` and `lucide-react` as dependencies. Install `@speel/core` separately
-and configure your `DbContext` before passing it to `SpeelProvider`.
