@@ -198,14 +198,14 @@ test("align end puts the header label and the cell text at the column's end", as
   expect(Math.abs(textEnd - contentRight)).toBeLessThanOrEqual(1);
 });
 
-test.describe("link buttons", () => {
-  test("a long link title shows its beginning, ends cut off, and hovers its full text", async ({
+test.describe("links", () => {
+  test("a long link shows its beginning, ends cut off, and hovers its full text", async ({
     page,
   }) => {
     await show(page);
     const cell = rowCells(scenario(page, "link"), 0).first();
-    const label = cell.locator('button[data-variant="link"] .truncate');
-    const firstCharLeft = await label.evaluate((el) => {
+    const link = cell.locator("a");
+    const firstCharLeft = await link.evaluate((el) => {
       const node = document
         .createTreeWalker(el, NodeFilter.SHOW_TEXT)
         .nextNode()!;
@@ -216,18 +216,18 @@ test.describe("link buttons", () => {
     });
     const cellBox = (await cell.boundingBox())!;
     expect(firstCharLeft).toBeGreaterThanOrEqual(cellBox.x); // the beginning is visible
-    expect(await label.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+    expect(await link.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
       true,
     );
-    expect(
-      await label.evaluate((el) => getComputedStyle(el).textOverflow),
-    ).toBe("ellipsis");
+    expect(await link.evaluate((el) => getComputedStyle(el).textOverflow)).toBe(
+      "ellipsis",
+    );
     // The link cuts itself off inside the cell, so the cell never overflows: one hover text.
     expect(await cell.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
       true,
     );
-    await label.hover();
-    await expect(label).toHaveAttribute(
+    await link.hover();
+    await expect(link).toHaveAttribute(
       "title",
       "Due within the first fourteen days of entry",
     );
@@ -236,7 +236,8 @@ test.describe("link buttons", () => {
 
   test("a link row is no taller than a plain text row", async ({ page }) => {
     await show(page);
-    // Both the last row of their table: the body's last row has no bottom border.
+    // Both the last row of their table: the body's last row has no bottom border. That row
+    // holds a link of each form.
     const linkRow = (await bodyRows(scenario(page, "link"))
       .nth(1)
       .boundingBox())!;
@@ -244,6 +245,44 @@ test.describe("link buttons", () => {
       .first()
       .boundingBox())!;
     expect(linkRow.height).toBeLessThanOrEqual(plainRow.height + 0.5);
+  });
+
+  test("a link with href and one without look the same, at rest and hovered", async ({
+    page,
+  }) => {
+    await show(page);
+    const s = scenario(page, "link");
+    const anchor = rowCells(s, 1).nth(0).locator("a");
+    const button = rowCells(s, 1).nth(1).locator("button");
+    const look = (l: Locator) =>
+      l.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return {
+          color: cs.color,
+          fontWeight: cs.fontWeight,
+          textDecorationLine: cs.textDecorationLine,
+          cursor: cs.cursor,
+        };
+      });
+    const decoration = (l: Locator) =>
+      l.evaluate((el) => getComputedStyle(el).textDecorationLine);
+
+    const [a, b] = [await look(anchor), await look(button)];
+    expect(b).toEqual(a);
+    expect(a.textDecorationLine).toBe("none");
+    expect(a.cursor).toBe("pointer");
+    // The theme's link colour, not the cell's text colour.
+    const textColor = await rowCells(s, 1)
+      .nth(2)
+      .evaluate((el) => getComputedStyle(el).color);
+    expect(a.color).not.toBe(textColor);
+
+    await anchor.hover();
+    const aHovered = await decoration(anchor);
+    await button.hover();
+    const bHovered = await decoration(button);
+    expect(aHovered).toBe("underline");
+    expect(bHovered).toBe(aHovered);
   });
 });
 
@@ -269,30 +308,4 @@ test.describe("tooltip anchoring", () => {
       ).toBeLessThanOrEqual(1);
     });
   }
-
-  test("a link with a tooltip is its trigger's box and still cuts itself off in a cell", async ({
-    page,
-  }) => {
-    await show(page);
-    const cell = rowCells(scenario(page, "link"), 0).nth(2);
-    const link = cell.locator('button[data-variant="link"]');
-    const label = link.locator(".truncate");
-    const trigger = link.locator("xpath=..");
-    const [l, t] = [
-      (await link.boundingBox())!,
-      (await trigger.boundingBox())!,
-    ];
-    expect(
-      Math.abs(l.x - t.x) + Math.abs(l.width - t.width),
-    ).toBeLessThanOrEqual(1);
-    expect(await label.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
-      true,
-    );
-    expect(await cell.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
-      true,
-    );
-    await label.hover();
-    await expect(label).not.toHaveAttribute("title"); // the tooltip is the hover text
-    await expect(cell).not.toHaveAttribute("title");
-  });
 });

@@ -50,6 +50,7 @@ import type {
   FieldDisplayProps,
   FileInputProps,
   IconButtonProps,
+  LinkProps,
   MessageBarProps,
   NumberInputProps,
   OptionItem,
@@ -261,21 +262,11 @@ const BUTTON_VARIANT = {
   secondary: "outline",
   subtle: "ghost",
   danger: "destructive",
-  link: "link",
 } as const;
-
-/**
- * A link is inline text: no button height or padding (with an icon too), start-aligned, and
- * never wider than its container, so its label — the `truncate` span — is cut off at its end.
- */
-const LINK = "h-auto max-w-full justify-start p-0 text-start has-[>svg]:px-0";
 
 export function ShadButton(p: ButtonProps): ReactElement {
   const tipId = useStableId();
   const tipped = p.tooltip !== undefined;
-  const link = p.appearance === "link";
-  const Icon =
-    link && p.iconName !== undefined ? iconFor(p.iconName) : undefined;
   const button = (
     <Button
       type={p.type ?? "button"}
@@ -284,43 +275,20 @@ export function ShadButton(p: ButtonProps): ReactElement {
       aria-label={p.ariaLabel}
       aria-describedby={tipped ? tipId : undefined}
       // A tooltip-wrapped button fills its trigger, so the tooltip anchors on the button.
-      className={cn(link && LINK, tipped && "w-full")}
+      className={cn(tipped && "w-full")}
       onClick={p.onClick}
     >
-      {link ? (
-        <>
-          {Icon ? <Icon aria-hidden /> : null}
-          <span
-            className="truncate"
-            // A cut-off link shows its full text natively — unless the tooltip is its hover text.
-            {...(!tipped
-              ? {
-                  onMouseEnter: (e: MouseEvent<HTMLSpanElement>) =>
-                    setOverflowTitle(e.currentTarget, () => p.text),
-                }
-              : {})}
-          >
-            {p.text}
-          </span>
-        </>
-      ) : (
-        p.text
-      )}
+      {p.text}
     </Button>
   );
   if (!tipped) return button;
   // A disabled button takes no pointer or focus events, so the trigger is a wrapper
   // around it — focusable itself while the button is not — and the hint still shows.
-  // A link's trigger is held to its container like the link: a link fills its trigger, so
-  // an unbounded one would let it outgrow a narrow cell instead of cutting itself off.
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span
-            className={cn("inline-flex", link && "max-w-full")}
-            tabIndex={p.disabled ? 0 : undefined}
-          >
+          <span className="inline-flex" tabIndex={p.disabled ? 0 : undefined}>
             {button}
           </span>
         </TooltipTrigger>
@@ -330,6 +298,74 @@ export function ShadButton(p: ButtonProps): ReactElement {
         {p.tooltip}
       </span>
     </TooltipProvider>
+  );
+}
+
+/**
+ * One look for both link forms — an `<a>` and a `<button>` must be indistinguishable. Theme
+ * colour, underlined on hover only, one line cut off at its end (never centred), and muted
+ * while disabled.
+ */
+const LINK_CLASSES =
+  "text-primary inline-block max-w-full truncate align-top text-start font-normal underline-offset-4 hover:underline cursor-pointer rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-disabled:cursor-not-allowed aria-disabled:text-muted-foreground aria-disabled:no-underline";
+
+/** Whether a click on a link should be left to the browser — a new tab, window or download. */
+const browserHandlesClick = (e: MouseEvent): boolean =>
+  e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey;
+
+/**
+ * A link: with `href` a real `<a>` (open in a new tab, copy link and middle-click all work)
+ * whose plain left click runs `onClick` in place of navigating; without `href` a `<button>`
+ * that looks the same. A disabled link stays focusable but goes nowhere: the `<a>` drops its
+ * `href` and keeps its link role and a tab stop; the `<button>` is `aria-disabled`, never
+ * natively disabled.
+ */
+export function ShadLink(p: LinkProps): ReactElement {
+  const { onClick, href, disabled } = p;
+  const shared = {
+    className: LINK_CLASSES,
+    "aria-label": p.ariaLabel,
+    "aria-disabled": disabled ? true : undefined,
+    // A cut-off link shows its full text natively.
+    onMouseEnter: (e: MouseEvent<HTMLElement>) =>
+      setOverflowTitle(e.currentTarget, () => p.text),
+  };
+  if (href === undefined) {
+    return (
+      <button
+        type="button"
+        {...shared}
+        onClick={disabled ? undefined : onClick}
+      >
+        {p.text}
+      </button>
+    );
+  }
+  if (disabled) {
+    return (
+      <a role="link" tabIndex={0} {...shared}>
+        {p.text}
+      </a>
+    );
+  }
+  return (
+    <a
+      {...shared}
+      href={href}
+      target={p.target}
+      rel={p.target === "_blank" ? "noreferrer noopener" : undefined}
+      onClick={
+        onClick
+          ? (e: MouseEvent<HTMLAnchorElement>) => {
+              if (browserHandlesClick(e)) return;
+              e.preventDefault();
+              onClick();
+            }
+          : undefined
+      }
+    >
+      {p.text}
+    </a>
   );
 }
 

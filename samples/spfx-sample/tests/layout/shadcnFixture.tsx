@@ -2,7 +2,7 @@
 // compiled Tailwind CSS (added by the spec), every scenario in its own section[data-scenario].
 import * as React from "react";
 import * as ReactDOM from "react-dom";
-import { ShadButton } from "@/components/speel/fields";
+import { ShadButton, ShadLink } from "@/components/speel/fields";
 import { ShadTable } from "@/components/speel/table";
 import type { TableColumn, TableLength } from "@speel/react";
 
@@ -120,35 +120,29 @@ const scenarios: Scenario[] = [
     items: [{ n: "42", filler: "" }],
   },
   {
-    // A row title rendered as a link button, bare and tooltip-wrapped, each with a title as
-    // SpeelTable gives every data column.
+    // A row title rendered as a link with `href` (an `<a>` whose plain click stays in the
+    // page) beside a link without one (a `<button>`), each with a title as SpeelTable gives
+    // every data column.
     name: "link",
     containerWidth: 1200,
     columns: [
       col("t", "Title", {
         width: 120,
         render: (r) => (
-          <ShadButton
-            appearance="link"
+          <ShadLink
+            href={"#" + (r as Row)["t"]}
             text={(r as Row)["t"] ?? ""}
             onClick={() => undefined}
           />
         ),
         cellTitle: (r) => (r as Row)["t"] ?? "",
+      }),
+      col("b", "Action", {
+        width: 120,
+        render: () => <ShadLink text="Action" onClick={() => undefined} />,
+        cellTitle: () => "Action",
       }),
       col("p", "Plain", { width: 120 }),
-      col("tt", "Tipped", {
-        width: 120,
-        render: (r) => (
-          <ShadButton
-            appearance="link"
-            text={(r as Row)["t"] ?? ""}
-            tooltip="Open the item"
-            onClick={() => undefined}
-          />
-        ),
-        cellTitle: (r) => (r as Row)["t"] ?? "",
-      }),
       col("filler", "Filler", { width: 50 }),
     ],
     items: [
