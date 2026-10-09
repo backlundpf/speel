@@ -540,6 +540,35 @@ test.describe("links", () => {
     expect(aHovered).toBe("underline");
     expect(bHovered).toBe(aHovered);
   });
+
+  test("a link in running text sits on the text's line, in both forms", async ({
+    page,
+  }) => {
+    await show(page);
+    const p = scenario(page, "link-inline").locator("p");
+    const m = await p.evaluate((el) => {
+      const top = (node: Node): number => {
+        const r = document.createRange();
+        r.setStart(node, 0);
+        r.setEnd(node, 1);
+        return r.getBoundingClientRect().top;
+      };
+      const textOf = (sel: string): Node =>
+        document
+          .createTreeWalker(el.querySelector(sel)!, NodeFilter.SHOW_TEXT)
+          .nextNode()!;
+      return {
+        text: top(el.firstChild!),
+        anchor: top(textOf("a.ms-Link")),
+        button: top(textOf("button.ms-Link")),
+        height: el.getBoundingClientRect().height,
+      };
+    });
+    expect(Math.abs(m.anchor - m.text)).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(m.button - m.text)).toBeLessThanOrEqual(0.5);
+    // One line, no taller than the paragraph's own line height.
+    expect(Math.abs(m.height - 24)).toBeLessThanOrEqual(0.5);
+  });
 });
 
 test.describe("tooltip anchoring", () => {

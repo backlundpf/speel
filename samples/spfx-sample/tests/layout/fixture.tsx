@@ -391,6 +391,20 @@ function App(): JSX.Element {
           )}
         </section>
       ))}
+      {/* Links in running text with a line height of its own: an `<a>` and a `<button>`. */}
+      <section data-scenario="link-inline" style={{ marginBottom: 24 }}>
+        <p
+          style={{
+            margin: 0,
+            fontFamily: "'Liberation Sans', Arial, sans-serif",
+            fontSize: 14,
+            lineHeight: "24px",
+          }}
+        >
+          Due <V8Link href="#spec" text="Spec" onClick={() => undefined} /> and{" "}
+          <V8Link text="Action" onClick={() => undefined} />
+        </p>
+      </section>
       {tipContainers.map((t) => (
         <section
           key={t.name}

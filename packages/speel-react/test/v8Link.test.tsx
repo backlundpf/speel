@@ -102,6 +102,46 @@ describe("V8Link", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it("disabled anchor: no href, target or rel, but a link's role and a tab stop", () => {
+    render(<V8Link text="Spec" href="/spec" target="_blank" disabled />);
+    const a = screen.getByRole("link", { name: "Spec" });
+    expect(a.tagName).toBe("A");
+    for (const attr of ["href", "target", "rel"]) {
+      expect(a).not.toHaveAttribute(attr);
+    }
+    expect(a).toHaveAttribute("tabindex", "0");
+  });
+
+  for (const [form, href] of [
+    ["anchor", "/spec"],
+    ["button", undefined],
+  ] as const) {
+    it(`toggling disabled keeps the ${form} and its focus`, () => {
+      const onClick = vi.fn();
+      const link = (disabled: boolean): JSX.Element => (
+        <V8Link
+          text="Spec"
+          {...(href !== undefined ? { href } : {})}
+          onClick={onClick}
+          disabled={disabled}
+        />
+      );
+      const { rerender } = render(link(false));
+      const el = screen.getByText("Spec").closest(".ms-Link") as HTMLElement;
+      el.focus();
+      expect(document.activeElement).toBe(el);
+      rerender(link(true));
+      expect(el.isConnected).toBe(true);
+      expect(el).toHaveAttribute("aria-disabled", "true");
+      expect(document.activeElement).toBe(el);
+      rerender(link(false));
+      expect(el.isConnected).toBe(true);
+      expect(el).toHaveAttribute("aria-disabled", "false");
+      expect(document.activeElement).toBe(el);
+      if (href !== undefined) expect(el).toHaveAttribute("href", href);
+    });
+  }
+
   it("truncates at the end and titles itself when cut off", () => {
     render(<V8Link text="A long title" href="/x" />);
     const a = screen.getByRole("link", { name: "A long title" });
@@ -112,7 +152,17 @@ describe("V8Link", () => {
       cs.textOverflow,
       cs.whiteSpace,
       cs.maxWidth,
-    ]).toEqual(["inline-block", "hidden", "ellipsis", "nowrap", "100%"]);
+      cs.verticalAlign,
+      cs.textAlign,
+    ]).toEqual([
+      "inline-block",
+      "hidden",
+      "ellipsis",
+      "nowrap",
+      "100%",
+      "top",
+      "start",
+    ]);
     sized(a, 200, 80);
     fireEvent.mouseEnter(a);
     expect(a.title).toBe("A long title");

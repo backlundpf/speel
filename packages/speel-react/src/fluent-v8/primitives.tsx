@@ -50,7 +50,9 @@ import type {
   IDetailsHeaderProps,
   IContextualMenuItem,
   IButtonStyles,
+  ILinkStyleProps,
   ILinkStyles,
+  IRawStyle,
   ITooltipHostStyles,
   Theme,
 } from "@fluentui/react";
@@ -237,18 +239,26 @@ export function V8ProgressBar(p: ProgressBarProps): JSX.Element {
   );
 }
 
-/** A link: one line, cut off at its end, never centred. */
-const LINK_STYLES = {
-  root: {
-    display: "inline-block",
-    maxWidth: "100%",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    verticalAlign: "top",
-    textAlign: "start",
-  },
-} satisfies ILinkStyles;
+/** A link: one line, cut off at its end, never centred, on its text's line height. */
+const LINK_ROOT = {
+  display: "inline-block",
+  maxWidth: "100%",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  verticalAlign: "top",
+  textAlign: "start",
+  // The browser gives a `<button>` `line-height: normal`: in text with a line height of its
+  // own, the button form would sit higher than the anchor.
+  lineHeight: "inherit",
+} satisfies IRawStyle;
+/**
+ * The button form keeps Fluent's transparent 1px bottom border (it shows in high contrast),
+ * which makes its box 1px taller than the line; a matching negative margin cancels it.
+ */
+const linkStyles = ({ isButton }: ILinkStyleProps): ILinkStyles => ({
+  root: [LINK_ROOT, isButton && { marginBottom: -1 }],
+});
 /** The wrapped button fills its tooltip host, so the host and the button are one box. */
 const FILL_HOST = { root: { width: "100%" } };
 /**
@@ -280,31 +290,32 @@ const browserHandlesClick = (e: React.MouseEvent): boolean =>
   e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey;
 
 /**
- * A disabled link's root. Fluent's `Link` disables its `<button>` natively and drops its
- * `<a>`'s `href`, which takes either out of the tab order. This root keeps a disabled link
- * focusable: the `<a>` keeps no `href` (nothing to follow, open in a new tab or copy) but
- * keeps its link role and a tab stop; the `<button>` loses the native attribute. `Link`
- * still marks either `aria-disabled`, styles it disabled and ignores its clicks.
+ * The link's root, enabled or disabled: one component type, so toggling `disabled` updates
+ * the element in place and focus stays on it. Fluent's own string root can't keep a disabled
+ * link focusable — it disables its `<button>` natively and drops its `<a>`'s `href`, which
+ * takes either out of the tab order. Here a disabled `<a>` keeps no `href`, `target` or `rel`
+ * (nothing to follow, open in a new tab or copy) but keeps its link role and a tab stop; the
+ * `<button>` never takes the native attribute. `Link` still marks either `aria-disabled`,
+ * styles it disabled and ignores its clicks.
  */
-const DisabledLinkRoot = React.forwardRef<
+const LinkRoot = React.forwardRef<
   HTMLElement,
   React.AnchorHTMLAttributes<HTMLElement> & { disabled?: boolean }
->(function DisabledLinkRoot(
-  { disabled: _native, href, target: _target, rel: _rel, ...rest },
-  ref,
-) {
-  return href !== undefined ? (
+>(function LinkRoot({ disabled, href, target, rel, ...rest }, ref) {
+  if (href === undefined) {
+    return (
+      <button
+        ref={ref as React.Ref<HTMLButtonElement>}
+        type="button"
+        {...(rest as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+      />
+    );
+  }
+  return (
     <a
       ref={ref as React.Ref<HTMLAnchorElement>}
-      role="link"
-      tabIndex={0}
       {...rest}
-    />
-  ) : (
-    <button
-      ref={ref as React.Ref<HTMLButtonElement>}
-      type="button"
-      {...(rest as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+      {...(disabled ? { role: "link", tabIndex: 0 } : { href, target, rel })}
     />
   );
 });
@@ -313,7 +324,8 @@ export function V8Link(p: LinkProps): JSX.Element {
   const { onClick, href } = p;
   return (
     <Link
-      styles={LINK_STYLES}
+      as={LinkRoot}
+      styles={linkStyles}
       {...(href !== undefined ? { href } : {})}
       {...(p.target !== undefined
         ? {
@@ -322,7 +334,6 @@ export function V8Link(p: LinkProps): JSX.Element {
           }
         : {})}
       disabled={!!p.disabled}
-      {...(p.disabled ? { as: DisabledLinkRoot } : {})}
       {...(p.ariaLabel !== undefined ? { "aria-label": p.ariaLabel } : {})}
       {...(onClick
         ? {
