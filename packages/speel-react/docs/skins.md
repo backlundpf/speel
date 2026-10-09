@@ -128,19 +128,19 @@ a popover of buttons: roles, arrow keys and checkmark alignment are the point.
 
 **Feedback primitives** — `ButtonProps`, `IconButtonProps`, `MessageBarProps`, and
 `PopoverProps` serve every generic action or message. `appearance: "danger"` is a
-destructive `Button` in the error color. `appearance: "link"` is inline text on one line, no
-wider than its container, cut off at its **end** and never centred — the button a table cell
-opens its row with. A cut-off link without a `tooltip` sets its full text as its hover title
-(`setOverflowTitle`), so the cell holding it never needs a second one. Render
-`MessageBarProps.actions` (array or node; `multiline` puts it below or beside the text) with
-the exported `SpeelActionBar`.
+destructive `Button` in the error color. `LinkProps` is the skin's link: `href` renders an
+`<a>` and `onClick` replaces navigation on a plain left click only (modified and middle clicks
+are the browser's); without `href` a `<button>` that looks identical. It is cut off at its
+**end**, shows its full text on hover (`setOverflowTitle`), and a disabled link stays
+focusable and never navigates. Render `MessageBarProps.actions` (array or node; `multiline` puts it below
+or beside the text) with the exported `SpeelActionBar`.
 
 **Standalone controls** — `ariaLabel` names an unlabelled `Checkbox`; `indeterminate` shows
 "some selected" (a click reports `true`); `placeholder` explains an empty `Dropdown` or
 `Combobox`; a `Button`'s `tooltip` is its description and shows even while it is disabled. A
-tooltip's host and its button are **one box**, so the tooltip anchors to the button in any
-container: v8 makes the host `inline-block` and the button fill it, shadcn gives the button
-`w-full` inside its `inline-flex` trigger, and a link's host is also capped at its container.
+tooltip's host and its button are **one box**, so it anchors to the button in any container:
+v8 makes the host `inline-block` and the button fill it, shadcn gives the button `w-full`
+inside its `inline-flex` trigger.
 
 ### Skin-support hooks
 

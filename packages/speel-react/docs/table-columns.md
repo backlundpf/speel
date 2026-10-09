@@ -183,23 +183,23 @@ the title off for a column whose cell brings its own tooltip or has no text to s
 
 ### A cell that opens its row
 
-Render the cell as the skin's button in its `"link"` appearance — inline text on one line, no
-taller than the row's other text:
+Render the cell as the skin's `ui.Link` — inline text on one line, no taller than the row's
+other text. `href` makes it a real anchor (open in a new tab works); `onClick` replaces
+navigation on a plain left click only, so modified and middle clicks still use the `href`:
 
 ```tsx
 const ui = useSpeelUI(); // from "@speel/react", in the component rendering the table
 
 columns={(p) => [
   p.Title.with({
-    render: (t) => <ui.Button appearance="link" text={t.Title ?? ""} onClick={() => open(t)} />,
+    render: (t) => <ui.Link text={t.Title ?? ""} href={urlOf(t)} onClick={() => open(t)} />,
   }),
   p.Owner,
 ]}
 ```
 
 A title too long for the column is cut off at its end with "…" and shows its full text on
-hover (a disabled link shows none). A `subtle` button is a full button tall and centres its
-label, so a long title can lose its start.
+hover. Without `href` it is a button that looks the same.
 
 ### A control in the header
 
