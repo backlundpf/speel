@@ -92,6 +92,7 @@ const ProgramsSection: React.FC<{ ctx: ProjectDashboardContext }> = ({
           {
             key: "projects",
             header: "Projects",
+            align: "end", // a count lines up on its last digit
             render: (r) => r.OwnedProjects?.length ?? 0,
             sortValue: (r) => r.OwnedProjects?.length ?? 0,
           },
@@ -215,40 +216,59 @@ const DashboardBody: React.FC<{ ctx: ProjectDashboardContext }> = ({ ctx }) => {
         ref={tableRef}
         of={Project}
         onMatchedRowsChange={setMatched}
+        // Column alignment on show: start (the default — Priority, Due date, Owner), center
+        // (Select, Status, Health) and end (Budget). `align` is text alignment, so the
+        // checkboxes — block-level controls — sit in inline-block spans to move with it.
         columns={(p) => [
           {
             key: "select",
             header: "Select",
             width: 40,
+            align: "center",
             headerContent: (
-              <ui.Checkbox
-                ariaLabel="Select all projects"
-                checked={allSelected}
-                onChange={() =>
-                  setSelected(
-                    allSelected ? new Set() : new Set(matched.map(idOf)),
-                  )
-                }
-              />
+              <span style={{ display: "inline-block" }}>
+                <ui.Checkbox
+                  ariaLabel="Select all projects"
+                  checked={allSelected}
+                  onChange={() =>
+                    setSelected(
+                      allSelected ? new Set() : new Set(matched.map(idOf)),
+                    )
+                  }
+                />
+              </span>
             ),
             render: (r) => (
-              <ui.Checkbox
-                ariaLabel={`Select ${r.Title ?? "project"}`}
-                checked={selected.has(idOf(r))}
-                onChange={() => toggleRow(r)}
-              />
+              <span style={{ display: "inline-block" }}>
+                <ui.Checkbox
+                  ariaLabel={`Select ${r.Title ?? "project"}`}
+                  checked={selected.has(idOf(r))}
+                  onChange={() => toggleRow(r)}
+                />
+              </span>
             ),
           },
-          p.Title,
+          // The title opens the project: a link button stays on one line, keeps the
+          // start of a long title, and shows the whole title on hover when cut off.
+          p.Title.with({
+            render: (r) => (
+              <ui.Button
+                appearance="link"
+                text={r.Title ?? ""}
+                onClick={() => viewProject(r)}
+              />
+            ),
+          }),
           p.Description.with({ wrap: true }),
-          p.Status,
+          p.Status.with({ align: "center" }),
           p.Priority,
-          p.Budget,
+          p.Budget.with({ align: "end" }),
           p.DueDate,
           p.Owner,
           {
             key: "health",
             header: "Health",
+            align: "center",
             render: (r) =>
               r.DueDate && r.DueDate < new Date() ? (
                 <span style={{ color: "crimson" }}>Late</span>
