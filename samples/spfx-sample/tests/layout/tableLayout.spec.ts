@@ -458,6 +458,48 @@ test.describe("default widths", () => {
 });
 
 test.describe("links", () => {
+  test("the underline is painted inside the link's clip box with Segoe UI's metrics, at any row position", async ({
+    page,
+  }) => {
+    await show(page);
+    // SharePoint renders Segoe UI, whose vertical metrics (hhea 2210 / -514 over 2048) sit the
+    // baseline lower in the line box than the fixture's font. A link truncates, so its box clips:
+    // an underline pushed below the box is cut off at some sub-pixel row positions and not others.
+    await page.addStyleTag({
+      content: [
+        "@font-face { font-family: 'SegoeMetrics'; src: local('Liberation Sans'); ascent-override: 107.9%; descent-override: 25.1%; line-gap-override: 0%; }",
+        "section[data-scenario='link'] .ms-Link { font-family: 'SegoeMetrics' !important; }",
+      ].join("\n"),
+    });
+    const section = scenario(page, "link");
+    const links = section.locator(".ms-Link");
+    const count = await links.count();
+    expect(count).toBeGreaterThan(0);
+    for (const nudge of [0, 0.25, 0.5, 0.75]) {
+      await section.evaluate((el, n) => {
+        (el as HTMLElement).style.transform = `translateY(${n}px)`;
+      }, nudge);
+      for (let i = 0; i < count; i++) {
+        const l = links.nth(i);
+        // Toggle the decoration directly: hovering would also change the row's background.
+        await l.evaluate(
+          (el) => ((el as HTMLElement).style.textDecorationLine = "none"),
+        );
+        const off = await l.screenshot();
+        await l.evaluate(
+          (el) => ((el as HTMLElement).style.textDecorationLine = "underline"),
+        );
+        const on = await l.screenshot();
+        await l.evaluate(
+          (el) => ((el as HTMLElement).style.textDecorationLine = ""),
+        );
+        expect(on.equals(off), `${await l.textContent()} at +${nudge}px`).toBe(
+          false,
+        );
+      }
+    }
+  });
+
   test("a long link shows its beginning, ends cut off, and hovers its full text", async ({
     page,
   }) => {

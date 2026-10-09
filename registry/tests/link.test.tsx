@@ -50,7 +50,6 @@ describe("shadcn Link", () => {
     for (const c of [
       "text-primary",
       "font-normal",
-      "underline-offset-4",
       "hover:underline",
       "inline-block",
       "max-w-full",
@@ -62,6 +61,8 @@ describe("shadcn Link", () => {
       expect(anchorClass.split(" ")).toContain(c);
     }
     expect(anchorClass.split(" ")).not.toContain("underline");
+    // A pushed-down underline falls outside the truncating box and is clipped (Segoe UI).
+    expect(anchorClass).not.toMatch(/underline-offset/);
   });
 
   it("captures a plain click for onClick and leaves modified clicks to the browser", () => {

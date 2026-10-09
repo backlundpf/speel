@@ -304,10 +304,12 @@ export function ShadButton(p: ButtonProps): ReactElement {
 /**
  * One look for both link forms — an `<a>` and a `<button>` must be indistinguishable. Theme
  * colour, underlined on hover only, one line cut off at its end (never centred), and muted
- * while disabled.
+ * while disabled. The underline keeps the font's own offset: `truncate` makes the link's box
+ * clip, and a pushed-down underline (`underline-offset-*`) falls below it with fonts whose
+ * baseline sits low, such as Segoe UI — painted on some rows and cut off on others.
  */
 const LINK_CLASSES =
-  "text-primary inline-block max-w-full truncate align-top text-start font-normal underline-offset-4 hover:underline cursor-pointer rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-disabled:cursor-not-allowed aria-disabled:text-muted-foreground aria-disabled:no-underline";
+  "text-primary inline-block max-w-full truncate align-top text-start font-normal hover:underline cursor-pointer rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-disabled:cursor-not-allowed aria-disabled:text-muted-foreground aria-disabled:no-underline";
 
 /** Whether a click on a link should be left to the browser — a new tab, window or download. */
 const browserHandlesClick = (e: MouseEvent): boolean =>
