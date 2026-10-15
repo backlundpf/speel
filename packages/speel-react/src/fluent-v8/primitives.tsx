@@ -70,7 +70,7 @@ import { useContainerWidth } from "../table/layout/useContainerWidth.js";
 import { setOverflowTitle } from "../table/overflowTitle.js";
 import { useResizable } from "../surface/useResizable.js";
 import { useDragResize } from "../surface/useDragResize.js";
-import { FOCUSABLE } from "../surface/focusReturn.js";
+import { FOCUSABLE, useFocusReturn } from "../surface/focusReturn.js";
 import { SpeelActionBar } from "../actions.js";
 import type {
   TextInputProps,
@@ -545,11 +545,23 @@ export function V8Dialog(p: DialogProps): JSX.Element {
     return () => clearTimeout(t);
   }, [p.open]);
 
+  const { restore } = useFocusReturn({
+    open: p.open,
+    returnFocus: p.returnFocus,
+  });
+
   return (
     <Modal
       isOpen={p.open}
       onDismiss={() => p.onOpenChange(false)}
       isBlocking={p.blocking ?? false}
+      // Focus return is speel's (useFocusReturn): Fluent's own two restores — the trap
+      // zone's and the popup's — use a plain focus(), which scrolls the page to an
+      // opener that is a tall container. The popup hook still tells us when to run.
+      focusTrapZoneProps={{ disableRestoreFocus: true }}
+      popupProps={{
+        onRestoreFocus: ({ containsFocus }) => restore(containsFocus),
+      }}
       styles={{
         // Own drag/resize: a translate keeps the top-left fixed while resizing (and applies
         // the drag offset). Not applied in fullscreen (centered, full size).
@@ -1257,10 +1269,21 @@ export function V8Panel(p: DrawerProps): JSX.Element {
   });
   const [grabbed, setGrabbed] = React.useState(false);
   const width = resizable ? `${size.w ?? presetNum}px` : preset;
+  const { restore } = useFocusReturn({
+    open: p.open,
+    returnFocus: p.returnFocus,
+  });
   return (
     <Panel
       isOpen={p.open}
       onDismiss={() => p.onOpenChange(false)}
+      // Focus return is speel's (useFocusReturn): Fluent's own two restores — the trap
+      // zone's and the popup's — use a plain focus(), which scrolls the page to an
+      // opener that is a tall container. The popup hook still tells us when to run.
+      focusTrapZoneProps={{ disableRestoreFocus: true }}
+      popupProps={{
+        onRestoreFocus: ({ containsFocus }) => restore(containsFocus),
+      }}
       type={p.position === "start" ? PanelType.customNear : PanelType.custom}
       customWidth={width}
       isBlocking={p.blocking ?? false}
