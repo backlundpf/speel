@@ -194,3 +194,17 @@ describe("SpeelTable column chooser", () => {
     expect(headers()).toEqual(["Title", "Status"]);
   });
 });
+
+describe("the column chooser's trigger", () => {
+  it("announces a labelled dialog", () => {
+    wrap(<SpeelTable of={Task} items={rows} columns={twoCols} columnChooser />);
+    const trigger = screen.getByRole("button", { name: "Choose columns" });
+    expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(trigger);
+    expect(
+      screen.getByRole("dialog", { name: "Choose columns" }),
+    ).toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+});

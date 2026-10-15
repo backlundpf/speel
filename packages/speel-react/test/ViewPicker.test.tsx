@@ -463,3 +463,14 @@ describe("ViewPicker column chooser", () => {
     expect(release).toHaveBeenCalled();
   });
 });
+
+describe("ViewPicker trigger", () => {
+  it("announces a menu and whether it is open", () => {
+    renderPicker();
+    const trigger = screen.getByRole("button", { name: /^Needs action/ });
+    expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    openMenu();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+});
