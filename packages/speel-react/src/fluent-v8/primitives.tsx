@@ -40,6 +40,7 @@ import {
   TooltipDelay,
 } from "@fluentui/react";
 import type {
+  IDropdown,
   IDropdownOption,
   IComboBox,
   IComboBoxOption,
@@ -1402,7 +1403,29 @@ export function V8FieldDisplay(p: FieldDisplayProps): JSX.Element {
   );
 }
 
+/**
+ * Fluent's closed single-select Dropdown changes its value on ArrowUp/ArrowDown and
+ * Home/End, so a keyboard user passing through an inline-edit row silently edits it.
+ * Closed, the arrows open the list instead (what Radix Select does in the shadcn skin)
+ * and Home/End do nothing. Alt/Meta+Arrow keep Fluent's meaning; an open list is untouched.
+ * Fluent skips its own handling of a key event the consumer's onKeyDown prevented.
+ */
+function keepClosedValue(
+  e: React.KeyboardEvent<HTMLElement>,
+  dropdown: React.RefObject<IDropdown>,
+): void {
+  if (e.currentTarget.getAttribute("aria-expanded") === "true") return;
+  if (e.altKey || e.metaKey) return;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    dropdown.current?.focus(true);
+  } else if (e.key === "Home" || e.key === "End") {
+    e.preventDefault();
+  }
+}
+
 export function V8Dropdown(p: DropdownProps): JSX.Element {
+  const dropdownRef = React.useRef<IDropdown>(null);
   const chrome = chromeFrom(p);
   const aria = useFieldAria(chrome);
   const shared = {
@@ -1451,6 +1474,8 @@ export function V8Dropdown(p: DropdownProps): JSX.Element {
         {...shared}
         options={options}
         selectedKey={selected ? selected.key : null}
+        componentRef={dropdownRef}
+        onKeyDown={(e) => keepClosedValue(e, dropdownRef)}
         disabled={!!p.disabled}
         {...ariaLabelProp(p)}
         onChange={(_e, option) => {
