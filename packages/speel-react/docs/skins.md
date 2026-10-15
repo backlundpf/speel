@@ -127,10 +127,10 @@ are the browser's); without `href` a `<button>` that looks identical. It is cut 
 focusable and never navigates. Render `MessageBarProps.actions` (array or node; `multiline` puts it below
 or beside the text) with the exported `SpeelActionBar`.
 
-**Popover** — a labelled `dialog` (`label`). `trigger` may be a function: it receives
-`ariaExpanded`, `ariaHasPopup` and `ariaControls` to spread onto `ui.Button`/`ui.IconButton`,
-which take the same fields (a menu's trigger says `ariaHasPopup="menu"`), and toggles `open`.
-Tab past either end, Esc and an outside click close it and return focus to the trigger.
+**Popover** — a `dialog` named by `label`. A function `trigger` gets `ariaExpanded`,
+`ariaHasPopup` and `ariaControls` to spread onto `ui.Button`/`ui.IconButton` (a menu trigger
+passes `"menu"`) and toggles `open` itself. Tab past either end, Esc and an outside click close
+it; focus returns to the trigger unless the click put it on something else focusable.
 
 **Standalone controls** — every field primitive takes `ariaLabel` for when no label is shown (a
 table cell); a visible `label` wins. `TextInput` and `NumberInput` take a `placeholder`, as
