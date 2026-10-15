@@ -2,6 +2,7 @@ import type { IEntity } from "../types.js";
 import type { EntityType } from "../Metadata/EntityType.js";
 import type { IExpandSpec } from "./IncludeNode.js";
 import { recordId } from "../Cache/ICacheProvider.js";
+import { mapColumnValue } from "../Metadata/columnValue.js";
 
 // A column mapped to an expanded OData path (SpeelDocument.FileSize → 'File/Length')
 // arrives nested under the expanded object, not as a flat key. Missing links yield
@@ -28,7 +29,7 @@ export const Materialize = {
    * null/undefined as absent, apply the user's `codec.fromProvider` where a
    * property declares one, assign. That is the user's layer (a model type ↔ the
    * field's typed value) and the only one core applies — never `fromWire`, which
-   * belongs to a Json column's own contents; per element for arrays.
+   * belongs to a Json column's own contents; per element for a multi-valued column.
    * A `fromProvider` answering `undefined` means "no matching model value", so
    * the property stays absent rather than becoming an own `undefined`.
    *
@@ -38,7 +39,7 @@ export const Materialize = {
    * per response, and the caches (InMemoryCacheProvider, IndexedDbCacheProvider)
    * clone on the way in and out. Isolation is the record's source's job, once,
    * rather than a second defensive copy at every materialisation. `fromProvider`
-   * still runs per element for arrays, and `map` answers a fresh array.
+   * still runs per element on a multi-valued column, and `map` answers a fresh array.
    */
   item<T extends IEntity>(
     record: Record<string, unknown>,
@@ -55,7 +56,7 @@ export const Materialize = {
       if (raw === null || raw === undefined) continue;
       let v: unknown = raw;
       const conv = p.codec?.fromProvider;
-      if (conv) v = Array.isArray(v) ? v.map((x) => conv(x)) : conv(v);
+      if (conv) v = mapColumnValue(p.config, v, conv);
       if (v !== undefined) e[p.propertyName] = v;
     }
     return instance;

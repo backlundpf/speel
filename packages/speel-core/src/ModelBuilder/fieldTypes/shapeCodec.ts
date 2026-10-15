@@ -1,6 +1,7 @@
 import type { EntityType } from "../../Metadata/EntityType.js";
 import type { IValueCodec } from "../../Metadata/Property.js";
 import type { JsonFieldConfig } from "../../Metadata/FieldConfig.js";
+import { mapColumnValue } from "../../Metadata/columnValue.js";
 import { DataException } from "../../errors.js";
 import { buildValidations } from "../../Metadata/buildValidations.js";
 import { collectErrors } from "../../Forms/resolve.js";
@@ -221,14 +222,12 @@ function toInstance(
       continue;
     }
     const decoded = p.codec?.fromWire ? p.codec.fromWire(stored) : stored;
-    // Per element for arrays — exactly what Materialize.item does with a
-    // column's own value, so a multi-Choice property with a codec reads
-    // the same inside a shape as it does in a column of its own.
+    // Per element for a multi-valued property — exactly what Materialize.item
+    // does with a column's own value, so a multi-Choice property with a codec
+    // reads the same inside a shape as it does in a column of its own.
     const fromProvider = p.codec?.fromProvider;
     const value = fromProvider
-      ? Array.isArray(decoded)
-        ? decoded.map((x) => fromProvider(x))
-        : fromProvider(decoded)
+      ? mapColumnValue(p.config, decoded, fromProvider)
       : decoded;
     if (value !== undefined) {
       instance[p.propertyName] = value;
@@ -263,14 +262,11 @@ function toPlain(shape: EntityType, value: unknown): Record<string, unknown> {
   for (const p of shape.properties) {
     const model = source[p.propertyName];
     if (model === undefined) continue;
-    // Per element for arrays — the mirror of the read above, and of
-    // PayloadBuilder.toProviderValue, which applies a codec element-wise
-    // to an array-valued column.
+    // Per element for a multi-valued property — the mirror of the read above,
+    // and of PayloadBuilder.toProviderValue.
     const toProvider = p.codec?.toProvider;
     const converted = toProvider
-      ? Array.isArray(model)
-        ? model.map((x) => toProvider(x))
-        : toProvider(model)
+      ? mapColumnValue(p.config, model, toProvider)
       : model;
     out[p.propertyName] = p.codec?.toWire
       ? p.codec.toWire(converted)
