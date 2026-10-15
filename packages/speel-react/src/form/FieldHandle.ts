@@ -42,6 +42,12 @@ export interface FieldHandle<TValue = unknown> {
   readonly touched: boolean;
   /** Result of the property's render override (opaque to core), or undefined. */
   readonly render: ReactNode | undefined;
+  /** Names the control inline instead of with the label chrome (a table cell). Standalone only. */
+  readonly ariaLabel?: string;
+  /** Shown while the control is empty. Standalone only. */
+  readonly placeholder?: string;
+  /** A multiline Text field grows with its content. Standalone only. */
+  readonly autoGrow?: boolean;
   /** Navigation storage strategy, if this field is a navigation. */
   readonly storage?: NavigationStorage;
   setValue(v: TValue): void;

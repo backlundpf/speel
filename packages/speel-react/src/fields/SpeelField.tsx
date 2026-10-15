@@ -38,11 +38,7 @@ function RenderField({ field }: { field: FieldHandle }): JSX.Element | null {
 
   // 1) render override wins (undefined = fall back to the default body)
   if (field.render !== undefined) {
-    return (
-      <ui.FieldDisplay label={field.displayName}>
-        {field.render}
-      </ui.FieldDisplay>
-    );
+    return <ui.FieldDisplay {...nameOf(field)}>{field.render}</ui.FieldDisplay>;
   }
   // 2) Json is dispatched here, ahead of the view/read-only branch below: a shape
   // renders as a FIELDSET of its own properties in every mode (each nested
@@ -57,7 +53,7 @@ function RenderField({ field }: { field: FieldHandle }): JSX.Element | null {
   // 3) view mode or read-only → formatted display (not a disabled input)
   if (field.mode === "view" || field.readOnly) {
     return (
-      <ui.FieldDisplay label={field.displayName}>
+      <ui.FieldDisplay {...nameOf(field)}>
         {formatFieldValue(field.config as FieldConfig, field.value)}
       </ui.FieldDisplay>
     );
@@ -66,10 +62,17 @@ function RenderField({ field }: { field: FieldHandle }): JSX.Element | null {
   return renderInput(ui, field);
 }
 
+/** A field named inline (a table cell) carries `ariaLabel` and no label chrome. */
+function nameOf(field: FieldHandle): Pick<FieldChrome, "label" | "ariaLabel"> {
+  return field.ariaLabel !== undefined
+    ? { ariaLabel: field.ariaLabel }
+    : { label: field.displayName };
+}
+
 /** Build a clean chrome object (only defined keys — friendly to exactOptionalPropertyTypes). */
 function chromeOf(field: FieldHandle): FieldChrome {
   const c: FieldChrome = {
-    label: field.displayName,
+    ...nameOf(field),
     required: field.required,
     disabled: !field.enabled,
   };
@@ -104,6 +107,10 @@ function renderInput(ui: SpeelUIAdapter, field: FieldHandle): JSX.Element {
           onChange={(v) => field.setValue(v)}
           onBlur={field.markTouched}
           multiline={config.multiline}
+          {...(field.placeholder !== undefined
+            ? { placeholder: field.placeholder }
+            : {})}
+          {...(config.multiline && field.autoGrow ? { autoGrow: true } : {})}
           {...(config.maxLength !== undefined
             ? { maxLength: config.maxLength }
             : {})}
@@ -119,6 +126,9 @@ function renderInput(ui: SpeelUIAdapter, field: FieldHandle): JSX.Element {
           value={(field.value ?? undefined) as number | undefined}
           onChange={(v) => field.setValue(v)}
           onBlur={field.markTouched}
+          {...(field.placeholder !== undefined
+            ? { placeholder: field.placeholder }
+            : {})}
           {...(config.min !== undefined ? { min: config.min } : {})}
           {...(config.max !== undefined ? { max: config.max } : {})}
         />
@@ -133,6 +143,9 @@ function renderInput(ui: SpeelUIAdapter, field: FieldHandle): JSX.Element {
           value={(field.value ?? undefined) as number | undefined}
           onChange={(v) => field.setValue(v)}
           onBlur={field.markTouched}
+          {...(field.placeholder !== undefined
+            ? { placeholder: field.placeholder }
+            : {})}
           {...(config.min !== undefined ? { min: config.min } : {})}
           {...(config.max !== undefined ? { max: config.max } : {})}
           {...(config.currencyCode !== undefined
@@ -184,7 +197,7 @@ function renderInput(ui: SpeelUIAdapter, field: FieldHandle): JSX.Element {
       return <LookupDispatchBody field={field} chrome={chrome} />;
     default:
       return (
-        <ui.FieldDisplay label={field.displayName}>
+        <ui.FieldDisplay {...nameOf(field)}>
           {formatFieldValue(config, field.value)}
         </ui.FieldDisplay>
       );

@@ -190,6 +190,9 @@ export function SelectionFieldBody({
       onResolveSuggestions={onResolveSuggestions}
       multi={isMulti}
       noResultsText={failed ? LOAD_FAILED : NO_MATCHES}
+      {...(field.placeholder !== undefined
+        ? { placeholder: field.placeholder }
+        : {})}
       {...(create !== undefined ? { create } : {})}
     />
   );
