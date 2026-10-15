@@ -40,6 +40,7 @@ import {
   TooltipDelay,
 } from "@fluentui/react";
 import type {
+  IDropdown,
   IDropdownOption,
   IComboBox,
   IComboBoxOption,
@@ -56,7 +57,14 @@ import type {
   ITooltipHostStyles,
   Theme,
 } from "@fluentui/react";
-import { V8Field, chromeFrom, useFieldAria } from "./Field.js";
+import {
+  V8Field,
+  ariaLabelAttr,
+  ariaLabelProp,
+  chromeFrom,
+  nameOf,
+  useFieldAria,
+} from "./Field.js";
 import { useStableId } from "./useStableId.js";
 import { columnBounds } from "./columnBounds.js";
 import {
@@ -70,6 +78,8 @@ import { useContainerWidth } from "../table/layout/useContainerWidth.js";
 import { setOverflowTitle } from "../table/overflowTitle.js";
 import { useResizable } from "../surface/useResizable.js";
 import { useDragResize } from "../surface/useDragResize.js";
+import { FOCUSABLE, useFocusReturn } from "../surface/focusReturn.js";
+import { usePopoverFocus } from "../surface/popoverFocus.js";
 import { SpeelActionBar } from "../actions.js";
 import type {
   TextInputProps,
@@ -110,6 +120,11 @@ export function V8FileInput(p: FileInputProps): JSX.Element {
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <DefaultButton
           text="Choose file"
+          // The button is the control people reach (the input is hidden), so an inline
+          // name goes on it.
+          {...(nameOf(p) !== undefined
+            ? { ariaLabel: `${nameOf(p) ?? ""}: Choose file` }
+            : {})}
           disabled={!!p.disabled}
           onClick={() => inputRef.current?.click()}
         />
@@ -130,6 +145,7 @@ export function V8FileInput(p: FileInputProps): JSX.Element {
           ref={inputRef}
           id={aria.controlId}
           type="file"
+          {...ariaLabelAttr(p)}
           style={{ display: "none" }}
           {...(aria.describedBy !== undefined
             ? { "aria-describedby": aria.describedBy }
@@ -145,6 +161,7 @@ export function V8FileInput(p: FileInputProps): JSX.Element {
 export function V8TextInput(p: TextInputProps): JSX.Element {
   const chrome = chromeFrom(p);
   const aria = useFieldAria(chrome);
+  const name = nameOf(p);
   return (
     <V8Field chrome={chrome} aria={aria} renderLabel={false}>
       <TextField
@@ -156,6 +173,9 @@ export function V8TextInput(p: TextInputProps): JSX.Element {
         value={p.value}
         onChange={(_e, v) => p.onChange(v ?? "")}
         multiline={p.multiline ?? false}
+        {...(name !== undefined ? { ariaLabel: name } : {})}
+        {...(p.placeholder !== undefined ? { placeholder: p.placeholder } : {})}
+        {...(p.multiline && p.autoGrow ? { autoAdjustHeight: true } : {})}
         disabled={!!p.disabled}
         {...(p.maxLength !== undefined ? { maxLength: p.maxLength } : {})}
         {...(p.onBlur ? { onBlur: p.onBlur } : {})}
@@ -167,11 +187,16 @@ export function V8TextInput(p: TextInputProps): JSX.Element {
 export function V8NumberInput(p: NumberInputProps): JSX.Element {
   const chrome = chromeFrom(p);
   const aria = useFieldAria(chrome);
+  const name = nameOf(p);
   const control = (
     <SpinButton
       {...(p.label !== undefined ? { label: p.label } : {})}
       {...(aria.describedBy !== undefined
         ? { ariaDescribedBy: aria.describedBy }
+        : {})}
+      {...(name !== undefined ? { ariaLabel: name } : {})}
+      {...(p.placeholder !== undefined
+        ? { inputProps: { placeholder: p.placeholder } }
         : {})}
       // `== null` catches null as well as undefined: an empty number column
       // arrives as null, and String(null) is the word "null" in the user's box.
@@ -212,7 +237,7 @@ export function V8Checkbox(p: CheckboxProps): JSX.Element {
     <V8Field chrome={chrome} aria={aria} renderLabel={false}>
       <Checkbox
         {...(p.label !== undefined ? { label: p.label } : {})}
-        {...(p.ariaLabel !== undefined ? { ariaLabel: p.ariaLabel } : {})}
+        {...ariaLabelProp(p)}
         checked={p.checked}
         indeterminate={!!p.indeterminate}
         disabled={!!p.disabled}
@@ -379,6 +404,15 @@ function V8FluentButton(p: ButtonProps & { tooltipId: string }): JSX.Element {
         ? { iconProps: { iconName: p.iconName } }
         : {})}
       {...(p.ariaLabel !== undefined ? { ariaLabel: p.ariaLabel } : {})}
+      {...(p.ariaExpanded !== undefined
+        ? { "aria-expanded": p.ariaExpanded }
+        : {})}
+      {...(p.ariaHasPopup !== undefined
+        ? { "aria-haspopup": p.ariaHasPopup }
+        : {})}
+      {...(p.ariaControls !== undefined
+        ? { "aria-controls": p.ariaControls }
+        : {})}
       {...(p.onClick ? { onClick: p.onClick } : {})}
       {...(p.tooltip !== undefined
         ? {
@@ -414,9 +448,18 @@ export function V8IconButton(p: IconButtonProps): JSX.Element {
     <IconButton
       iconProps={{ iconName: p.iconName }}
       title={p.title}
-      ariaLabel={p.title}
+      ariaLabel={p.ariaLabel ?? p.title}
       disabled={!!p.disabled}
       checked={!!p.toggled}
+      {...(p.ariaExpanded !== undefined
+        ? { "aria-expanded": p.ariaExpanded }
+        : {})}
+      {...(p.ariaHasPopup !== undefined
+        ? { "aria-haspopup": p.ariaHasPopup }
+        : {})}
+      {...(p.ariaControls !== undefined
+        ? { "aria-controls": p.ariaControls }
+        : {})}
       {...(p.onClick ? { onClick: p.onClick } : {})}
     />
   );
@@ -476,9 +519,6 @@ const PANEL_WIDTH = {
 } as const;
 
 const DIALOG_HEIGHT = { small: 440, medium: 560, large: 640 } as const;
-/** What can take focus when a modal opens: enabled, reachable controls. */
-const FOCUSABLE =
-  'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 const DIALOG_MIN = { w: 360, h: 260 };
 
 /** The modal's size caps (its CSS 96vw x 92vh) and the viewport it must stay inside.
@@ -547,11 +587,23 @@ export function V8Dialog(p: DialogProps): JSX.Element {
     return () => clearTimeout(t);
   }, [p.open]);
 
+  const { restore } = useFocusReturn({
+    open: p.open,
+    returnFocus: p.returnFocus,
+  });
+
   return (
     <Modal
       isOpen={p.open}
       onDismiss={() => p.onOpenChange(false)}
       isBlocking={p.blocking ?? false}
+      // Focus return is speel's (useFocusReturn): Fluent's own two restores — the trap
+      // zone's and the popup's — use a plain focus(), which scrolls the page to an
+      // opener that is a tall container. The popup hook still tells us when to run.
+      focusTrapZoneProps={{ disableRestoreFocus: true }}
+      popupProps={{
+        onRestoreFocus: ({ containsFocus }) => restore(containsFocus),
+      }}
       styles={{
         // Own drag/resize: a translate keeps the top-left fixed while resizing (and applies
         // the drag offset). Not applied in fullscreen (centered, full size).
@@ -697,18 +749,29 @@ export function V8Dialog(p: DialogProps): JSX.Element {
 }
 
 export function V8Popover(p: PopoverProps): JSX.Element {
-  const ref = React.useRef<HTMLSpanElement>(null);
+  const f = usePopoverFocus(p);
   return (
-    <span ref={ref} style={{ display: "inline-flex" }}>
-      {p.trigger}
+    <span ref={f.anchorRef} style={{ display: "inline-flex" }}>
+      {f.renderTrigger(p.trigger)}
       {p.open ? (
         <Callout
-          target={ref}
+          target={f.anchorRef}
           onDismiss={() => p.onOpenChange(false)}
           isBeakVisible={false}
           setInitialFocus
+          // Focus goes back to the trigger itself (usePopoverFocus), not to whatever
+          // Fluent saw focused at open — a body on Safari, which does not focus a click.
+          onRestoreFocus={({ containsFocus }) => f.restore(containsFocus)}
         >
-          <div style={{ padding: 12, minWidth: 240 }}>{p.children}</div>
+          <div
+            role="dialog"
+            id={f.contentId}
+            {...(p.label !== undefined ? { "aria-label": p.label } : {})}
+            onKeyDown={f.onContentKeyDown}
+            style={{ padding: 12, minWidth: 240 }}
+          >
+            {p.children}
+          </div>
         </Callout>
       ) : null}
     </span>
@@ -1259,10 +1322,21 @@ export function V8Panel(p: DrawerProps): JSX.Element {
   });
   const [grabbed, setGrabbed] = React.useState(false);
   const width = resizable ? `${size.w ?? presetNum}px` : preset;
+  const { restore } = useFocusReturn({
+    open: p.open,
+    returnFocus: p.returnFocus,
+  });
   return (
     <Panel
       isOpen={p.open}
       onDismiss={() => p.onOpenChange(false)}
+      // Focus return is speel's (useFocusReturn): Fluent's own two restores — the trap
+      // zone's and the popup's — use a plain focus(), which scrolls the page to an
+      // opener that is a tall container. The popup hook still tells us when to run.
+      focusTrapZoneProps={{ disableRestoreFocus: true }}
+      popupProps={{
+        onRestoreFocus: ({ containsFocus }) => restore(containsFocus),
+      }}
       type={p.position === "start" ? PanelType.customNear : PanelType.custom}
       customWidth={width}
       isBlocking={p.blocking ?? false}
@@ -1321,7 +1395,9 @@ export function V8FieldDisplay(p: FieldDisplayProps): JSX.Element {
       <div
         id={aria.controlId}
         role="group"
-        aria-labelledby={aria.labelId}
+        {...(p.label !== undefined
+          ? { "aria-labelledby": aria.labelId }
+          : ariaLabelAttr(p))}
         {...(aria.describedBy !== undefined
           ? { "aria-describedby": aria.describedBy }
           : {})}
@@ -1332,7 +1408,29 @@ export function V8FieldDisplay(p: FieldDisplayProps): JSX.Element {
   );
 }
 
+/**
+ * Fluent's closed single-select Dropdown changes its value on ArrowUp/ArrowDown and
+ * Home/End, so a keyboard user passing through an inline-edit row silently edits it.
+ * Closed, the arrows open the list instead (what Radix Select does in the shadcn skin)
+ * and Home/End do nothing. Alt/Meta+Arrow keep Fluent's meaning; an open list is untouched.
+ * Fluent skips its own handling of a key event the consumer's onKeyDown prevented.
+ */
+function keepClosedValue(
+  e: React.KeyboardEvent<HTMLElement>,
+  dropdown: React.RefObject<IDropdown>,
+): void {
+  if (e.currentTarget.getAttribute("aria-expanded") === "true") return;
+  if (e.altKey || e.metaKey) return;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    dropdown.current?.focus(true);
+  } else if (e.key === "Home" || e.key === "End") {
+    e.preventDefault();
+  }
+}
+
 export function V8Dropdown(p: DropdownProps): JSX.Element {
+  const dropdownRef = React.useRef<IDropdown>(null);
   const chrome = chromeFrom(p);
   const aria = useFieldAria(chrome);
   const shared = {
@@ -1360,7 +1458,7 @@ export function V8Dropdown(p: DropdownProps): JSX.Element {
           options={options}
           selectedKeys={selectedKeys}
           disabled={!!p.disabled}
-          {...(p.ariaLabel !== undefined ? { ariaLabel: p.ariaLabel } : {})}
+          {...ariaLabelProp(p)}
           onChange={(_e, option) => {
             if (!option) return;
             const picked = p.options.find((o) => o.key === option.key);
@@ -1381,8 +1479,10 @@ export function V8Dropdown(p: DropdownProps): JSX.Element {
         {...shared}
         options={options}
         selectedKey={selected ? selected.key : null}
+        componentRef={dropdownRef}
+        onKeyDown={(e) => keepClosedValue(e, dropdownRef)}
         disabled={!!p.disabled}
-        {...(p.ariaLabel !== undefined ? { ariaLabel: p.ariaLabel } : {})}
+        {...ariaLabelProp(p)}
         onChange={(_e, option) => {
           const opt = option
             ? p.options.find((o) => o.key === option.key)
@@ -1452,10 +1552,20 @@ export function V8RadioGroup(p: RadioGroupProps): JSX.Element {
   });
   const chrome = chromeFrom(p);
   const aria = useFieldAria(chrome);
+  // ChoiceGroup puts `role="radiogroup"` on an inner element that takes only
+  // `ariaLabelledBy`; a native aria-label would land on its role-less root. So an inline
+  // name is a hidden node the radiogroup points at.
+  const name = nameOf(p);
   return (
     <V8Field chrome={chrome} aria={aria} renderLabel={false}>
+      {name !== undefined ? (
+        <span id={aria.labelId} hidden>
+          {name}
+        </span>
+      ) : null}
       <ChoiceGroup
         {...(p.label !== undefined ? { label: p.label } : {})}
+        {...(name !== undefined ? { ariaLabelledBy: aria.labelId } : {})}
         required={!!p.required}
         options={options}
         {...(selectedKey !== undefined ? { selectedKey } : {})}
@@ -1484,6 +1594,7 @@ export function V8DatePicker(p: DatePickerProps): JSX.Element {
     <V8Field chrome={chrome} aria={aria} renderLabel={false}>
       <DatePicker
         {...(p.label !== undefined ? { label: p.label } : {})}
+        {...ariaLabelProp(p)}
         isRequired={!!p.required}
         // `isRequired` is what puts the asterisk on Fluent's own label, but it
         // also switches on Fluent's own validation, and `validateOnLoad`
@@ -1523,6 +1634,7 @@ export function V8PeoplePicker(p: PeoplePickerProps): JSX.Element {
       <NormalPeoplePicker
         inputProps={{
           id: aria.controlId,
+          ...ariaLabelAttr(p),
           ...(aria.describedBy !== undefined
             ? { "aria-describedby": aria.describedBy }
             : {}),
@@ -1806,6 +1918,7 @@ export function V8Combobox(p: ComboboxProps): JSX.Element {
     <V8Field chrome={chrome} aria={aria} renderLabel={false}>
       <ComboBox
         {...(p.label !== undefined ? { label: p.label } : {})}
+        {...ariaLabelProp(p)}
         required={!!p.required}
         disabled={!!p.disabled}
         {...(aria.describedBy !== undefined

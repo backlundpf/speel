@@ -14,6 +14,20 @@ describe("V8RichTextInput", () => {
     expect(await screen.findByText("Rich")).toBeInTheDocument(); // editor, post-lazy
     expect(document.querySelector(".ProseMirror")).not.toBeNull();
   });
+
+  it("is named by ariaLabel when it has no label", async () => {
+    render(
+      <V8RichTextInput
+        ariaLabel="Notes for item 7"
+        value="<p>Rich</p>"
+        onChange={vi.fn()}
+      />,
+    );
+    await screen.findByText("Rich");
+    const box = document.querySelector(".ProseMirror")!;
+    expect(box).toHaveAttribute("aria-label", "Notes for item 7");
+    expect(box).not.toHaveAttribute("aria-labelledby");
+  });
 });
 
 describe("RichTextErrorBoundary", () => {

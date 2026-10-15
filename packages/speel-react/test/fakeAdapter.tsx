@@ -2,12 +2,14 @@ import { useState, type ReactElement, type ReactNode } from "react";
 import type {
   ComboboxCreate,
   OptionItem,
+  PopoverProps,
   SpeelUIAdapter,
   TableColumn,
   TableSort,
 } from "../src/adapter/SpeelUIAdapter.js";
 import { useStableId } from "../src/fluent-v8/useStableId.js";
 import { SpeelActionBar } from "../src/actions.js";
+import { usePopoverFocus } from "../src/surface/popoverFocus.js";
 
 // A headless plain-HTML adapter for tests. Layout/styling is irrelevant — it exists
 // only to drive the logic in field components and the form controller without Fluent.
@@ -65,19 +67,28 @@ const AddRow = ({
 
 const FakePopover = ({
   open,
+  onOpenChange,
   trigger,
+  label,
   children,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  trigger: ReactNode;
-  children: ReactNode;
-}): JSX.Element => (
-  <span>
-    {trigger}
-    {open ? <div role="dialog">{children}</div> : null}
-  </span>
-);
+}: PopoverProps): JSX.Element => {
+  const f = usePopoverFocus({ open, onOpenChange });
+  return (
+    <span ref={f.anchorRef}>
+      {f.renderTrigger(trigger)}
+      {open ? (
+        <div
+          role="dialog"
+          id={f.contentId}
+          aria-label={label}
+          onKeyDown={f.onContentKeyDown}
+        >
+          {children}
+        </div>
+      ) : null}
+    </span>
+  );
+};
 
 const FakeTableHeaderCell = ({
   column,
@@ -129,6 +140,7 @@ const FakeTableHeaderCell = ({
 export const fakeAdapter: SpeelUIAdapter = {
   TextInput: ({
     label,
+    ariaLabel,
     required,
     disabled,
     error,
@@ -136,6 +148,8 @@ export const fakeAdapter: SpeelUIAdapter = {
     onChange,
     onBlur,
     multiline,
+    placeholder,
+    autoGrow,
   }) =>
     chrome(
       label,
@@ -143,7 +157,9 @@ export const fakeAdapter: SpeelUIAdapter = {
       error,
       multiline ? (
         <textarea
-          aria-label={label}
+          aria-label={label ?? ariaLabel}
+          placeholder={placeholder}
+          data-autogrow={autoGrow ? "" : undefined}
           value={value}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
@@ -151,7 +167,8 @@ export const fakeAdapter: SpeelUIAdapter = {
         />
       ) : (
         <input
-          aria-label={label}
+          aria-label={label ?? ariaLabel}
+          placeholder={placeholder}
           value={value}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
@@ -162,6 +179,7 @@ export const fakeAdapter: SpeelUIAdapter = {
 
   RichTextInput: ({
     label,
+    ariaLabel,
     required,
     disabled,
     error,
@@ -174,7 +192,7 @@ export const fakeAdapter: SpeelUIAdapter = {
       required,
       error,
       <textarea
-        aria-label={label}
+        aria-label={label ?? ariaLabel}
         data-testid="rich-text-input"
         value={value}
         disabled={disabled}
@@ -185,19 +203,22 @@ export const fakeAdapter: SpeelUIAdapter = {
 
   NumberInput: ({
     label,
+    ariaLabel,
     required,
     disabled,
     error,
     value,
     onChange,
     onBlur,
+    placeholder,
   }) =>
     chrome(
       label,
       required,
       error,
       <input
-        aria-label={label}
+        aria-label={label ?? ariaLabel}
+        placeholder={placeholder}
         type="number"
         value={value ?? ""}
         disabled={disabled}
@@ -222,7 +243,7 @@ export const fakeAdapter: SpeelUIAdapter = {
   }) => {
     // An inline caption names the control through ariaLabel instead of the stacked
     // label chrome — the footer's pager is the case.
-    const name = ariaLabel ?? label;
+    const name = label ?? ariaLabel;
     if (multiselect) {
       const cur = Array.isArray(value) ? (value as unknown[]) : [];
       return chrome(
@@ -275,12 +296,21 @@ export const fakeAdapter: SpeelUIAdapter = {
     );
   },
 
-  RadioGroup: ({ label, required, error, value, onChange, options, other }) => {
+  RadioGroup: ({
+    label,
+    ariaLabel,
+    required,
+    error,
+    value,
+    onChange,
+    options,
+    other,
+  }) => {
     return chrome(
       label,
       required,
       error,
-      <div role="radiogroup" aria-label={label}>
+      <div role="radiogroup" aria-label={label ?? ariaLabel}>
         {options.map((o) => (
           <label key={o.key}>
             <input
@@ -330,7 +360,7 @@ export const fakeAdapter: SpeelUIAdapter = {
       false,
       error,
       <input
-        aria-label={ariaLabel ?? label}
+        aria-label={label ?? ariaLabel}
         type="checkbox"
         checked={checked}
         {...(indeterminate ? { "aria-checked": "mixed" as const } : {})}
@@ -339,13 +369,21 @@ export const fakeAdapter: SpeelUIAdapter = {
       />,
     ),
 
-  DatePicker: ({ label, required, disabled, error, value, onChange }) =>
+  DatePicker: ({
+    label,
+    ariaLabel,
+    required,
+    disabled,
+    error,
+    value,
+    onChange,
+  }) =>
     chrome(
       label,
       required,
       error,
       <input
-        aria-label={label}
+        aria-label={label ?? ariaLabel}
         type="date"
         disabled={disabled}
         value={value ? value.toISOString().slice(0, 10) : ""}
@@ -357,6 +395,7 @@ export const fakeAdapter: SpeelUIAdapter = {
 
   PeoplePicker: ({
     label,
+    ariaLabel,
     required,
     error,
     value,
@@ -372,7 +411,7 @@ export const fakeAdapter: SpeelUIAdapter = {
       error,
       <div>
         <input
-          aria-label={label}
+          aria-label={label ?? ariaLabel}
           value={value.map((p) => p.text).join(", ")}
           readOnly
         />
@@ -397,6 +436,7 @@ export const fakeAdapter: SpeelUIAdapter = {
 
   Combobox: ({
     label,
+    ariaLabel,
     required,
     disabled,
     error,
@@ -428,7 +468,7 @@ export const fakeAdapter: SpeelUIAdapter = {
       error,
       <div>
         <input
-          aria-label={label}
+          aria-label={label ?? ariaLabel}
           placeholder={placeholder}
           disabled={disabled}
           onFocus={async () => {
@@ -470,14 +510,23 @@ export const fakeAdapter: SpeelUIAdapter = {
     );
   },
 
-  FileInput: ({ label, required, disabled, error, value, onChange, accept }) =>
+  FileInput: ({
+    label,
+    ariaLabel,
+    required,
+    disabled,
+    error,
+    value,
+    onChange,
+    accept,
+  }) =>
     chrome(
       label,
       required,
       error,
       <span>
         <input
-          aria-label={label}
+          aria-label={label ?? ariaLabel}
           type="file"
           disabled={disabled}
           {...(accept ? { accept } : {})}
@@ -511,11 +560,17 @@ export const fakeAdapter: SpeelUIAdapter = {
     iconName,
     tooltip,
     appearance,
+    ariaExpanded,
+    ariaHasPopup,
+    ariaControls,
   }) => (
     <button
       type={type ?? "button"}
       disabled={disabled}
       aria-label={ariaLabel}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHasPopup}
+      aria-controls={ariaControls}
       aria-description={tooltip}
       title={tooltip}
       data-icon={iconName}
@@ -526,10 +581,23 @@ export const fakeAdapter: SpeelUIAdapter = {
     </button>
   ),
 
-  IconButton: ({ iconName, title, onClick, disabled, toggled }) => (
+  IconButton: ({
+    iconName,
+    title,
+    onClick,
+    disabled,
+    toggled,
+    ariaLabel,
+    ariaExpanded,
+    ariaHasPopup,
+    ariaControls,
+  }) => (
     <button
       type="button"
-      aria-label={title}
+      aria-label={ariaLabel ?? title}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHasPopup}
+      aria-controls={ariaControls}
       title={title}
       data-icon={iconName}
       aria-pressed={toggled}
@@ -665,11 +733,7 @@ export const fakeAdapter: SpeelUIAdapter = {
       </div>
     ) : null,
 
-  Popover: ({ open, onOpenChange, trigger, children }) => (
-    <FakePopover open={open} onOpenChange={onOpenChange} trigger={trigger}>
-      {children}
-    </FakePopover>
-  ),
+  Popover: (p) => <FakePopover {...p} />,
 
   Table: ({
     columns,

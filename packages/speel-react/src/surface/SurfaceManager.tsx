@@ -165,6 +165,9 @@ export function SurfaceManager({
           ...(o.defaultFullscreen !== undefined
             ? { defaultFullscreen: o.defaultFullscreen }
             : {}),
+          ...(o.returnFocus !== undefined
+            ? { returnFocus: o.returnFocus }
+            : {}),
         };
         return r.kind === "modal" ? (
           <SpeelModal key={r.id} {...common} />

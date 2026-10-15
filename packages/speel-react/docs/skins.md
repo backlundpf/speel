@@ -2,19 +2,15 @@
 
 ## What & when
 
-`@speel/react` components are headless by design: rendering is delegated to a
-`SpeelUIAdapter` you pass to `SpeelProvider`. A skin is a concrete implementation of
-that adapter — a thin mapping from the component contract to a particular component
-library. Reach for this page when choosing which skin to use, wiring a skin into the
-provider, or building your own.
+`@speel/react` components are headless: rendering is delegated to the `SpeelUIAdapter` you
+pass to `SpeelProvider`, and a skin is a thin mapping from that contract to one component
+library. Reach for this page when choosing a skin, wiring one in, or building your own.
 
-Two skins exist today. **`fluent-v8`** ships inside the package at `@speel/react/fluent-v8`
-and is the zero-setup choice for SPFx hosts: it renders against the ambient Fluent v8 runtime
-that SharePoint already injects, requires no additional bundle, and respects the shared
-Fabric singleton constraint. **The shadcn/ui skin** is distributed as copy-in source via a
-shadcn registry — install it into your own project, own the code, and use it in any host
-(Next.js, Vite, Remix, or SPFx via a sidecar recipe) that runs Tailwind. React 17 is
-supported; React 18 works equally well.
+Two skins exist today. **`fluent-v8`** ships at `@speel/react/fluent-v8` and is the zero-setup
+choice for SPFx: it renders against the Fluent v8 runtime SharePoint already injects, with no
+extra bundle, and respects the shared Fabric singleton. **The shadcn/ui skin** is copy-in
+source from a shadcn registry — install it, own the code, and use it in any host that runs
+Tailwind (Next.js, Vite, Remix, or SPFx via a sidecar recipe). React 17 and 18 both work.
 
 Skins are interchangeable per provider: swap `SpeelProvider`'s `ui` and every component in
 that tree renders with the new skin, so SPFx and non-SPFx subtrees can run different skins.
@@ -71,11 +67,10 @@ separately.
 A skin implements the `SpeelUIAdapter` interface exported from `@speel/react`. The
 interface groups into a handful of capability areas:
 
-**Field primitives** — one slot per field type: text input, rich text input, number
-input, dropdown (single and multi-select), radio group, checkbox, date picker, people
-picker, combobox, file input, spinner, progress bar, and a read-mode display
-(`FieldDisplayProps`). Each slot receives a normalised props object so the skin does
-not need to know anything about entity metadata or form state.
+**Field primitives** — one slot per field type: text, rich text, number, dropdown (single and
+multi), radio group, checkbox, date picker, people picker, combobox, file input, spinner,
+progress bar, and a read-mode display (`FieldDisplayProps`), each with normalised props, so the
+skin knows nothing of entity metadata or form state.
 
 **Searchable pickers** — `PeoplePickerProps` and `ComboboxProps` are deliberately the same
 shape: a `value` array, an `onChange`, and an `onResolveSuggestions(query)` the skin calls as
@@ -99,18 +94,15 @@ add` with an error icon whose callout carries `state.message`; a pick calls `onC
 `RadioGroupProps.other` asks for a final **Other** radio with a text box; whether it is chosen
 is `other.selected`, owned by the caller, never derived from `value`.
 
-**Rich text** — `RichTextInputProps` carries the HTML string a rich text Note field
-stores. Both built-in skins implement it with TipTap. The Fluent v8 skin lazy-loads
-the editor as its own chunk (`React.lazy`), so forms without a rich text field pay
-zero bundle cost, and it degrades to a plain multiline text field if the chunk fails
-to load; the shadcn registry item lists the TipTap packages as npm dependencies the
-shadcn CLI installs alongside the copied `rich-text.tsx`.
+**Rich text** — `RichTextInputProps` carries the HTML a rich text Note field stores; both skins
+use TipTap. The v8 skin lazy-loads the editor as its own chunk (no cost to forms without one)
+and degrades to a plain multiline field if the chunk fails; the shadcn registry item lists the
+TipTap packages for the CLI to install beside the copied `rich-text.tsx`.
 
-**Surfaces** — `DialogProps` (modal) and `DrawerProps` (panel) cover the full chrome:
-open state, title, body and footer slots, `resizable`, `draggable` (dialog only),
-`fullscreenToggle` (dialog only), and `position` (drawer only). Both the Fluent v8 and
-shadcn skins implement all flags, so drag/resize/fullscreen parity is maintained across
-skins out of the box.
+**Surfaces** — `DialogProps` (modal) and `DrawerProps` (panel) cover the chrome: open state,
+title, body and footer slots, `resizable`, `draggable` and `fullscreenToggle` (dialog),
+`position` (drawer), and `returnFocus` (where focus goes on close, never scrolling). Both
+skins implement every flag.
 
 **Table** — `TableProps` carries `TableColumn` specs, `TableSort`, and the table's `minWidth` /
 `width` / `maxWidth`; the skin owns header, cell, and sort rendering. Optional column hints:
@@ -135,22 +127,33 @@ are the browser's); without `href` a `<button>` that looks identical. It is cut 
 focusable and never navigates. Render `MessageBarProps.actions` (array or node; `multiline` puts it below
 or beside the text) with the exported `SpeelActionBar`.
 
-**Standalone controls** — `ariaLabel` names an unlabelled `Checkbox`; `indeterminate` shows
-"some selected" (a click reports `true`); `placeholder` explains an empty `Dropdown` or
-`Combobox`; a `Button`'s `tooltip` is its description and shows even while it is disabled. A
-tooltip's host and its button are **one box**, so it anchors to the button in any container:
-v8 makes the host `inline-block` and the button fill it, shadcn gives the button `w-full`
-inside its `inline-flex` trigger.
+**Popover** — a `dialog` named by `label`. A function `trigger` gets `ariaExpanded`,
+`ariaHasPopup` and `ariaControls` to spread onto `ui.Button`/`ui.IconButton` (a menu trigger
+passes `"menu"`) and toggles `open` itself. Tab past either end, Esc and an outside click close
+it; focus returns to the trigger unless the click put it on something else focusable.
+
+**Standalone controls** — every field primitive takes `ariaLabel` for when no label is shown (a
+table cell); a visible `label` wins. `TextInput` and `NumberInput` take a `placeholder`, as
+`Dropdown` and `Combobox` do; a multiline `TextInput` takes `autoGrow`; an `IconButton` takes an
+`ariaLabel` beside its `title` tooltip ("Edit item 7" announced, "Edit" shown). `indeterminate`
+shows "some selected" on a `Checkbox` (a click reports `true`); a `Button`'s `tooltip` is its
+description and shows even while it is disabled. A tooltip's host and its button are **one
+box**, so it anchors to the button in any container: v8 makes the host `inline-block` and the
+button fill it, shadcn gives the button `w-full` inside its `inline-flex` trigger. A closed v8
+`Dropdown` opens on the arrow keys instead of changing its value, as the shadcn Select does.
 
 ### Skin-support hooks
 
-Two hooks in `@speel/react` spare a skin the dialog and drawer resize/drag logic; both built-in
-skins use them:
+Four hooks in `@speel/react` spare a skin the overlay logic; both built-in skins use them:
 
 - **`useDragResize`** — title-bar drag + corner resize for a dialog; the corner handle is a
   tab stop the arrow keys resize, and `max`/`bounds` keep the dialog on screen.
 - **`useResizable`** — single-edge resize (a drawer's leading edge): width state plus handle
   props — pointer and keyboard handlers, the `separator` role, and a tab stop.
+- **`useFocusReturn`** — a dialog's or drawer's focus return: it remembers the opener, and its
+  `restore`, called from the library's close-focus hook (Fluent's `onRestoreFocus`, Radix's
+  `onCloseAutoFocus`) with that hook's own restore off, follows `returnFocus` without scrolling.
+- **`usePopoverFocus`** — a popover's trigger wiring, Tab-out close and return to the trigger.
 
 Each built-in skin also keeps a small `useStableId` — one id per field, `React.useId` on React 18
 and a per-mount counter on React 17, which SPFx runs. It is not exported; copy the shadcn one.
@@ -169,7 +172,7 @@ The controls the skin builds itself — the file input, the people picker, the r
 editor, the read-only display — carry an explicit id and `aria-labelledby`, and the chrome
 draws the single `<Label>` that names them. The shadcn skin owns all of its markup, so it
 takes the second path throughout: `Chrome` renders the label, and each field spreads
-`fieldAria(id, props)` onto its control.
+`fieldAria(id, props)` onto its control. With no label, `ariaLabel` names the control instead.
 
 Help text is wired the same way. The chrome gives its error and description nodes ids and
 the control points `aria-describedby` at them, error first — the problem is read before
@@ -184,15 +187,12 @@ library — the shadcn skin to `lucide-react` equivalents in `src/components/spe
 
 ### The speel default theme
 
-The shadcn skin ships with a density-first design theme baked into the registry item's
-`cssVars`. The guiding principle is information density for power-user data apps: the
-global `--spacing` token is set to `0.2 rem` (versus the Tailwind default of `0.25 rem`),
-compressing every padding, gap, and size utility by ~20% without any class changes.
-`--text-sm` is tightened to `0.8125 rem` to match. The palette is near-monochrome slate
-with a single blue accent (`--primary`); `--radius` is `0.3 rem`. Both light and dark
-schemes are defined. To retheme: edit the CSS custom property values in your project's
-`index.css` (or the sidecar entry for SPFx) — every component reads the variables
-at render time, so a single token change propagates everywhere.
+The shadcn skin ships a density-first theme in the registry item's `cssVars`, for power-user
+data apps: `--spacing` is `0.2 rem` (Tailwind's is `0.25 rem`), compressing every padding, gap
+and size utility by ~20%, with `--text-sm` at `0.8125 rem` to match; a near-monochrome slate
+palette with one blue `--primary`, `--radius` `0.3 rem`, light and dark. To retheme, edit the
+custom properties in your `index.css` (or the SPFx sidecar entry) — components read them at
+render time.
 
 ### Writing your own skin
 
@@ -202,19 +202,20 @@ Implement `SpeelUIAdapter` (imported from `@speel/react`) and pass the object as
 
 ## Boundaries & gotchas
 
-**The shadcn skin is copy-in source — you own it.** It is not an npm package. After
-installing it once you are responsible for keeping it up to date when `@speel/react`
-adds new adapter members: re-run the registry `add` command, or patch the files manually. The
-item adds `@speel/react` and `lucide-react` but not `@speel/core` — install that and configure a `DbContext` for `SpeelProvider` yourself.
+**The shadcn skin is copy-in source — you own it.** It is not an npm package: when
+`@speel/react` changes the adapter, re-run the registry `add` command or patch the files. Do so
+when `PopoverProps.trigger` became a function-or-node: an older copy renders the function as a
+child, so the column chooser's button disappears, and its `PopoverTrigger` toggled `open` where
+now the trigger itself must. A skin of your own calls a function `trigger` (or uses
+`usePopoverFocus().renderTrigger`). The item adds `@speel/react` and `lucide-react` but not
+`@speel/core` — install that and configure a `DbContext` for `SpeelProvider` yourself.
 
 **SPFx hosts: fluent-v8 is the zero-setup default; the shadcn skin is supported via the sidecar recipe.** The Fabric-singleton constraint forbids bundling a second _Fluent_ runtime — it does not forbid non-Fluent skins. Running the shadcn skin in a web part requires the React 17-compatible skin build, a Tailwind sidecar whose preflight is isolated in the lowest cascade layer (so SharePoint's unlayered styles override it and the shared page is left untouched), and the `speel-shadcn` wrapper class; follow the recipe in `samples/spfx-sample/README.md`.
 
 **A Json field's row frame is unskinned DOM, deliberately.** Each repeater row is a plain
-`<fieldset>` with a `<legend>`, not an adapter member — the nested fields inside it go
-through your skin as usual, only the frame around them does not. It is a decision, not an
-oversight: a new adapter member costs an implementation in every skin, and `<fieldset>` is
-the element a group of related fields is already supposed to be. Style it from your own CSS
-if it needs to match; a `Repeater` member is a later question.
+`<fieldset>` with a `<legend>`, not an adapter member; the fields inside it go through your
+skin as usual. A new member costs an implementation in every skin, and `<fieldset>` is the
+element a group of related fields already is. Style it from your own CSS if it needs to match.
 
 **Two Fluent controls refuse `aria-describedby`.** `DatePicker` overwrites it with its
 own internal description node and `ChoiceGroup` drops it, through the DOM attribute and
@@ -235,12 +236,11 @@ failure message in the option's `title` (and a `TooltipHost` callout on the erro
 shadcn skin wires the message as the row's `aria-describedby`.
 
 **Fluent's `autoComplete="on"` can commit an inline-completed prefix on blur.** The v8
-combobox runs `allowFreeform` with `autoComplete="on"`, so a typed prefix completes inline to
-a matching option and leaving the field commits it. What commits is always an `OptionItem` the
-caller supplied — never invented text — and text that matches nothing commits nothing, leaving
-the box to revert. `allowFreeform` is not negotiable: with it off, Fluent's input stops being
-a text box (printable keys are reported one at a time, a paste produces no query at all, and
-IME composition breaks).
+combobox runs `allowFreeform` with `autoComplete="on"`, so a typed prefix completes inline to a
+matching option and leaving the field commits it — always an `OptionItem` the caller supplied,
+never invented text; text that matches nothing commits nothing and the box reverts.
+`allowFreeform` is not negotiable: with it off, Fluent's input stops being a text box
+(printable keys arrive one at a time, a paste produces no query, IME composition breaks).
 
 **One skin per SpeelProvider.** Each `SpeelProvider` accepts exactly one `ui` adapter. To mix
 skins on one page, mount separate `SpeelProvider` trees with their own `ui` and `DbContext`.

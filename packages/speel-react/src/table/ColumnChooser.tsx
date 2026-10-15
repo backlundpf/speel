@@ -30,16 +30,18 @@ export function ColumnChooser<T>({
   const [open, setOpen] = useState(false);
   return (
     <ui.Popover
+      label="Choose columns"
       open={open}
       onOpenChange={setOpen}
-      trigger={
+      trigger={(t) => (
         <ui.IconButton
+          {...t}
           iconName="ColumnOptions"
           title="Choose columns"
           toggled={open}
           onClick={() => setOpen((o) => !o)}
         />
-      }
+      )}
     >
       <ColumnChooserPanel ui={ui} arranged={arranged} onChange={onChange} />
     </ui.Popover>

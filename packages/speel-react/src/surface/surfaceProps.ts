@@ -3,6 +3,7 @@ import type { IEntity, FormMode } from "@speel/core";
 import type { SpeelActions } from "../actions.js";
 import type { FormSection } from "../form/EntityFormBody.js";
 import type { EntityFormOptions } from "../form/useEntityForm.js";
+import type { ReturnFocusTarget } from "../adapter/SpeelUIAdapter.js";
 
 /**
  * The one declaration of what a surface takes. `SpeelModal`, `SpeelPanel`,
@@ -20,6 +21,12 @@ export interface SurfaceChromeProps {
   size?: "small" | "medium" | "large";
   /** User can resize the surface (the skin applies the default when undefined). */
   resizable?: boolean;
+  /**
+   * Where focus goes when the surface closes. Unset: back to what had focus when it
+   * opened. An element, or a function called at close: there instead. `false`: speel
+   * leaves focus alone. Never scrolls the page.
+   */
+  returnFocus?: ReturnFocusTarget;
 }
 
 /** Chrome only a panel has. */

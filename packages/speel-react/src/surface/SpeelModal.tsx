@@ -33,6 +33,7 @@ export function SpeelModal<T extends IEntity>(
     draggable,
     fullscreenToggle,
     defaultFullscreen,
+    returnFocus,
     children,
     actions,
   } = props;
@@ -47,6 +48,7 @@ export function SpeelModal<T extends IEntity>(
       {...(draggable !== undefined ? { draggable } : {})}
       {...(fullscreenToggle !== undefined ? { fullscreenToggle } : {})}
       {...(defaultFullscreen !== undefined ? { defaultFullscreen } : {})}
+      {...(returnFocus !== undefined ? { returnFocus } : {})}
       footer={<ContentFooter {...(actions ? { actions } : {})} />}
     >
       {children}

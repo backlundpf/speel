@@ -1,6 +1,7 @@
 import type { EntityType } from "../Metadata/EntityType.js";
 import type { Property } from "../Metadata/Property.js";
 import type { IWriteField } from "../providers/ISharePointProvider.js";
+import { mapColumnValue } from "../Metadata/columnValue.js";
 
 /**
  * The user's `codec.toProvider`: a model type → the field's typed value (the
@@ -10,19 +11,17 @@ import type { IWriteField } from "../providers/ISharePointProvider.js";
  * no model value to convert — pass them through (mirrors Materialize's read-path
  * guard). undefined is skipped by the caller; null is an explicit clear.
  *
- * The element-wise map below is for a multi-VALUED column (multi-Lookup,
- * multi-Choice): each array element is its own wire value, converted on its own.
- * A Json field's codec is different — for a MultiJsonField the array IS the
- * value, one JSON string holding every element, so it must go to `toProvider`
- * whole rather than element by element.
+ * Per element only for a multi-VALUED column (multi-Lookup, multi-Choice), decided
+ * from the column's config (`mapColumnValue`): each array element is its own wire
+ * value. Every other column's codec gets the whole value — a Json field's codec (for
+ * a MultiJsonField the array IS the value, one JSON string holding every element),
+ * and a single-valued column whose model is an array (a Note holding a JSON-encoded
+ * list).
  */
 function toProviderValue(prop: Property, model: unknown): unknown {
   const toProvider = prop.codec?.toProvider;
   if (model === undefined || model === null || !toProvider) return model;
-  if (prop.config.kind === "Json") return toProvider(model);
-  return Array.isArray(model)
-    ? model.map((x) => toProvider(x))
-    : toProvider(model);
+  return mapColumnValue(prop.config, model, toProvider);
 }
 
 /**

@@ -81,6 +81,10 @@ Use `useField` when a specific field needs custom rendering inside an existing f
 useful for a lone filter input. Supply `config`, `displayName`, `value`, and `onChange`;
 validation runs against `required` and `customValidations`. No `DbContext` needed.
 
+A standalone field can sit in a table cell, under a column header that already labels it:
+`ariaLabel` ("Comments for item 7") names it in place of the label chrome, `placeholder` hints at
+an empty box, and `autoGrow` lets a multiline Text field grow with its content.
+
 A form-bound field learns whether it accepts input from the model; a standalone one has no
 model to ask, so `enabled` is the caller's to pass — typically `false` while a save the field
 feeds is in flight. It is distinct from `mode: 'view'`, which renders the formatted value

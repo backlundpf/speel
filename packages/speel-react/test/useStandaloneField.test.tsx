@@ -174,3 +174,90 @@ describe("useStandaloneField — a Choice", () => {
     err.mockRestore();
   });
 });
+
+describe("a standalone field named inline", () => {
+  function Cell(p: {
+    config: FieldConfig;
+    value: unknown;
+    autoGrow?: boolean;
+  }) {
+    const field = useStandaloneField({
+      config: p.config,
+      displayName: "Comments",
+      value: p.value,
+      onChange: () => {},
+      ariaLabel: "Comments for item 7",
+      placeholder: "Add a comment",
+      ...(p.autoGrow ? { autoGrow: true } : {}),
+    });
+    return <SpeelField field={field} />;
+  }
+  const wrapCell = (node: JSX.Element) =>
+    render(
+      <UIAdapterContext.Provider value={fakeAdapter}>
+        {node}
+      </UIAdapterContext.Provider>,
+    );
+
+  it("Text: no label chrome, named by ariaLabel, with placeholder and autoGrow", () => {
+    wrapCell(
+      <Cell config={{ kind: "Text", multiline: true }} value="" autoGrow />,
+    );
+    expect(screen.queryByText("Comments")).toBeNull();
+    const box = screen.getByLabelText("Comments for item 7");
+    expect(box).toHaveAttribute("placeholder", "Add a comment");
+    expect(box).toHaveAttribute("data-autogrow");
+  });
+
+  it("Choice: the combobox is named by ariaLabel and gets the placeholder", () => {
+    wrapCell(
+      <Cell
+        config={{
+          kind: "Choice",
+          multi: false,
+          fillIn: false,
+          radioButtons: false,
+          options: ["Open", "Closed"],
+        }}
+        value={null}
+      />,
+    );
+    expect(screen.queryByText("Comments")).toBeNull();
+    expect(screen.getByLabelText("Comments for item 7")).toHaveAttribute(
+      "placeholder",
+      "Add a comment",
+    );
+  });
+
+  it("DateTime: named by ariaLabel", () => {
+    wrapCell(
+      <Cell
+        config={{
+          kind: "DateTime",
+          displayFormat: "DateOnly",
+          friendlyFormat: "Disabled",
+        }}
+        value={undefined}
+      />,
+    );
+    expect(screen.getByLabelText("Comments for item 7")).toBeInTheDocument();
+    expect(screen.queryByText("Comments")).toBeNull();
+  });
+
+  it("view mode shows the value with no label", () => {
+    function ViewCell() {
+      const field = useStandaloneField({
+        config: { kind: "Text", multiline: false },
+        displayName: "Comments",
+        value: "Looks fine",
+        onChange: () => {},
+        mode: "view",
+        ariaLabel: "Comments for item 7",
+      });
+      return <SpeelField field={field} />;
+    }
+    wrapCell(<ViewCell />);
+    expect(screen.getByText("Looks fine")).toBeInTheDocument();
+    expect(screen.queryByText("Comments")).toBeNull();
+  });
+});

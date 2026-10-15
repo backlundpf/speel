@@ -61,6 +61,7 @@ export function fieldAria(
   opts?: { labelledBy?: boolean },
 ): {
   id: string;
+  "aria-label"?: string;
   "aria-labelledby"?: string;
   "aria-describedby"?: string;
 } {
@@ -72,6 +73,10 @@ export function fieldAria(
     id,
     ...(opts?.labelledBy && p.label
       ? { "aria-labelledby": `${id}-label` }
+      : {}),
+    // Named inline (a table cell) when no label is shown.
+    ...(!p.label && p.ariaLabel !== undefined
+      ? { "aria-label": p.ariaLabel }
       : {}),
     ...(described.length > 0
       ? { "aria-describedby": described.join(" ") }

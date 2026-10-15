@@ -44,6 +44,15 @@ export interface StandaloneFieldOptions<TValue> {
    * blank required property does not accuse the user before they have typed anything.
    */
   touched?: boolean;
+  /**
+   * Names the control without the label chrome — an editor in a table cell, whose column
+   * header is the visible label. The field renders no label; this is its accessible name.
+   */
+  ariaLabel?: string;
+  /** Shown while the control is empty (text, number, and the selection combobox). */
+  placeholder?: string;
+  /** A multiline Text field grows with its content instead of scrolling. */
+  autoGrow?: boolean;
 }
 
 /**
@@ -115,5 +124,10 @@ export function useStandaloneField<TValue = unknown>(
     markTouched: () => {},
     ...(options !== undefined ? { options } : {}),
     ...(create !== undefined ? { create } : {}),
+    ...(opts.ariaLabel !== undefined ? { ariaLabel: opts.ariaLabel } : {}),
+    ...(opts.placeholder !== undefined
+      ? { placeholder: opts.placeholder }
+      : {}),
+    ...(opts.autoGrow !== undefined ? { autoGrow: opts.autoGrow } : {}),
   };
 }

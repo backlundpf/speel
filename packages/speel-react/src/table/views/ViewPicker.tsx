@@ -235,6 +235,8 @@ export function ViewPicker({ ui, views: v }: ViewPickerProps): JSX.Element {
             // The dot is a glyph; screen readers get the words.
             ariaLabel={unsaved ? `${activeName} (unsaved changes)` : activeName}
             appearance="secondary"
+            ariaHasPopup="menu"
+            ariaExpanded={open}
             onClick={() => setOpen((o) => !o)}
           />
         }

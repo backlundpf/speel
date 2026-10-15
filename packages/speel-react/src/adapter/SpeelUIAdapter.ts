@@ -1,9 +1,15 @@
-import type { ComponentType, ReactNode } from "react";
+import type { AriaAttributes, ComponentType, ReactNode } from "react";
 import type { SpeelActions } from "../actions.js";
 
 /** The label/validation/disabled chrome shared by every field primitive. */
 export interface FieldChrome {
   label?: string;
+  /**
+   * The control's accessible name when no `label` is shown — an editor in a table cell, a
+   * picker whose caption reads inline beside it (the footer's `Page [1] of 3`). With a
+   * `label`, the label names the control and this is ignored.
+   */
+  ariaLabel?: string;
   required?: boolean;
   disabled?: boolean;
   error?: string;
@@ -16,6 +22,10 @@ export interface TextInputProps extends FieldChrome {
   onBlur?: () => void;
   multiline?: boolean;
   maxLength?: number;
+  /** Shown while the input is empty. */
+  placeholder?: string;
+  /** Multiline only: the box grows with its content. Unset = the skin's default. */
+  autoGrow?: boolean;
 }
 
 export interface RichTextInputProps extends FieldChrome {
@@ -34,6 +44,8 @@ export interface NumberInputProps extends FieldChrome {
   step?: number;
   prefix?: string;
   suffix?: string;
+  /** Shown while the input is empty. */
+  placeholder?: string;
 }
 
 export interface OptionItem {
@@ -47,11 +59,6 @@ export interface DropdownProps extends FieldChrome {
   onChange: (v: unknown) => void;
   options: OptionItem[];
   multiselect?: boolean;
-  /**
-   * Names the control for screen readers WITHOUT the stacked label chrome — for a picker
-   * whose caption already reads inline beside it, like the footer's `Page [1] of 3`.
-   */
-  ariaLabel?: string;
   /** Shown while nothing is picked — what an empty pick means ("None = all"). */
   placeholder?: string;
 }
@@ -87,8 +94,6 @@ export interface RadioGroupOther {
 export interface CheckboxProps extends FieldChrome {
   checked: boolean;
   onChange: (v: boolean) => void;
-  /** Names the box for screen readers when it has no visible label — a table row's select box. */
-  ariaLabel?: string;
   /**
    * Shows the mixed state ("some selected") over `checked`. A click on a mixed box
    * reports `true`; the caller then clears `indeterminate`.
@@ -182,6 +187,12 @@ export interface ButtonProps {
   disabled?: boolean;
   /** Accessible name, when the visible text is not one — a status glyph, a bare view name. */
   ariaLabel?: string;
+  /** Whether the popup this button opens is showing (`aria-expanded`). */
+  ariaExpanded?: boolean;
+  /** What this button opens (`aria-haspopup`): `"dialog"` for a popover, `"menu"` for a menu. */
+  ariaHasPopup?: AriaAttributes["aria-haspopup"];
+  /** The id of what this button opens (`aria-controls`); undefined while it is not on the page. */
+  ariaControls?: string | undefined;
   /** Skin icon name (Fluent icon name in the v8 skin), rendered before the text. */
   iconName?: string;
   /**
@@ -213,6 +224,14 @@ export interface IconButtonProps {
   onClick?: () => void;
   disabled?: boolean;
   toggled?: boolean;
+  /** Accessible name when it should say more than the tooltip ("Edit item 7"); defaults to `title`. */
+  ariaLabel?: string;
+  /** Whether the popup this button opens is showing (`aria-expanded`). */
+  ariaExpanded?: boolean;
+  /** What this button opens (`aria-haspopup`): `"dialog"` for a popover, `"menu"` for a menu. */
+  ariaHasPopup?: AriaAttributes["aria-haspopup"];
+  /** The id of what this button opens (`aria-controls`); undefined while it is not on the page. */
+  ariaControls?: string | undefined;
 }
 
 export interface SpinnerProps {
@@ -236,6 +255,14 @@ export interface MessageBarProps {
   multiline?: boolean;
 }
 
+/**
+ * Where focus goes when a surface closes. Unset: back to what had focus when it opened.
+ * An element, or a function called at close: there instead (falling back to the opener
+ * when it resolves to nothing). `false`: speel leaves focus alone. Never scrolls the page.
+ */
+export type ReturnFocusTarget =
+  HTMLElement | (() => HTMLElement | null | undefined) | false;
+
 export interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -252,6 +279,8 @@ export interface DialogProps {
   fullscreenToggle?: boolean;
   /** Modal only: open maximized. Seeds the initial state — the toggle still works. */
   defaultFullscreen?: boolean;
+  /** Where focus goes when the surface closes — see {@link ReturnFocusTarget}. */
+  returnFocus?: ReturnFocusTarget;
 }
 
 export interface DrawerProps extends DialogProps {
@@ -288,10 +317,25 @@ export interface MenuProps {
   sections: MenuSection[];
 }
 
+/** What a popover hands a trigger function: spread it onto `ui.Button` / `ui.IconButton`. */
+export interface PopoverTriggerProps {
+  ariaExpanded: boolean;
+  ariaHasPopup: "dialog";
+  /** The popup's id while it is open; undefined while closed. */
+  ariaControls: string | undefined;
+}
+
 export interface PopoverProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  trigger: ReactNode;
+  /**
+   * What opens the popover, rendered in place: a node, or a function handed the trigger's
+   * aria wiring to spread onto a `ui.Button`/`ui.IconButton`. The trigger toggles `open`
+   * itself; focus returns to it when the popover closes.
+   */
+  trigger: ReactNode | ((t: PopoverTriggerProps) => ReactNode);
+  /** The popup's accessible name (it is a `dialog`). */
+  label?: string;
   children: ReactNode;
 }
 

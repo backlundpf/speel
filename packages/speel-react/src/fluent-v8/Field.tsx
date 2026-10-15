@@ -21,6 +21,23 @@ export function chromeFrom(p: {
   return c;
 }
 
+/** The `ariaLabel` that names a control: only when no visible label does. */
+export function nameOf(p: FieldChrome): string | undefined {
+  return p.label === undefined ? p.ariaLabel : undefined;
+}
+
+/** A Fluent control's own `ariaLabel` prop, when {@link nameOf} names the control. */
+export function ariaLabelProp(p: FieldChrome): { ariaLabel?: string } {
+  const name = nameOf(p);
+  return name !== undefined ? { ariaLabel: name } : {};
+}
+
+/** The native `aria-label` attribute, when {@link nameOf} names the control. */
+export function ariaLabelAttr(p: FieldChrome): { "aria-label"?: string } {
+  const name = nameOf(p);
+  return name !== undefined ? { "aria-label": name } : {};
+}
+
 /**
  * The ids that tie a field's label and help text to its control.
  *
