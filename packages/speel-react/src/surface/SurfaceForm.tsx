@@ -109,6 +109,7 @@ function Inner<T extends IEntity>(
       {...(p.defaultFullscreen !== undefined
         ? { defaultFullscreen: p.defaultFullscreen }
         : {})}
+      {...(p.returnFocus !== undefined ? { returnFocus: p.returnFocus } : {})}
       footer={
         <FormFooter
           ef={efForFooter}

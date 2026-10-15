@@ -260,6 +260,8 @@ export interface DialogProps {
   fullscreenToggle?: boolean;
   /** Modal only: open maximized. Seeds the initial state — the toggle still works. */
   defaultFullscreen?: boolean;
+  /** Where focus goes when the surface closes — see {@link ReturnFocusTarget}. */
+  returnFocus?: ReturnFocusTarget;
 }
 
 export interface DrawerProps extends DialogProps {
