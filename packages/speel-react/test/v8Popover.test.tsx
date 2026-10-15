@@ -59,6 +59,17 @@ describe("V8Popover", () => {
     });
   });
 
+  it("a click on the trigger while open closes it, without a dismiss as well", () => {
+    const onOpenChange = vi.fn();
+    render(<Harness onOpenChange={onOpenChange} />);
+    const org = screen.getByRole("button", { name: "Org" });
+    fireEvent.click(org);
+    fireEvent.mouseDown(org);
+    fireEvent.click(org);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
   it("Esc closes and focuses the trigger", async () => {
     render(<Harness />);
     const org = screen.getByRole("button", { name: "Org" });

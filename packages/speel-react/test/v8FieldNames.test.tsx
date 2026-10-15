@@ -83,6 +83,24 @@ describe("v8 field primitives are named by ariaLabel when they have no label", (
     expect(screen.getAllByLabelText(NAME).length).toBeGreaterThan(0);
   });
 
+  it("names the radiogroup itself, and the file button people reach", () => {
+    render(
+      <>
+        <V8RadioGroup
+          ariaLabel={NAME}
+          value={undefined}
+          options={opts}
+          onChange={none}
+        />
+        <V8FileInput ariaLabel="Attachment" value={undefined} onChange={none} />
+      </>,
+    );
+    expect(screen.getByRole("radiogroup", { name: NAME })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Attachment/ }),
+    ).toBeInTheDocument();
+  });
+
   it("a visible label wins over ariaLabel", () => {
     render(
       <V8TextInput label="Title" ariaLabel={NAME} value="" onChange={none} />,

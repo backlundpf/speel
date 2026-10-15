@@ -120,6 +120,11 @@ export function V8FileInput(p: FileInputProps): JSX.Element {
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <DefaultButton
           text="Choose file"
+          // The button is the control people reach (the input is hidden), so an inline
+          // name goes on it.
+          {...(nameOf(p) !== undefined
+            ? { ariaLabel: `${nameOf(p) ?? ""}: Choose file` }
+            : {})}
           disabled={!!p.disabled}
           onClick={() => inputRef.current?.click()}
         />
@@ -1547,11 +1552,20 @@ export function V8RadioGroup(p: RadioGroupProps): JSX.Element {
   });
   const chrome = chromeFrom(p);
   const aria = useFieldAria(chrome);
+  // ChoiceGroup puts `role="radiogroup"` on an inner element that takes only
+  // `ariaLabelledBy`; a native aria-label would land on its role-less root. So an inline
+  // name is a hidden node the radiogroup points at.
+  const name = nameOf(p);
   return (
     <V8Field chrome={chrome} aria={aria} renderLabel={false}>
+      {name !== undefined ? (
+        <span id={aria.labelId} hidden>
+          {name}
+        </span>
+      ) : null}
       <ChoiceGroup
         {...(p.label !== undefined ? { label: p.label } : {})}
-        {...ariaLabelAttr(p)}
+        {...(name !== undefined ? { ariaLabelledBy: aria.labelId } : {})}
         required={!!p.required}
         options={options}
         {...(selectedKey !== undefined ? { selectedKey } : {})}

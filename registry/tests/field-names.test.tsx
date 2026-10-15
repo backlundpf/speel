@@ -80,6 +80,28 @@ describe("shadcn field primitives are named by ariaLabel when they have no label
     expect(screen.getAllByLabelText(NAME).length).toBeGreaterThan(0);
   });
 
+  it("names the radiogroup itself, and the file input people reach", () => {
+    render(
+      <>
+        <ui.RadioGroup
+          ariaLabel={NAME}
+          value={undefined}
+          options={opts}
+          onChange={none}
+        />
+        <ui.FileInput
+          ariaLabel="Attachment"
+          value={undefined}
+          onChange={none}
+        />
+      </>,
+    );
+    expect(screen.getByRole("radiogroup", { name: NAME })).toBeInTheDocument();
+    expect(screen.getByLabelText("Attachment")).not.toHaveStyle({
+      display: "none",
+    });
+  });
+
   it("a visible label wins over ariaLabel", () => {
     render(
       <ui.TextInput label="Title" ariaLabel={NAME} value="" onChange={none} />,

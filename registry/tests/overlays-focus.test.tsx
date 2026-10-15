@@ -113,6 +113,24 @@ describe("shadcn Popover", () => {
     expect(document.activeElement).toBe(org);
   });
 
+  it("a click on the trigger while open closes it — Radix does not also dismiss", async () => {
+    const onOpenChange = vi.fn();
+    render(<Harness onOpenChange={onOpenChange} />);
+    const org = screen.getByRole("button", { name: "Org" });
+    fireEvent.click(org);
+    await flush();
+    fireEvent.pointerDown(org);
+    fireEvent.mouseDown(org);
+    fireEvent.pointerUp(org);
+    fireEvent.mouseUp(org);
+    fireEvent.click(org);
+    await flush();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    // The trigger closes it through its own toggle; a dismiss from Radix as well is
+    // what reopens it on radix-ui 1.5 (dismiss on pointerdown, toggle back on click).
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
   it("Esc closes and focuses the trigger", async () => {
     render(<Harness />);
     const org = screen.getByRole("button", { name: "Org" });

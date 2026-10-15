@@ -202,19 +202,20 @@ Implement `SpeelUIAdapter` (imported from `@speel/react`) and pass the object as
 
 ## Boundaries & gotchas
 
-**The shadcn skin is copy-in source — you own it.** It is not an npm package. After
-installing it once you are responsible for keeping it up to date when `@speel/react`
-adds new adapter members: re-run the registry `add` command, or patch the files manually. The
-item adds `@speel/react` and `lucide-react` but not `@speel/core` — install that and configure a `DbContext` for `SpeelProvider` yourself.
+**The shadcn skin is copy-in source — you own it.** It is not an npm package: when
+`@speel/react` changes the adapter, re-run the registry `add` command or patch the files. Do so
+when `PopoverProps.trigger` became a function-or-node: an older copy renders the function as a
+child, so the column chooser's button disappears, and its `PopoverTrigger` toggled `open` where
+now the trigger itself must. A skin of your own calls a function `trigger` (or uses
+`usePopoverFocus().renderTrigger`). The item adds `@speel/react` and `lucide-react` but not
+`@speel/core` — install that and configure a `DbContext` for `SpeelProvider` yourself.
 
 **SPFx hosts: fluent-v8 is the zero-setup default; the shadcn skin is supported via the sidecar recipe.** The Fabric-singleton constraint forbids bundling a second _Fluent_ runtime — it does not forbid non-Fluent skins. Running the shadcn skin in a web part requires the React 17-compatible skin build, a Tailwind sidecar whose preflight is isolated in the lowest cascade layer (so SharePoint's unlayered styles override it and the shared page is left untouched), and the `speel-shadcn` wrapper class; follow the recipe in `samples/spfx-sample/README.md`.
 
 **A Json field's row frame is unskinned DOM, deliberately.** Each repeater row is a plain
-`<fieldset>` with a `<legend>`, not an adapter member — the nested fields inside it go
-through your skin as usual, only the frame around them does not. It is a decision, not an
-oversight: a new adapter member costs an implementation in every skin, and `<fieldset>` is
-the element a group of related fields is already supposed to be. Style it from your own CSS
-if it needs to match; a `Repeater` member is a later question.
+`<fieldset>` with a `<legend>`, not an adapter member; the fields inside it go through your
+skin as usual. A new member costs an implementation in every skin, and `<fieldset>` is the
+element a group of related fields already is. Style it from your own CSS if it needs to match.
 
 **Two Fluent controls refuse `aria-describedby`.** `DatePicker` overwrites it with its
 own internal description node and `ChoiceGroup` drops it, through the DOM attribute and
@@ -235,12 +236,11 @@ failure message in the option's `title` (and a `TooltipHost` callout on the erro
 shadcn skin wires the message as the row's `aria-describedby`.
 
 **Fluent's `autoComplete="on"` can commit an inline-completed prefix on blur.** The v8
-combobox runs `allowFreeform` with `autoComplete="on"`, so a typed prefix completes inline to
-a matching option and leaving the field commits it. What commits is always an `OptionItem` the
-caller supplied — never invented text — and text that matches nothing commits nothing, leaving
-the box to revert. `allowFreeform` is not negotiable: with it off, Fluent's input stops being
-a text box (printable keys are reported one at a time, a paste produces no query at all, and
-IME composition breaks).
+combobox runs `allowFreeform` with `autoComplete="on"`, so a typed prefix completes inline to a
+matching option and leaving the field commits it — always an `OptionItem` the caller supplied,
+never invented text; text that matches nothing commits nothing and the box reverts.
+`allowFreeform` is not negotiable: with it off, Fluent's input stops being a text box
+(printable keys arrive one at a time, a paste produces no query, IME composition breaks).
 
 **One skin per SpeelProvider.** Each `SpeelProvider` accepts exactly one `ui` adapter. To mix
 skins on one page, mount separate `SpeelProvider` trees with their own `ui` and `DbContext`.

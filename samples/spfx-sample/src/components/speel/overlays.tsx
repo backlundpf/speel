@@ -358,6 +358,13 @@ export function ShadPopover(p: PopoverProps): ReactElement {
         align="start"
         className="speel-shadcn w-auto min-w-60"
         onKeyDown={f.onContentKeyDown}
+        // Without a PopoverTrigger, Radix sees a click on the trigger as outside and
+        // dismisses — then the trigger's own toggle reopens it (radix-ui 1.5 dismisses on
+        // pointerdown). The trigger is the consumer's to toggle; leave it alone here.
+        onInteractOutside={(e) => {
+          if (f.anchorRef.current?.contains(e.target as Node))
+            e.preventDefault();
+        }}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
           f.restore(false);
