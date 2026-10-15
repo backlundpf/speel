@@ -75,9 +75,12 @@ export function ShadTextInput(p: TextInputProps): ReactElement {
     "aria-invalid": !!p.error,
     onBlur: p.onBlur,
     ...(p.maxLength !== undefined ? { maxLength: p.maxLength } : {}),
+    ...(p.placeholder !== undefined ? { placeholder: p.placeholder } : {}),
   };
   return (
     <Chrome {...p} htmlFor={id}>
+      {/* `autoGrow` needs nothing here: the textarea already sizes to its content
+          (`field-sizing-content`). */}
       {p.multiline ? (
         <Textarea
           {...shared}
@@ -108,6 +111,7 @@ export function ShadNumberInput(p: NumberInputProps): ReactElement {
           min={p.min}
           max={p.max}
           step={p.step}
+          placeholder={p.placeholder}
           onBlur={p.onBlur}
           onChange={(e) => {
             const raw = e.target.value;
@@ -139,7 +143,7 @@ export function ShadCheckbox(p: CheckboxProps): ReactElement {
           checked={p.indeterminate ? "indeterminate" : p.checked}
           disabled={p.disabled}
           aria-invalid={!!p.error}
-          aria-label={p.ariaLabel}
+          aria-label={p.label ? undefined : p.ariaLabel}
           // The stock checkbox draws its tick for the mixed state too; swap it for a
           // dash without forking the component.
           className={cn(
@@ -273,6 +277,9 @@ export function ShadButton(p: ButtonProps): ReactElement {
       variant={BUTTON_VARIANT[p.appearance ?? "secondary"]}
       disabled={!!p.disabled}
       aria-label={p.ariaLabel}
+      aria-expanded={p.ariaExpanded}
+      aria-haspopup={p.ariaHasPopup}
+      aria-controls={p.ariaControls}
       aria-describedby={tipped ? tipId : undefined}
       // A tooltip-wrapped button fills its trigger, so the tooltip anchors on the button.
       className={cn(tipped && "w-full")}
@@ -416,8 +423,11 @@ export function ShadIconButton(p: IconButtonProps): ReactElement {
             type="button"
             variant="ghost"
             size="icon"
-            aria-label={p.title}
+            aria-label={p.ariaLabel ?? p.title}
             aria-pressed={p.toggled}
+            aria-expanded={p.ariaExpanded}
+            aria-haspopup={p.ariaHasPopup}
+            aria-controls={p.ariaControls}
             disabled={!!p.disabled}
             className={cn(
               "size-8",
@@ -572,11 +582,6 @@ export function ShadDropdown(p: DropdownProps): ReactElement {
           <SelectTrigger
             {...fieldAria(id, p, { labelledBy: true })}
             aria-invalid={!!p.error}
-            // Named inline instead of by label chrome — the table footer's pager
-            // reads `‹ Page [1] of 3 ›` and passes its caption this way.
-            {...(p.ariaLabel !== undefined
-              ? { "aria-label": p.ariaLabel }
-              : {})}
             className="w-full"
           >
             <SelectValue placeholder={p.placeholder ?? "Select…"} />
@@ -633,9 +638,6 @@ function ShadMultiDropdown(p: DropdownProps): ReactElement {
             role="combobox"
             aria-expanded={open}
             aria-invalid={!!p.error}
-            {...(p.ariaLabel !== undefined
-              ? { "aria-label": p.ariaLabel }
-              : {})}
             disabled={p.disabled}
             className="w-full justify-between font-normal"
           >

@@ -5,8 +5,8 @@ import { Maximize2, Minimize2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
-  PopoverTrigger,
 } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { useDragResize, useResizable } from "@speel/react";
+import {
+  useDragResize,
+  useFocusReturn,
+  usePopoverFocus,
+  useResizable,
+} from "@speel/react";
 import type {
   DialogProps,
   DrawerProps,
@@ -124,6 +129,10 @@ export function ShadDialog(p: DialogProps): ReactElement {
   );
 
   const width = fullscreen ? "96vw" : `${resizable ? size.w : presetW}px`;
+  const { restore } = useFocusReturn({
+    open: p.open,
+    returnFocus: p.returnFocus,
+  });
   const height = fullscreen ? "92vh" : `${resizable ? size.h : presetH}px`;
 
   return (
@@ -164,6 +173,13 @@ export function ShadDialog(p: DialogProps): ReactElement {
         }}
         onEscapeKeyDown={(e) => {
           if (p.blocking) e.preventDefault();
+        }}
+        // Focus return is speel's (useFocusReturn): a Radix Dialog only returns focus to
+        // its own Trigger, and these surfaces are opened from the consumer's controls. A
+        // Radix Dialog/Sheet is modal, so focus was inside.
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          restore(true);
         }}
       >
         {/* Sticky header — doubles as the drag handle (buttons excluded by useDragResize). */}
@@ -248,6 +264,10 @@ export function ShadDrawer(p: DrawerProps): ReactElement {
     label: "Resize panel",
   });
   const width = resizable ? (size.w ?? presetW) : presetW;
+  const { restore } = useFocusReturn({
+    open: p.open,
+    returnFocus: p.returnFocus,
+  });
 
   // The built-in close button sits at absolute top-4 right-4. With our custom header
   // that sits at py-3 px-5, the close button overlaps the title text. When the close
@@ -274,6 +294,13 @@ export function ShadDrawer(p: DrawerProps): ReactElement {
         }}
         onEscapeKeyDown={(e) => {
           if (p.blocking) e.preventDefault();
+        }}
+        // Focus return is speel's (useFocusReturn): a Radix Dialog only returns focus to
+        // its own Trigger, and these surfaces are opened from the consumer's controls. A
+        // Radix Dialog/Sheet is modal, so focus was inside.
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          restore(true);
         }}
       >
         <div
@@ -314,12 +341,28 @@ export function ShadDrawer(p: DrawerProps): ReactElement {
 }
 
 export function ShadPopover(p: PopoverProps): ReactElement {
+  const f = usePopoverFocus(p);
   return (
     <Popover open={p.open} onOpenChange={p.onOpenChange}>
-      <PopoverTrigger asChild>
-        <span className="inline-flex">{p.trigger as ReactNode}</span>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="speel-shadcn w-auto min-w-60">
+      {/* An anchor, not a PopoverTrigger: the trigger is the consumer's own button (it
+          toggles `open` itself, as the contract says), and the aria wiring goes on it
+          through the trigger function — never on a wrapper that cannot take focus. */}
+      <PopoverAnchor asChild>
+        <span ref={f.anchorRef} className="inline-flex">
+          {f.renderTrigger(p.trigger) as ReactNode}
+        </span>
+      </PopoverAnchor>
+      <PopoverContent
+        id={f.contentId}
+        aria-label={p.label}
+        align="start"
+        className="speel-shadcn w-auto min-w-60"
+        onKeyDown={f.onContentKeyDown}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          f.restore(false);
+        }}
+      >
         {p.children as ReactNode}
       </PopoverContent>
     </Popover>

@@ -67,6 +67,9 @@ export function ShadRichTextInput(
         ...(aria["aria-labelledby"] !== undefined
           ? { "aria-labelledby": aria["aria-labelledby"] }
           : {}),
+        ...(aria["aria-label"] !== undefined
+          ? { "aria-label": aria["aria-label"] }
+          : {}),
         ...(aria["aria-describedby"] !== undefined
           ? { "aria-describedby": aria["aria-describedby"] }
           : {}),
