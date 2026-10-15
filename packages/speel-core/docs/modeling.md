@@ -160,20 +160,20 @@ These can be chained in any order after the `Is*` call, and each has a noun-keye
 decorator opt (`isReadOnly()` ↔ `readOnly: true`, `hasColumnName('X')` ↔ `columnName: 'X'`,
 `isRequired(fn)` ↔ `required: fn`):
 
-**Column/schema refinements** — `hasColumnName` (if the SP internal name differs from
-the property name), `hasDescription`, `hasDefaultValue`, `isIndexed`, `isReadOnly`, and
-`hasCodec({ toProvider, fromProvider })` — a model type mapped to and from the field's
-_typed_ value (a `Date`, a choice's `string`, a lookup's `number`; per element for arrays); the
-decorator's `codec` opt takes the same bag. Its `toWire`/`fromWire` slots are speel's own — how
-a value looks inside a `Json` column ([shapes.md](shapes.md)). A `fromProvider` answering
-`undefined` leaves the property unset.
+**Column/schema refinements** — `hasColumnName` (if the SP internal name differs from the
+property name), `hasDescription`, `hasDefaultValue`, `isIndexed`, `isReadOnly`, and
+`hasCodec({ toProvider, fromProvider })` — a model type mapped to and from the field's _typed_
+value (a `Date`, a choice's `string`, a lookup's `number`). It runs per element only on a multi
+lookup or multi choice; any other column hands it the whole value, so a Note holding a
+JSON-encoded list saves one string. The decorator's `codec` opt takes the same bag. Its
+`toWire`/`fromWire` slots are speel's own — how a value looks inside a `Json` column
+([shapes.md](shapes.md)). A `fromProvider` answering `undefined` leaves the property unset.
 
 **Display** — `hasDisplayName` sets the label used by `@speel/react` forms and tables.
 
-**Field-state predicates** — `isRequired`, `isVisible`, and `isEnabled` each accept
-either a plain boolean or a predicate `(c: FieldContext) => boolean`. The predicate
-receives a `FieldContext` whose `values` is a plain snapshot of the entity, so any
-field can gate on any other:
+**Field-state predicates** — `isRequired`, `isVisible`, and `isEnabled` each accept either a
+plain boolean or a predicate `(c: FieldContext) => boolean`, whose `values` is a plain snapshot
+of the entity, so any field can gate on any other:
 
 ```ts
 b.property((e) => e.ApprovedBy)

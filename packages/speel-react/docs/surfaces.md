@@ -180,6 +180,14 @@ is cosmetic and the keyboard already has resize and the fullscreen toggle. Both 
 and the resize stop at the viewport edges, so a modal cannot be pushed off screen or grown
 past it.
 
+**Focus comes back without moving the page.** Closing a panel or modal returns focus to what
+had it when the surface opened, with `preventScroll` — never to `body`, never to an element
+that has since left the page, and never away from somewhere the user moved focus. A surface
+opened from a click on a plain row (which never takes focus) therefore leaves the scroll
+position alone. `returnFocus` names another target — an element, or a function called at close
+(the list, after a panel deleted its own row) — or `false` to leave focus to you; `showForm`
+takes it too.
+
 `useResizable` (panel edge) and `useDragResize` (modal corner + title bar) are exported if
 you are building your own skin's chrome — `min`, `max`, `step` and `label` shape both, and
 the handle props they return carry the role, the tab stop, and the pointer and key

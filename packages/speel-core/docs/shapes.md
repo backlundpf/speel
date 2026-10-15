@@ -100,3 +100,7 @@ field); in a table, the shape's first visible property as the cell text. See
   SharePoint cannot filter or sort inside a Note column, so `.filter()`/`.orderBy()` over a
   shape's properties is impossible by construction; nothing checks a shape's serialized size
   against the column's limit before a save either.
+- **An array-model codec on a property inside a shape wrote a different blob through
+  0.1.0-beta.3.** Those builds ran it per element, storing an array of per-element values; the
+  codec now gets the whole value, as it does in a column of its own. Rows saved that way do not
+  read back — convert them, or let the codec's `fromProvider` accept both forms.
