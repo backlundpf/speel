@@ -236,6 +236,14 @@ export interface MessageBarProps {
   multiline?: boolean;
 }
 
+/**
+ * Where focus goes when a surface closes. Unset: back to what had focus when it opened.
+ * An element, or a function called at close: there instead (falling back to the opener
+ * when it resolves to nothing). `false`: speel leaves focus alone. Never scrolls the page.
+ */
+export type ReturnFocusTarget =
+  HTMLElement | (() => HTMLElement | null | undefined) | false;
+
 export interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;

@@ -38,6 +38,7 @@ export type {
   MessageBarProps,
   DialogProps,
   DrawerProps,
+  ReturnFocusTarget,
   PopoverProps,
   TableColumn,
   TableLength,
@@ -240,6 +241,13 @@ export type {
   ResizeState,
   ResizeHandleProps,
 } from "./surface/useResizable.js";
+export {
+  useFocusReturn,
+  returnFocusTo,
+  tabbablesIn,
+  FOCUSABLE,
+} from "./surface/focusReturn.js";
+export type { FocusReturnOptions } from "./surface/focusReturn.js";
 export { setOverflowTitle } from "./table/overflowTitle.js";
 export { resolveColumnWidths } from "./table/layout/resolveColumnWidths.js";
 export type {

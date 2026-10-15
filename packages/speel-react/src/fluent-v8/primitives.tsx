@@ -70,6 +70,7 @@ import { useContainerWidth } from "../table/layout/useContainerWidth.js";
 import { setOverflowTitle } from "../table/overflowTitle.js";
 import { useResizable } from "../surface/useResizable.js";
 import { useDragResize } from "../surface/useDragResize.js";
+import { FOCUSABLE } from "../surface/focusReturn.js";
 import { SpeelActionBar } from "../actions.js";
 import type {
   TextInputProps,
@@ -476,9 +477,6 @@ const PANEL_WIDTH = {
 } as const;
 
 const DIALOG_HEIGHT = { small: 440, medium: 560, large: 640 } as const;
-/** What can take focus when a modal opens: enabled, reachable controls. */
-const FOCUSABLE =
-  'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 const DIALOG_MIN = { w: 360, h: 260 };
 
 /** The modal's size caps (its CSS 96vw x 92vh) and the viewport it must stay inside.
