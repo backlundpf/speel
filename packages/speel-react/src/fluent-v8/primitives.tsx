@@ -71,6 +71,7 @@ import { setOverflowTitle } from "../table/overflowTitle.js";
 import { useResizable } from "../surface/useResizable.js";
 import { useDragResize } from "../surface/useDragResize.js";
 import { FOCUSABLE, useFocusReturn } from "../surface/focusReturn.js";
+import { usePopoverFocus } from "../surface/popoverFocus.js";
 import { SpeelActionBar } from "../actions.js";
 import type {
   TextInputProps,
@@ -380,6 +381,15 @@ function V8FluentButton(p: ButtonProps & { tooltipId: string }): JSX.Element {
         ? { iconProps: { iconName: p.iconName } }
         : {})}
       {...(p.ariaLabel !== undefined ? { ariaLabel: p.ariaLabel } : {})}
+      {...(p.ariaExpanded !== undefined
+        ? { "aria-expanded": p.ariaExpanded }
+        : {})}
+      {...(p.ariaHasPopup !== undefined
+        ? { "aria-haspopup": p.ariaHasPopup }
+        : {})}
+      {...(p.ariaControls !== undefined
+        ? { "aria-controls": p.ariaControls }
+        : {})}
       {...(p.onClick ? { onClick: p.onClick } : {})}
       {...(p.tooltip !== undefined
         ? {
@@ -418,6 +428,15 @@ export function V8IconButton(p: IconButtonProps): JSX.Element {
       ariaLabel={p.title}
       disabled={!!p.disabled}
       checked={!!p.toggled}
+      {...(p.ariaExpanded !== undefined
+        ? { "aria-expanded": p.ariaExpanded }
+        : {})}
+      {...(p.ariaHasPopup !== undefined
+        ? { "aria-haspopup": p.ariaHasPopup }
+        : {})}
+      {...(p.ariaControls !== undefined
+        ? { "aria-controls": p.ariaControls }
+        : {})}
       {...(p.onClick ? { onClick: p.onClick } : {})}
     />
   );
@@ -707,18 +726,29 @@ export function V8Dialog(p: DialogProps): JSX.Element {
 }
 
 export function V8Popover(p: PopoverProps): JSX.Element {
-  const ref = React.useRef<HTMLSpanElement>(null);
+  const f = usePopoverFocus(p);
   return (
-    <span ref={ref} style={{ display: "inline-flex" }}>
-      {p.trigger}
+    <span ref={f.anchorRef} style={{ display: "inline-flex" }}>
+      {f.renderTrigger(p.trigger)}
       {p.open ? (
         <Callout
-          target={ref}
+          target={f.anchorRef}
           onDismiss={() => p.onOpenChange(false)}
           isBeakVisible={false}
           setInitialFocus
+          // Focus goes back to the trigger itself (usePopoverFocus), not to whatever
+          // Fluent saw focused at open — a body on Safari, which does not focus a click.
+          onRestoreFocus={({ containsFocus }) => f.restore(containsFocus)}
         >
-          <div style={{ padding: 12, minWidth: 240 }}>{p.children}</div>
+          <div
+            role="dialog"
+            id={f.contentId}
+            {...(p.label !== undefined ? { "aria-label": p.label } : {})}
+            onKeyDown={f.onContentKeyDown}
+            style={{ padding: 12, minWidth: 240 }}
+          >
+            {p.children}
+          </div>
         </Callout>
       ) : null}
     </span>
