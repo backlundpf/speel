@@ -1,5 +1,12 @@
 # @speel/migrations
 
+## 0.1.0-beta.4
+
+### Patch Changes
+
+- Updated dependencies [ec04f47]
+  - @speel/core@0.1.0-beta.4
+
 ## 0.1.0-beta.3
 
 ### Patch Changes

@@ -1,5 +1,22 @@
 # @speel/react
 
+## 0.1.0-beta.4
+
+### Minor Changes
+
+- ec04f47: A codec runs per element only on multi-valued columns, so a Note or Text column whose model is an array saves one string (#69). Panels and modals return focus without scrolling the page, with `returnFocus` to choose the target (#71). Popovers are labelled dialogs with trigger aria wiring, Tab-out and focus return to the trigger (#72). `PopoverProps.trigger` may now be a function: re-pull a copied shadcn skin (an older copy renders the function as a child and the column chooser's button disappears), and a custom skin must call a function `trigger` (`usePopoverFocus().renderTrigger` does); the trigger toggles `open` itself in both skins. Field primitives take `ariaLabel`, text and number inputs `placeholder`, multiline text `autoGrow`, icon buttons `ariaLabel`; standalone fields pass them through (#76). Arrow keys open a closed v8 Dropdown instead of changing its value (#77).
+- 2f1adb1: Table columns: `p.Field.with({ width, wrap, … })` gives a proxy column options without a string key — the `columns` callback's parameter is now a map of column refs, so drop any `(p: Entity) =>` annotation. New column options `wrap`, `cellTitle: false` and `headerContent`. The Fluent v8 skin starts a column without a width at a default for its field kind, never narrower than its header's longest word; header labels break only at spaces (an over-long word ends in "…") with the filter button beside them; cut-off cells show their full text on hover. The row-actions column is as wide as its buttons. `TableColumn` gains optional `defaultWidth`, `wrap`, `cellTitle` and `headerContent`, and `setOverflowTitle` is exported for skins.
+
+  Columns flex like CSS: each has a basis (`width`) and `grow`/`shrink` weights with per-kind defaults (text, Lookup and Choice columns flex, Note and Json take twice the spare width, Yes/No, numbers, dates and custom columns hold), plus `minWidth`/`maxWidth`; tables take `minWidth`/`width`/`maxWidth` (px or % of the container) and are otherwise exactly as wide as their columns — the v8 skin no longer stretches its last column (`minWidth: "100%"` fills). A dragged column stays where it is dropped, within its own `minWidth`/`maxWidth`, while the others flex around it. The shadcn skin uses the same layout: the per-kind defaults and header floor (it no longer sizes columns to content), fixed table layout sized in the theme's spacing unit, headers that wrap at spaces, horizontal scroll, and the sort arrow only on the sorted column. `TableColumn` gains optional `grow`, `shrink`, `minWidth` and `maxWidth`, `TableProps` gains `minWidth`, `width` and `maxWidth` (`TableLength`), and `resolveColumnWidths`, `toFlexColumn`, `headerFloor`, `textMeasurer`, `useContainerWidth` and `MIN_RESIZE_WIDTH` are exported for skins.
+
+  Columns take `align` (`start` / `center` / `end`) for header and cells. `ui.Link` (a new adapter member): a real link that looks like the skin's links in both its forms — `href` renders an anchor (open in new tab works) and `onClick` replaces navigation on a plain click only; without `href` it is a button that looks the same. Long links truncate at their end and show their full text on hover. A button's tooltip now anchors to the button in any container (#58); a tooltip-wrapped button in a stretching container (a vertical stack, a grid cell) now stretches like the same button without a tooltip, a visible change where such buttons previously sat at content width. For skins, `TableColumn` gains optional `align` (`ColumnAlign`) and `SpeelUIAdapter` gains a `Link` member (`LinkProps`).
+
+### Patch Changes
+
+- Updated dependencies [ec04f47]
+  - @speel/core@0.1.0-beta.4
+  - @speel/identity@0.1.0-beta.4
+
 ## 0.1.0-beta.3
 
 ### Minor Changes
