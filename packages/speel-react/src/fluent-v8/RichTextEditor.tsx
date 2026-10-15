@@ -27,6 +27,8 @@ export interface RichTextEditorProps {
    *  control, so the association has to be set on the element it renders. */
   ariaLabelledBy?: string | undefined;
   ariaDescribedBy?: string | undefined;
+  /** The editor's name when no label is shown (`FieldChrome.ariaLabel`). */
+  ariaLabel?: string | undefined;
 }
 
 /** TipTap's canonical empty document; the field treats it as an empty string. */
@@ -56,6 +58,7 @@ export default function RichTextEditor(p: RichTextEditorProps): JSX.Element {
         ...(p.ariaLabelledBy !== undefined
           ? { "aria-labelledby": p.ariaLabelledBy }
           : {}),
+        ...(p.ariaLabel !== undefined ? { "aria-label": p.ariaLabel } : {}),
         ...(p.ariaDescribedBy !== undefined
           ? { "aria-describedby": p.ariaDescribedBy }
           : {}),

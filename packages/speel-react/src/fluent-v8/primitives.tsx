@@ -56,7 +56,14 @@ import type {
   ITooltipHostStyles,
   Theme,
 } from "@fluentui/react";
-import { V8Field, chromeFrom, useFieldAria } from "./Field.js";
+import {
+  V8Field,
+  ariaLabelAttr,
+  ariaLabelProp,
+  chromeFrom,
+  nameOf,
+  useFieldAria,
+} from "./Field.js";
 import { useStableId } from "./useStableId.js";
 import { columnBounds } from "./columnBounds.js";
 import {
@@ -132,6 +139,7 @@ export function V8FileInput(p: FileInputProps): JSX.Element {
           ref={inputRef}
           id={aria.controlId}
           type="file"
+          {...ariaLabelAttr(p)}
           style={{ display: "none" }}
           {...(aria.describedBy !== undefined
             ? { "aria-describedby": aria.describedBy }
@@ -147,6 +155,7 @@ export function V8FileInput(p: FileInputProps): JSX.Element {
 export function V8TextInput(p: TextInputProps): JSX.Element {
   const chrome = chromeFrom(p);
   const aria = useFieldAria(chrome);
+  const name = nameOf(p);
   return (
     <V8Field chrome={chrome} aria={aria} renderLabel={false}>
       <TextField
@@ -158,6 +167,9 @@ export function V8TextInput(p: TextInputProps): JSX.Element {
         value={p.value}
         onChange={(_e, v) => p.onChange(v ?? "")}
         multiline={p.multiline ?? false}
+        {...(name !== undefined ? { ariaLabel: name } : {})}
+        {...(p.placeholder !== undefined ? { placeholder: p.placeholder } : {})}
+        {...(p.multiline && p.autoGrow ? { autoAdjustHeight: true } : {})}
         disabled={!!p.disabled}
         {...(p.maxLength !== undefined ? { maxLength: p.maxLength } : {})}
         {...(p.onBlur ? { onBlur: p.onBlur } : {})}
@@ -169,11 +181,16 @@ export function V8TextInput(p: TextInputProps): JSX.Element {
 export function V8NumberInput(p: NumberInputProps): JSX.Element {
   const chrome = chromeFrom(p);
   const aria = useFieldAria(chrome);
+  const name = nameOf(p);
   const control = (
     <SpinButton
       {...(p.label !== undefined ? { label: p.label } : {})}
       {...(aria.describedBy !== undefined
         ? { ariaDescribedBy: aria.describedBy }
+        : {})}
+      {...(name !== undefined ? { ariaLabel: name } : {})}
+      {...(p.placeholder !== undefined
+        ? { inputProps: { placeholder: p.placeholder } }
         : {})}
       // `== null` catches null as well as undefined: an empty number column
       // arrives as null, and String(null) is the word "null" in the user's box.
@@ -214,7 +231,7 @@ export function V8Checkbox(p: CheckboxProps): JSX.Element {
     <V8Field chrome={chrome} aria={aria} renderLabel={false}>
       <Checkbox
         {...(p.label !== undefined ? { label: p.label } : {})}
-        {...(p.ariaLabel !== undefined ? { ariaLabel: p.ariaLabel } : {})}
+        {...ariaLabelProp(p)}
         checked={p.checked}
         indeterminate={!!p.indeterminate}
         disabled={!!p.disabled}
@@ -425,7 +442,7 @@ export function V8IconButton(p: IconButtonProps): JSX.Element {
     <IconButton
       iconProps={{ iconName: p.iconName }}
       title={p.title}
-      ariaLabel={p.title}
+      ariaLabel={p.ariaLabel ?? p.title}
       disabled={!!p.disabled}
       checked={!!p.toggled}
       {...(p.ariaExpanded !== undefined
@@ -1372,7 +1389,9 @@ export function V8FieldDisplay(p: FieldDisplayProps): JSX.Element {
       <div
         id={aria.controlId}
         role="group"
-        aria-labelledby={aria.labelId}
+        {...(p.label !== undefined
+          ? { "aria-labelledby": aria.labelId }
+          : ariaLabelAttr(p))}
         {...(aria.describedBy !== undefined
           ? { "aria-describedby": aria.describedBy }
           : {})}
@@ -1411,7 +1430,7 @@ export function V8Dropdown(p: DropdownProps): JSX.Element {
           options={options}
           selectedKeys={selectedKeys}
           disabled={!!p.disabled}
-          {...(p.ariaLabel !== undefined ? { ariaLabel: p.ariaLabel } : {})}
+          {...ariaLabelProp(p)}
           onChange={(_e, option) => {
             if (!option) return;
             const picked = p.options.find((o) => o.key === option.key);
@@ -1433,7 +1452,7 @@ export function V8Dropdown(p: DropdownProps): JSX.Element {
         options={options}
         selectedKey={selected ? selected.key : null}
         disabled={!!p.disabled}
-        {...(p.ariaLabel !== undefined ? { ariaLabel: p.ariaLabel } : {})}
+        {...ariaLabelProp(p)}
         onChange={(_e, option) => {
           const opt = option
             ? p.options.find((o) => o.key === option.key)
@@ -1507,6 +1526,7 @@ export function V8RadioGroup(p: RadioGroupProps): JSX.Element {
     <V8Field chrome={chrome} aria={aria} renderLabel={false}>
       <ChoiceGroup
         {...(p.label !== undefined ? { label: p.label } : {})}
+        {...ariaLabelAttr(p)}
         required={!!p.required}
         options={options}
         {...(selectedKey !== undefined ? { selectedKey } : {})}
@@ -1535,6 +1555,7 @@ export function V8DatePicker(p: DatePickerProps): JSX.Element {
     <V8Field chrome={chrome} aria={aria} renderLabel={false}>
       <DatePicker
         {...(p.label !== undefined ? { label: p.label } : {})}
+        {...ariaLabelProp(p)}
         isRequired={!!p.required}
         // `isRequired` is what puts the asterisk on Fluent's own label, but it
         // also switches on Fluent's own validation, and `validateOnLoad`
@@ -1574,6 +1595,7 @@ export function V8PeoplePicker(p: PeoplePickerProps): JSX.Element {
       <NormalPeoplePicker
         inputProps={{
           id: aria.controlId,
+          ...ariaLabelAttr(p),
           ...(aria.describedBy !== undefined
             ? { "aria-describedby": aria.describedBy }
             : {}),
@@ -1857,6 +1879,7 @@ export function V8Combobox(p: ComboboxProps): JSX.Element {
     <V8Field chrome={chrome} aria={aria} renderLabel={false}>
       <ComboBox
         {...(p.label !== undefined ? { label: p.label } : {})}
+        {...ariaLabelProp(p)}
         required={!!p.required}
         disabled={!!p.disabled}
         {...(aria.describedBy !== undefined

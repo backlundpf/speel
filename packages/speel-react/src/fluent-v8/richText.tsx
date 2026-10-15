@@ -1,6 +1,12 @@
 import * as React from "react";
 import { TextField, getTheme } from "@fluentui/react";
-import { V8Field, chromeFrom, useFieldAria } from "./Field.js";
+import {
+  V8Field,
+  ariaLabelProp,
+  chromeFrom,
+  nameOf,
+  useFieldAria,
+} from "./Field.js";
 import type { RichTextInputProps } from "../adapter/SpeelUIAdapter.js";
 
 // The editor (TipTap + ProseMirror) loads as its own chunk — forms without a rich
@@ -46,6 +52,7 @@ export function V8RichTextInput(p: RichTextInputProps): JSX.Element {
     <TextField
       multiline
       {...(p.label !== undefined ? { label: p.label } : {})}
+      {...ariaLabelProp(p)}
       {...(aria.describedBy !== undefined
         ? { "aria-describedby": aria.describedBy }
         : {})}
@@ -64,7 +71,8 @@ export function V8RichTextInput(p: RichTextInputProps): JSX.Element {
             onChange={p.onChange}
             onBlur={p.onBlur}
             disabled={p.disabled}
-            ariaLabelledBy={aria.labelId}
+            ariaLabelledBy={p.label !== undefined ? aria.labelId : undefined}
+            ariaLabel={nameOf(p)}
             ariaDescribedBy={aria.describedBy}
           />
         </React.Suspense>
