@@ -40,6 +40,7 @@ export type {
   DrawerProps,
   ReturnFocusTarget,
   PopoverProps,
+  PopoverTriggerProps,
   TableColumn,
   TableLength,
   TableProps,
@@ -248,6 +249,8 @@ export {
   FOCUSABLE,
 } from "./surface/focusReturn.js";
 export type { FocusReturnOptions } from "./surface/focusReturn.js";
+export { usePopoverFocus } from "./surface/popoverFocus.js";
+export type { PopoverFocus } from "./surface/popoverFocus.js";
 export { setOverflowTitle } from "./table/overflowTitle.js";
 export { resolveColumnWidths } from "./table/layout/resolveColumnWidths.js";
 export type {

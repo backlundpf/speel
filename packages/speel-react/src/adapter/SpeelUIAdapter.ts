@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from "react";
+import type { AriaAttributes, ComponentType, ReactNode } from "react";
 import type { SpeelActions } from "../actions.js";
 
 /** The label/validation/disabled chrome shared by every field primitive. */
@@ -182,6 +182,12 @@ export interface ButtonProps {
   disabled?: boolean;
   /** Accessible name, when the visible text is not one — a status glyph, a bare view name. */
   ariaLabel?: string;
+  /** Whether the popup this button opens is showing (`aria-expanded`). */
+  ariaExpanded?: boolean;
+  /** What this button opens (`aria-haspopup`): `"dialog"` for a popover, `"menu"` for a menu. */
+  ariaHasPopup?: AriaAttributes["aria-haspopup"];
+  /** The id of what this button opens (`aria-controls`); undefined while it is not on the page. */
+  ariaControls?: string | undefined;
   /** Skin icon name (Fluent icon name in the v8 skin), rendered before the text. */
   iconName?: string;
   /**
@@ -213,6 +219,12 @@ export interface IconButtonProps {
   onClick?: () => void;
   disabled?: boolean;
   toggled?: boolean;
+  /** Whether the popup this button opens is showing (`aria-expanded`). */
+  ariaExpanded?: boolean;
+  /** What this button opens (`aria-haspopup`): `"dialog"` for a popover, `"menu"` for a menu. */
+  ariaHasPopup?: AriaAttributes["aria-haspopup"];
+  /** The id of what this button opens (`aria-controls`); undefined while it is not on the page. */
+  ariaControls?: string | undefined;
 }
 
 export interface SpinnerProps {
@@ -298,10 +310,25 @@ export interface MenuProps {
   sections: MenuSection[];
 }
 
+/** What a popover hands a trigger function: spread it onto `ui.Button` / `ui.IconButton`. */
+export interface PopoverTriggerProps {
+  ariaExpanded: boolean;
+  ariaHasPopup: "dialog";
+  /** The popup's id while it is open; undefined while closed. */
+  ariaControls: string | undefined;
+}
+
 export interface PopoverProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  trigger: ReactNode;
+  /**
+   * What opens the popover, rendered in place: a node, or a function handed the trigger's
+   * aria wiring to spread onto a `ui.Button`/`ui.IconButton`. The trigger toggles `open`
+   * itself; focus returns to it when the popover closes.
+   */
+  trigger: ReactNode | ((t: PopoverTriggerProps) => ReactNode);
+  /** The popup's accessible name (it is a `dialog`). */
+  label?: string;
   children: ReactNode;
 }
 

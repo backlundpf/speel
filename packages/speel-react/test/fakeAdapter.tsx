@@ -2,12 +2,14 @@ import { useState, type ReactElement, type ReactNode } from "react";
 import type {
   ComboboxCreate,
   OptionItem,
+  PopoverProps,
   SpeelUIAdapter,
   TableColumn,
   TableSort,
 } from "../src/adapter/SpeelUIAdapter.js";
 import { useStableId } from "../src/fluent-v8/useStableId.js";
 import { SpeelActionBar } from "../src/actions.js";
+import { usePopoverFocus } from "../src/surface/popoverFocus.js";
 
 // A headless plain-HTML adapter for tests. Layout/styling is irrelevant — it exists
 // only to drive the logic in field components and the form controller without Fluent.
@@ -65,19 +67,28 @@ const AddRow = ({
 
 const FakePopover = ({
   open,
+  onOpenChange,
   trigger,
+  label,
   children,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  trigger: ReactNode;
-  children: ReactNode;
-}): JSX.Element => (
-  <span>
-    {trigger}
-    {open ? <div role="dialog">{children}</div> : null}
-  </span>
-);
+}: PopoverProps): JSX.Element => {
+  const f = usePopoverFocus({ open, onOpenChange });
+  return (
+    <span ref={f.anchorRef}>
+      {f.renderTrigger(trigger)}
+      {open ? (
+        <div
+          role="dialog"
+          id={f.contentId}
+          aria-label={label}
+          onKeyDown={f.onContentKeyDown}
+        >
+          {children}
+        </div>
+      ) : null}
+    </span>
+  );
+};
 
 const FakeTableHeaderCell = ({
   column,
@@ -511,11 +522,17 @@ export const fakeAdapter: SpeelUIAdapter = {
     iconName,
     tooltip,
     appearance,
+    ariaExpanded,
+    ariaHasPopup,
+    ariaControls,
   }) => (
     <button
       type={type ?? "button"}
       disabled={disabled}
       aria-label={ariaLabel}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHasPopup}
+      aria-controls={ariaControls}
       aria-description={tooltip}
       title={tooltip}
       data-icon={iconName}
@@ -526,10 +543,22 @@ export const fakeAdapter: SpeelUIAdapter = {
     </button>
   ),
 
-  IconButton: ({ iconName, title, onClick, disabled, toggled }) => (
+  IconButton: ({
+    iconName,
+    title,
+    onClick,
+    disabled,
+    toggled,
+    ariaExpanded,
+    ariaHasPopup,
+    ariaControls,
+  }) => (
     <button
       type="button"
       aria-label={title}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHasPopup}
+      aria-controls={ariaControls}
       title={title}
       data-icon={iconName}
       aria-pressed={toggled}
@@ -665,11 +694,7 @@ export const fakeAdapter: SpeelUIAdapter = {
       </div>
     ) : null,
 
-  Popover: ({ open, onOpenChange, trigger, children }) => (
-    <FakePopover open={open} onOpenChange={onOpenChange} trigger={trigger}>
-      {children}
-    </FakePopover>
-  ),
+  Popover: (p) => <FakePopover {...p} />,
 
   Table: ({
     columns,
