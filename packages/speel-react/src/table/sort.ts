@@ -7,7 +7,7 @@ function toTime(v: unknown): number {
   return v instanceof Date ? v.getTime() : new Date(v as string).getTime();
 }
 
-function naturalCompare(a: unknown, b: unknown): number {
+export function naturalCompare(a: unknown, b: unknown): number {
   if (typeof a === "number" && typeof b === "number") return a - b;
   if (a instanceof Date && b instanceof Date) return a.getTime() - b.getTime();
   if (typeof a === "boolean" && typeof b === "boolean")

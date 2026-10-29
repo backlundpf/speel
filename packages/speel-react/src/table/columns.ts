@@ -112,7 +112,7 @@ const COL_REF = Symbol("speelColumnRef");
 interface BrandedRef<T> extends ColumnRef<T> {
   [COL_REF]: true;
 }
-function isColumnRef(x: unknown): x is BrandedRef<unknown> {
+export function isColumnRef(x: unknown): x is BrandedRef<unknown> {
   return (
     typeof x === "object" &&
     x !== null &&
@@ -362,7 +362,7 @@ export function resolveKeyTarget<T>(
   };
 }
 
-function columnProxy<T>(): ColumnRefs<T> {
+export function columnProxy<T>(): ColumnRefs<T> {
   return new Proxy(
     {},
     {
