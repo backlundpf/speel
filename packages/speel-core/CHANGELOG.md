@@ -1,5 +1,9 @@
 # @speel/core
 
+## 0.1.0-beta.5
+
+No changes in this release.
+
 ## 0.1.0-beta.4
 
 ### Patch Changes

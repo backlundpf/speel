@@ -1,5 +1,13 @@
 # @speel/pnpjs
 
+## 0.1.0-beta.5
+
+### Patch Changes
+
+- @speel/core@0.1.0-beta.5
+  - @speel/identity@0.1.0-beta.5
+  - @speel/migrations@0.1.0-beta.5
+
 ## 0.1.0-beta.4
 
 ### Patch Changes
