@@ -395,7 +395,8 @@ export interface SearchBoxProps {
 export interface TableGroupNode {
   id: string;
   header: ReactNode;
-  /** Plain text for the toggle's accessible name (`header` is a node). */
+  /** The group's whole path as plain text ("Status: Open, Owner: Ann"): the toggle's
+   *  accessible name, unique across a nested table (`header` is a node). */
   label: string;
   /** Rows under the group — and the length of the `items` slice it covers. */
   count: number;

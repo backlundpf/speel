@@ -232,3 +232,18 @@ export function defaultGroupHeader<T>(
   const text = `${groupLabel(g)} (${g.count})`;
   return level.title !== undefined ? `${level.title}: ${text}` : text;
 }
+
+/** The group's whole path as plain text — "Status: Open, Owner: Ann" — so every toggle in a
+ *  nested table has a name of its own, and the level is said in words. */
+export function groupPathLabel<T>(
+  levels: readonly GroupLevel<T>[],
+  g: RowGroup<T>,
+): string {
+  const parts: string[] = [];
+  for (let n: RowGroup<T> | undefined = g; n; n = n.parent) {
+    const title = levels[n.level]?.title;
+    const text = groupLabel(n);
+    parts.unshift(title !== undefined ? `${title}: ${text}` : text);
+  }
+  return parts.join(", ");
+}

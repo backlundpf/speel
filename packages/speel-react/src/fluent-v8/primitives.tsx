@@ -1029,6 +1029,9 @@ function toIGroups(nodes: readonly TableGroupNode[]): IGroup[] {
   return nodes.map((g) => ({
     key: g.id,
     name: g.label,
+    // Names the header row, which is where keyboard focus lands. Without it Fluent labels
+    // the row by its own title element — which our `onRenderTitle` replaces.
+    ariaLabel: g.label,
     startIndex: g.startIndex,
     count: g.count,
     level: g.level,
@@ -1239,8 +1242,11 @@ export function V8Table(
                           onToggleCollapse: (g: IGroup) =>
                             p.onToggleGroup?.(g.key),
                           // Our header replaces the whole title, Fluent's "(n)" included.
+                          // A grid cell, as Fluent's own title is: the header is a `row`.
                           onRenderTitle: (titleProps) => (
                             <div
+                              role="gridcell"
+                              aria-colspan={titleProps?.ariaColSpan}
                               style={{ alignSelf: "center", fontWeight: 600 }}
                             >
                               {headers!.get(titleProps?.group?.key ?? "")}

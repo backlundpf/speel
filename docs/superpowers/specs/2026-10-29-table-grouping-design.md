@@ -28,8 +28,19 @@ every group at once, and each level declares whether its groups start expanded o
   of={Task}
   groupBy={(p) => [
     p.Status,
-    { key: p.Owner.key, collapsed: true, header: (g) => <b>{g.label} · {g.count} open</b> },
-    { key: "due", by: (t) => (t.DueDate && t.DueDate < new Date() ? "Overdue" : "Upcoming") },
+    {
+      key: p.Owner.key,
+      collapsed: true,
+      header: (g) => (
+        <b>
+          {g.label} · {g.count} open
+        </b>
+      ),
+    },
+    {
+      key: "due",
+      by: (t) => (t.DueDate && t.DueDate < new Date() ? "Overdue" : "Upcoming"),
+    },
   ]}
 />
 ```
@@ -94,21 +105,21 @@ All new types are exported from `src/index.ts`.
 - **Group identity = its label text.** Rows whose values render the same text share a group,
   so two groups never look alike. A column level labels with the column's display text
   (`cellText`); a `by` level labels with `label(value)`, else the value's string form. Empty
-  values form one `(blank)` group. *(My call: grouping lookups/persons/dates by raw value would
-  split visually identical groups — a DateTime with a time component would group per second.)*
+  values form one `(blank)` group. _(My call: grouping lookups/persons/dates by raw value would
+  split visually identical groups — a DateTime with a time component would group per second.)_
 - **A level's value.** A `by` level: `by(row)`. A column level: the column's sort value —
   its `sortValue` override if it has one, else the field value — so a masked column groups on
   what it sorts on. A custom column with no field and no `sortValue` groups on its display
   text. This is `RowGroup.value`; where several values share one label (a masked status),
-  the group's value is the first of them in level order. *(My call.)*
+  the group's value is the first of them in level order. _(My call.)_
 - **A `by` level is self-contained.** Its `key` is only an id: no column comparator, no
-  `cellText` label, no header prefix, even when the key matches a column. *(My call.)*
+  `cellText` label, no header prefix, even when the key matches a column. _(My call.)_
 - **Group order.** Per level, by `order`. The default ascending order compares the
   level's value with the column's comparator (`comparatorFor` in `sort.ts`, so a Choice orders
   by declared position, a date chronologically); a `by` level without a column uses the
-  natural comparator. Blanks always last. The table's column sort orders rows *within* the
+  natural comparator. Blanks always last. The table's column sort orders rows _within_ the
   innermost groups and never reorders groups — sorting by the grouped column is a no-op on
-  group order. *(My call.)*
+  group order. _(My call.)_
 - **Row order overall.** Grouped order: group path, then the table's sort. `matched` — and so
   `onMatchedRowsChange`, CSV, Excel and print — follow it, because export mirrors the screen.
 - **Collapse state.** Held in `SpeelTable` per group id, session-only. A group id seen for the
@@ -116,13 +127,13 @@ All new types are exported from `src/index.ts`.
   `reload()` changes (an id that disappears and comes back keeps its last state). Collapsing
   a parent hides its subgroups without changing their own state.
 - **Expand/collapse all.** A toolbar button, shown whenever `groupBy` is non-empty: labelled
-  "Collapse all" while any group *on screen* (every ancestor expanded) is expanded, otherwise
+  "Collapse all" while any group _on screen_ (every ancestor expanded) is expanded, otherwise
   "Expand all" — so a collapsed outer level reads "Expand all" even if its hidden subgroups
   are expanded. Clicking it puts the whole table in that mode for the session: per-group
   state is cleared and the mode replaces every level's `collapsed` default, so groups that
   appear or return later (after a filter change, a reload) follow the user's last
   all-click. Individual toggles after that layer on top as usual. The handle methods are
-  the same operation. *(My call.)* Rendered by
+  the same operation. _(My call.)_ Rendered by
   `SpeelTable` through `ui.Button`, so skins only ever toggle single groups.
 - **Default header.** A column level: `<column header>: <label> (<count>)`. A `by` level:
   `<label> (<count>)`. A custom `header` replaces the whole text, count included — the skin
@@ -148,7 +159,7 @@ All new types are exported from `src/index.ts`.
 export interface TableGroupNode {
   id: string;
   header: ReactNode;
-  /** Plain-text name for the toggle's accessible name (`header` is a node). */
+  /** The group's whole path as plain text ("Status: Open, Owner: Ann"): the toggle's name. */
   label: string;
   /** Rows under the group — and the length of the `items` slice it covers. */
   count: number;
@@ -178,7 +189,9 @@ field). Absent `groups` = today's flat table, unchanged.
 - **Fake adapter** (tests): renders group headers and honours `collapsed`, so `SpeelTable`
   behaviour is testable without a skin.
 
-Accessibility: the group toggle is a button with `aria-expanded`, named by the group's label.
+Accessibility: the group toggle is a button with `aria-expanded`, named by the group's whole
+path as text ("Status: Open, Owner: Ann") so nested toggles never share a name; the v8 skin
+also names the group header row with it, since that row is where keyboard focus lands.
 The v8 skin gets this from DetailsList; the shadcn skin provides it. Indentation alone must not
 be the only signal of depth where the skin exposes rows (`aria-level` on grid rows, or
 equivalent).

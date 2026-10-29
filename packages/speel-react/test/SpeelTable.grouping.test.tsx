@@ -92,8 +92,8 @@ describe("SpeelTable grouping", () => {
         groupBy={(p) => [p.Status]}
       />,
     );
-    expect(toggle("Open")).toHaveAttribute("aria-expanded", "true");
-    expect(toggle("Closed")).toBeInTheDocument();
+    expect(toggle("Status: Open")).toHaveAttribute("aria-expanded", "true");
+    expect(toggle("Status: Closed")).toBeInTheDocument();
     expect(screen.getByText("Status: Open (6)")).toBeInTheDocument();
     expect(screen.getByText("Status: Closed (6)")).toBeInTheDocument();
     expect(dataRows()).toHaveLength(12);
@@ -114,6 +114,21 @@ describe("SpeelTable grouping", () => {
     expect(screen.getAllByText("Owner: Ann (3)")).toHaveLength(2);
   });
 
+  it("names each toggle by its whole path, so nested groups never share a name", () => {
+    wrap(
+      <SpeelTable
+        of={Task}
+        items={many}
+        columns={columns}
+        groupBy={(p) => [p.Status, p.Owner, { key: "x", by: () => "Any" }]}
+      />,
+    );
+    expect(toggle("Status: Open")).toBeInTheDocument();
+    expect(toggle("Status: Open, Owner: Ann")).toBeInTheDocument();
+    expect(toggle("Status: Closed, Owner: Ann")).toBeInTheDocument();
+    expect(toggle("Status: Closed, Owner: Ann, Any")).toBeInTheDocument();
+  });
+
   it("starts collapsed per level", () => {
     wrap(
       <SpeelTable
@@ -123,8 +138,8 @@ describe("SpeelTable grouping", () => {
         groupBy={[{ key: "Status", collapsed: true }]}
       />,
     );
-    expect(toggle("Open")).toHaveAttribute("aria-expanded", "false");
-    expect(toggle("Closed")).toHaveAttribute("aria-expanded", "false");
+    expect(toggle("Status: Open")).toHaveAttribute("aria-expanded", "false");
+    expect(toggle("Status: Closed")).toHaveAttribute("aria-expanded", "false");
     expect(dataRows()).toHaveLength(0);
   });
 
@@ -137,8 +152,8 @@ describe("SpeelTable grouping", () => {
         groupBy={["Status"]}
       />,
     );
-    fireEvent.click(toggle("Open"));
-    expect(toggle("Open")).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle("Status: Open"));
+    expect(toggle("Status: Open")).toHaveAttribute("aria-expanded", "false");
     expect(titles()).toEqual(["T02", "T04", "T06", "T08", "T10", "T12"]);
   });
 
@@ -180,7 +195,7 @@ describe("SpeelTable grouping", () => {
     const base: TableState = { columns: [] };
     const props = { of: Task, items: many, columns, groupBy: ["Status"] };
     const { rerender } = wrap(<SpeelTable {...props} tableState={base} />);
-    fireEvent.click(toggle("Open"));
+    fireEvent.click(toggle("Status: Open"));
     rerender(
       <SpeelTable
         {...props}
@@ -190,9 +205,9 @@ describe("SpeelTable grouping", () => {
         }}
       />,
     );
-    expect(screen.queryByRole("button", { name: "Open" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Status: Open" })).toBeNull();
     rerender(<SpeelTable {...props} tableState={base} />);
-    expect(toggle("Open")).toHaveAttribute("aria-expanded", "false");
+    expect(toggle("Status: Open")).toHaveAttribute("aria-expanded", "false");
   });
 
   it("turns paging off while grouped, warning once and leaving page state alone", () => {
@@ -235,10 +250,10 @@ describe("SpeelTable grouping", () => {
       screen
         .getAllByRole("button", { expanded: true })
         .map((b) => b.getAttribute("aria-label")!);
-    expect(groupOrder()).toEqual(["Open", "Closed"]);
+    expect(groupOrder()).toEqual(["Status: Open", "Status: Closed"]);
     fireEvent.click(screen.getByRole("button", { name: "Title" }));
     fireEvent.click(screen.getByRole("button", { name: "Title" }));
-    expect(groupOrder()).toEqual(["Open", "Closed"]);
+    expect(groupOrder()).toEqual(["Status: Open", "Status: Closed"]);
     expect(titles().slice(0, 6)).toEqual([
       "T11",
       "T09",

@@ -26,7 +26,7 @@ import type {
 } from "../adapter/SpeelUIAdapter.js";
 import {
   defaultGroupHeader,
-  groupLabel,
+  groupPathLabel,
   resolveGroupLevels,
   type GroupNode,
   type GroupSpec,
@@ -279,7 +279,7 @@ function SpeelTableInner<T extends IEntity>(
     return {
       id: g.id,
       header: level.header ? level.header(g) : defaultGroupHeader(level, g),
-      label: groupLabel(g),
+      label: groupPathLabel(groupLevels!, g),
       count: g.count,
       level: g.level,
       startIndex: g.startIndex,

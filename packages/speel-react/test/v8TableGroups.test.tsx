@@ -97,6 +97,21 @@ describe("V8Table groups", () => {
     expect(onToggleGroup).toHaveBeenCalledWith("s=Closed");
   });
 
+  it("names the group header row, which is where keyboard focus lands, and keeps its title in a grid cell", () => {
+    render(
+      <V8Table
+        columns={columns}
+        items={items}
+        groups={groups(false)}
+        containerWidth={600}
+      />,
+    );
+    const row = screen.getByRole("row", { name: "Closed" });
+    expect(row).toHaveAttribute("aria-expanded", "true");
+    const title = screen.getByText("Status: Closed (1)");
+    expect(title.closest('[role="gridcell"]')).not.toBeNull();
+  });
+
   it("follows the collapsed prop, not its own toggle state", () => {
     const { rerender } = render(
       <V8Table

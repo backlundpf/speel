@@ -109,7 +109,8 @@ by group, each in the table's sort — but stay flat: no group heading rows are 
 ### Skins
 
 Skins receive the rows flat in grouped order plus a `groups` tree (`TableGroupNode`: header,
-label, count, level, start index, collapsed, children) and an `onToggleGroup(id)` callback;
+label — the group's whole path as text, "Status: Open, Owner: Ann", which names its toggle —
+count, level, start index, collapsed, children) and an `onToggleGroup(id)` callback;
 they never hold collapse state themselves. The Fluent v8 skin renders them as `DetailsList`
 groups and the shadcn skin as header rows with a chevron; a custom skin that ignores `groups`
 renders a plain table in grouped order.
