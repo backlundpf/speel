@@ -591,7 +591,12 @@ function SpeelTableInner<T extends IEntity>(
         {...(width !== undefined ? { width } : {})}
         {...(maxWidth !== undefined ? { maxWidth } : {})}
         {...(groupNodes !== undefined
-          ? { groups: groupNodes, onToggleGroup }
+          ? {
+              groups: groupNodes,
+              onToggleGroup,
+              allGroupsCollapsed: !canCollapse,
+              onToggleAllGroups: () => collapse.setAll(canCollapse),
+            }
           : {})}
       />
       <TableFooter

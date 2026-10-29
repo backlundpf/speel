@@ -1021,9 +1021,23 @@ function V8Cell({
   );
 }
 
-/** How far each group level's header is indented. Only group headers indent: data rows sit
- *  flush under the column headers (see `groupNestingDepth: 0` below). */
-const GROUP_INDENT_WIDTH = 36;
+/** The width of one group-nesting step: Fluent's `SPACER_WIDTH` (not exported), which is
+ *  also the header's expand/collapse-all cell. Passed as `indentWidth` so a row's offset and
+ *  the header cell above it cannot drift apart. */
+const GROUP_SPACER_WIDTH = 36;
+
+/** `a` moved `t` of the way to `b`, for two `#rrggbb` colours. */
+function mixHex(a: string, b: string, t: number): string {
+  const ch = (hex: string, i: number): number =>
+    parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return `#${[0, 1, 2]
+    .map((i) =>
+      Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
 
 function toIGroups(nodes: readonly TableGroupNode[]): IGroup[] {
   return nodes.map((g) => ({
@@ -1048,11 +1062,6 @@ function groupDepth(nodes: readonly TableGroupNode[]): number {
     0,
   );
 }
-
-/** What DetailsList's justified pass takes out of the columns' room per nesting level, for
- *  a group-expand column it would draw in front of them: its `SPACER_WIDTH`, which the
- *  package does not export. */
-const GROUP_EXPAND_WIDTH = 36;
 
 function groupNodes(
   nodes: readonly TableGroupNode[],
@@ -1186,29 +1195,29 @@ export function V8Table(
     ),
   }));
 
-  // The resolved columns, padding included. Grouped or not: the nesting spacers DetailsList
-  // would put before them are turned off.
-  const content = layout.widths.reduce((sum, w) => sum + w + CELL_PADDING, 0);
-  // That column is still deducted from the room the justified pass lays the columns out in,
-  // so the viewport it is handed gets the width back — and the columns land on `content`.
-  const layoutWidth =
-    content + (p.groups ? groupDepth(p.groups) * GROUP_EXPAND_WIDTH : 0);
+  // The resolved columns, padding included — and, when grouped, the step per nesting level
+  // DetailsList puts in front of them: data rows sit offset under their innermost group, and
+  // the header's cell there holds the expand/collapse-all toggle. The justified pass takes
+  // that step back out of the viewport, so the columns land on their resolved widths.
+  const depth = p.groups ? groupDepth(p.groups) : 0;
+  const content =
+    layout.widths.reduce((sum, w) => sum + w + CELL_PADDING, 0) +
+    depth * GROUP_SPACER_WIDTH;
   // Rebuilt every render: DetailsList's group headers take `isCollapsed` from these, so the
   // prop stays the only source of collapse state.
   const groups = p.groups ? toIGroups(p.groups) : undefined;
   const nodes = p.groups ? groupNodes(p.groups) : undefined;
-  // Default group headers step down per level — two greys and a weight drop, every step
-  // still AA-legible — so the outer levels read first. An app's own header is left as given.
+  // Default group headers step down per level — three greys, all semibold, every step still
+  // AA-legible — so the outer levels read first. An app's own header is left as given.
+  const levelColors = [
+    theme.palette.neutralPrimary,
+    mixHex(theme.palette.neutralPrimary, theme.palette.neutralSecondary, 0.5),
+    theme.palette.neutralSecondary,
+  ];
   const groupTitleStyle = (g: TableGroupNode): React.CSSProperties =>
     g.customHeader
       ? {}
-      : {
-          color:
-            g.level === 0
-              ? theme.palette.neutralPrimary
-              : theme.palette.neutralSecondary,
-          fontWeight: g.level < 2 ? 600 : 400,
-        };
+      : { color: levelColors[Math.min(g.level, 2)], fontWeight: 600 };
   return (
     // The outer box is the one measured: as wide as the space the table may lay out in.
     <div ref={wrapper}>
@@ -1234,7 +1243,7 @@ export function V8Table(
            * Passing `viewport` explicitly is supported: `withViewport` spreads our props over
            * the value it measured, so ours wins. Only `width` is read for layout.
            */
-          viewport={{ width: layoutWidth, height: 0 }}
+          viewport={{ width: content, height: 0 }}
           // Fluent's own root is the scroller: header and rows are inline blocks with
           // `min-width: 100%`, so they overflow it together. Passed explicitly (it is also the
           // default) because the width behaviour above depends on it.
@@ -1242,7 +1251,7 @@ export function V8Table(
           {...(groups
             ? {
                 groups,
-                indentWidth: GROUP_INDENT_WIDTH,
+                indentWidth: GROUP_SPACER_WIDTH,
                 groupProps: {
                   // The toolbar owns expand/collapse-all; Fluent's header chevron would be
                   // a second, unsynchronised one.
@@ -1252,9 +1261,6 @@ export function V8Table(
                     headerProps && defaultRender
                       ? defaultRender({
                           ...headerProps,
-                          // A group header stretches to its viewport: the table's own width,
-                          // not the widened one the column layout is handed.
-                          viewport: { width: content, height: 0 },
                           // Fluent leaves the chevron unnamed; it is named by the group.
                           expandButtonProps: {
                             "aria-label": headerProps.group?.name,
@@ -1288,10 +1294,19 @@ export function V8Table(
               ? defaultRender({
                   ...headerProps,
                   styles: HEADER_ROW_STYLES,
-                  // Grouped, DetailsList reserves an empty group-expander column before the
-                  // headers (and a spacer per level before every row's cells). Only group
-                  // headers indent here, so neither is wanted.
-                  ...(groups ? { groupNestingDepth: 0 } : {}),
+                  // Grouped, the cell in front of the columns is the expand/collapse-all
+                  // toggle — driven by the table, like every group's own, so DetailsList
+                  // never flips collapse state behind its back.
+                  ...(groups
+                    ? {
+                        collapseAllVisibility: CollapseAllVisibility.visible,
+                        isAllCollapsed: p.allGroupsCollapsed ?? false,
+                        onToggleCollapseAll: () => p.onToggleAllGroups?.(),
+                        ariaLabelForToggleAllGroupsButton: p.allGroupsCollapsed
+                          ? "Expand all groups"
+                          : "Collapse all groups",
+                      }
+                    : {}),
                 })
               : null
           }
@@ -1332,7 +1347,7 @@ export function V8Table(
                 },
               }
             : {})}
-          {...(p.getRowIntent || p.getRowClassName || groups
+          {...(p.getRowIntent || p.getRowClassName
             ? {
                 onRenderRow: (
                   rowProps?: IDetailsRowProps,
@@ -1345,8 +1360,6 @@ export function V8Table(
                   const background = rowBackground(intent);
                   return defaultRender({
                     ...rowProps,
-                    // Flush under the column headers: no per-level spacer (see the header).
-                    ...(groups ? { groupNestingDepth: 0 } : {}),
                     ...(cls ? { className: cls } : {}),
                     ...(background
                       ? {

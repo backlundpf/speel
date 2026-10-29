@@ -161,7 +161,7 @@ describe("V8Table groups", () => {
     expect(screen.queryByText("closed one")).toBeNull();
   });
 
-  it("lays data rows flush under the column headers: no nesting column", () => {
+  it("offsets data rows under their groups, keeping every column its full width", () => {
     const flat = render(
       <V8Table columns={columns} items={items} containerWidth={600} />,
     );
@@ -176,17 +176,42 @@ describe("V8Table groups", () => {
         containerWidth={600}
       />,
     );
-    expect(tableBox(container)).toBe(flatWidth);
-    // DetailsList's justified pass takes a group-expand width per level out of the columns'
-    // room; with no such column drawn, the columns must keep their full widths.
+    // One 36px step per nesting level, in front of the columns.
+    expect(tableBox(container)).toBe(flatWidth + 2 * 36);
     expect(headerWidths(container)).toEqual(flatColumns);
-    // One column header per column — no empty group-expander header in front of them.
-    expect(screen.getAllByRole("columnheader")).toHaveLength(columns.length);
-    // A data row holds its cells and nothing else: no spacer cell before them.
-    const row = container.querySelector('[data-automationid="DetailsRow"]')!;
+  });
+
+  it("puts an expand/collapse-all toggle in the header cell in front of the columns", () => {
+    const onToggleAllGroups = vi.fn();
+    const { rerender } = render(
+      <V8Table
+        columns={columns}
+        items={items.slice(0, 2)}
+        groups={nested}
+        allGroupsCollapsed={false}
+        onToggleAllGroups={onToggleAllGroups}
+        containerWidth={600}
+      />,
+    );
+    const toggle = screen.getByRole("columnheader", {
+      name: "Collapse all groups",
+    });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(toggle);
+    expect(onToggleAllGroups).toHaveBeenCalledTimes(1);
+    rerender(
+      <V8Table
+        columns={columns}
+        items={items.slice(0, 2)}
+        groups={nested}
+        allGroupsCollapsed
+        onToggleAllGroups={onToggleAllGroups}
+        containerWidth={600}
+      />,
+    );
     expect(
-      row.querySelectorAll('[role="gridcell"], [role="rowheader"]'),
-    ).toHaveLength(columns.length);
+      screen.getByRole("columnheader", { name: "Expand all groups" }),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 
   it("mutes default group headers by level, in at most three steps", () => {
@@ -231,21 +256,22 @@ describe("V8Table groups", () => {
       />,
     );
     const title = (text: string) => screen.getByText(text);
+    // Three steps of grey, all semibold: neutralPrimary, halfway, neutralSecondary.
     expect(title("Status: Open (2)")).toHaveStyle({
       color: "#323130",
       fontWeight: 600,
     });
     expect(title("Owner: Ann (2)")).toHaveStyle({
-      color: "#605e5c",
+      color: "#494846",
       fontWeight: 600,
     });
     expect(title("Due: Late (2)")).toHaveStyle({
       color: "#605e5c",
-      fontWeight: 400,
+      fontWeight: 600,
     });
     expect(title("Deep (2)")).toHaveStyle({
       color: "#605e5c",
-      fontWeight: 400,
+      fontWeight: 600,
     });
   });
 

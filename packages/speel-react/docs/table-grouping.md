@@ -77,9 +77,9 @@ one; the count is every matched row under the group, across all its subgroups. `
 replaces the whole thing — count included — and is handed the group: its `label`, `value`,
 `count`, `level`, `rows` and `parent`. Empty values form one `(blank)` group.
 
-Default headers step down by level so the outer groups read first: the top level is dark and
-semibold, the second muted and semibold, the third and deeper muted and regular — every step
-still legible. A `header` of your own is rendered as given, with none of that styling.
+Default headers step down by level so the outer groups read first: three greys, darkest at
+the top level and settling at the third, all semibold and all legible. A `header` of your own
+is rendered as given, with none of that styling.
 
 ### Order
 
@@ -115,11 +115,12 @@ by group, each in the table's sort — but stay flat: no group heading rows are 
 Skins receive the rows flat in grouped order plus a `groups` tree (`TableGroupNode`: header,
 label — the group's whole path as text, "Status: Open, Owner: Ann", which names its toggle —
 count, level, start index, collapsed, `customHeader`, children) and an `onToggleGroup(id)`
-callback; they never hold collapse state themselves. Both built-in skins indent only the group
-headers — data rows sit flush under the column headers, with no nesting column in front of
-them. The Fluent v8 skin renders them as `DetailsList` groups and the shadcn skin as header
-rows with a chevron; a custom skin that ignores `groups` renders a plain table in grouped
-order.
+callback; they never hold collapse state themselves. A skin may offer its own
+expand/collapse-all from `allGroupsCollapsed` and `onToggleAllGroups`. The Fluent v8 skin
+renders `DetailsList` groups: data rows sit offset under their innermost group, and the header
+cell in front of the columns is an expand/collapse-all chevron beside the toolbar's button.
+The shadcn skin renders header rows with a chevron, data rows flush under the columns. A
+custom skin that ignores `groups` renders a plain table in grouped order.
 
 ## Boundaries & gotchas
 

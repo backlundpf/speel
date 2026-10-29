@@ -196,6 +196,30 @@ describe("SpeelTable grouping", () => {
     );
   });
 
+  it("hands the skin a collapse-all toggle that agrees with the toolbar", () => {
+    wrap(
+      <SpeelTable
+        of={Task}
+        items={many}
+        columns={columns}
+        groupBy={(p) => [{ key: "Status", collapsed: true }, p.Owner]}
+      />,
+    );
+    // Every group on screen is collapsed: both offer to expand.
+    fireEvent.click(screen.getByRole("button", { name: "Expand all groups" }));
+    expect(dataRows()).toHaveLength(12);
+    expect(
+      screen.getByRole("button", { name: "Collapse all" }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse all groups" }),
+    );
+    expect(dataRows()).toHaveLength(0);
+    expect(
+      screen.getByRole("button", { name: "Expand all" }),
+    ).toBeInTheDocument();
+  });
+
   it("tells the skin which group headers are the app's own", () => {
     const { container } = wrap(
       <SpeelTable
@@ -285,9 +309,9 @@ describe("SpeelTable grouping", () => {
       />,
     );
     const groupOrder = (): string[] =>
-      screen
-        .getAllByRole("button", { expanded: true })
-        .map((b) => b.getAttribute("aria-label")!);
+      Array.from(
+        document.querySelectorAll<HTMLElement>("tr[data-group-level] button"),
+      ).map((b) => b.getAttribute("aria-label")!);
     expect(groupOrder()).toEqual(["Status: Open", "Status: Closed"]);
     fireEvent.click(screen.getByRole("button", { name: "Title" }));
     fireEvent.click(screen.getByRole("button", { name: "Title" }));

@@ -432,6 +432,11 @@ export interface TableProps {
   groups?: TableGroupNode[];
   /** A group's own toggle was used. The skin never tracks collapse state itself. */
   onToggleGroup?: (id: string) => void;
+  /** No group on screen is expanded — so an expand/collapse-all control offers to expand. */
+  allGroupsCollapsed?: boolean;
+  /** A skin's own expand/collapse-all control was used (the v8 skin has one in the header,
+   *  in front of the columns). Same operation as the table's toolbar button. */
+  onToggleAllGroups?: () => void;
 }
 
 /** Chrome (label/required/error/description) wrapped around an arbitrary node —

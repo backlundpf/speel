@@ -303,12 +303,12 @@ const INTENT_ROW: Record<RowIntent, string> = {
   muted: "text-muted-foreground bg-muted/40",
 };
 
-/** Default group headers step down per level — two greys and a weight drop, every step
- *  still AA-legible — so the outer levels read first. An app's own header is left as given. */
+/** Default group headers step down per level — three greys, all semibold, every step still
+ *  AA-legible — so the outer levels read first. An app's own header is left as given. */
 const GROUP_HEADER_LEVEL = [
   "text-foreground font-semibold",
+  "text-foreground/80 font-semibold",
   "text-muted-foreground font-semibold",
-  "text-muted-foreground font-normal",
 ];
 
 export function ShadTable(p: TableProps): ReactElement {

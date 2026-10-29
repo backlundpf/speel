@@ -126,10 +126,11 @@ All new types are exported from `src/index.ts`.
   first time takes its level's `collapsed` default. State survives filter, search, sort and
   `reload()` changes (an id that disappears and comes back keeps its last state). Collapsing
   a parent hides its subgroups without changing their own state.
-- **Header styling.** Default headers step down by level — top level dark and semibold,
-  second muted and semibold, third and deeper muted and regular, every step AA-legible. A
-  custom `header` is rendered as given. Skins indent only group headers; data rows sit
-  flush under the column headers.
+- **Header styling.** Default headers step down by level — three greys, darkest at the top
+  level and settling at the third, all semibold and AA-legible. A custom `header` is
+  rendered as given. The v8 skin offsets data rows under their innermost group and puts an
+  expand/collapse-all chevron in the header cell in front of the columns (driven through
+  `allGroupsCollapsed` / `onToggleAllGroups`); the shadcn skin keeps data rows flush.
 - **Expand/collapse all.** A toolbar button with an icon (`CollapseContent` / `ExploreContent`), shown whenever `groupBy` is non-empty: labelled
   "Collapse all" while any group _on screen_ (every ancestor expanded) is expanded, otherwise
   "Expand all" — so a collapsed outer level reads "Expand all" even if its hidden subgroups
@@ -179,6 +180,9 @@ export interface TableGroupNode {
 // New on TableProps:
 groups?: TableGroupNode[];
 onToggleGroup?: (id: string) => void;
+/** No group on screen is expanded: a skin's own expand/collapse-all offers to expand. */
+allGroupsCollapsed?: boolean;
+onToggleAllGroups?: () => void;
 ```
 
 `items` always carries every matched row, collapsed groups included; skins hide the rows of

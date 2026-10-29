@@ -751,6 +751,8 @@ export const fakeAdapter: SpeelUIAdapter = {
     maxWidth,
     groups,
     onToggleGroup,
+    allGroupsCollapsed,
+    onToggleAllGroups,
   }) => {
     const renderRow = (row: unknown, i: number): JSX.Element => {
       // Computed into locals because TypeScript will not narrow `getRowIntent` from an
@@ -810,6 +812,20 @@ export const fakeAdapter: SpeelUIAdapter = {
       >
         <thead>
           <tr>
+            {groups && onToggleAllGroups ? (
+              <th>
+                <button
+                  type="button"
+                  aria-expanded={!allGroupsCollapsed}
+                  aria-label={
+                    allGroupsCollapsed
+                      ? "Expand all groups"
+                      : "Collapse all groups"
+                  }
+                  onClick={onToggleAllGroups}
+                />
+              </th>
+            ) : null}
             {columns.map((c) => (
               <th
                 key={c.key}

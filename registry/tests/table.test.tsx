@@ -530,10 +530,10 @@ describe("shadcn Table groups", () => {
     const cls = (n: number) => screen.getByText(`Level ${n}`).className;
     expect(cls(0)).toContain("text-foreground");
     expect(cls(0)).toContain("font-semibold");
-    expect(cls(1)).toContain("text-muted-foreground");
+    expect(cls(1)).toContain("text-foreground/80");
     expect(cls(1)).toContain("font-semibold");
     expect(cls(2)).toContain("text-muted-foreground");
-    expect(cls(2)).toContain("font-normal");
+    expect(cls(2)).toContain("font-semibold");
     expect(cls(3)).toBe(cls(2));
   });
 
