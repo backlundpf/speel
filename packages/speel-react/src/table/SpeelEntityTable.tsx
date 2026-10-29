@@ -10,9 +10,7 @@ import { useTableData } from "./useTableData.js";
 
 export type SpeelEntityTableHandle = {
   reload: () => Promise<void>;
-  exportCsv: () => void;
-  print: () => void;
-};
+} & SpeelTableHandle;
 
 export interface SpeelEntityTableProps<
   T extends IEntity = IEntity,
@@ -35,7 +33,10 @@ function SpeelEntityTableInner<T extends IEntity>(
     () => ({
       reload,
       exportCsv: () => tableRef.current?.exportCsv(),
+      exportXlsx: () => tableRef.current?.exportXlsx(),
       print: () => tableRef.current?.print(),
+      expandAllGroups: () => tableRef.current?.expandAllGroups(),
+      collapseAllGroups: () => tableRef.current?.collapseAllGroups(),
     }),
     [reload],
   );

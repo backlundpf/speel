@@ -391,6 +391,26 @@ export interface SearchBoxProps {
   ariaLabel?: string;
 }
 
+/** One group header and the slice of `items` it covers. Rows stay flat, in grouped order. */
+export interface TableGroupNode {
+  id: string;
+  header: ReactNode;
+  /** The group's whole path as plain text ("Status: Open, Owner: Ann"): the toggle's
+   *  accessible name, unique across a nested table (`header` is a node). */
+  label: string;
+  /** Rows under the group — and the length of the `items` slice it covers. */
+  count: number;
+  /** 0 = the outermost level. */
+  level: number;
+  /** Where the group's rows start in `items`. */
+  startIndex: number;
+  collapsed: boolean;
+  /** The header is the app's own (`header` on its level): the skin renders it as given,
+   *  without the progressive per-level muting it gives the default headers. */
+  customHeader?: boolean;
+  children?: TableGroupNode[];
+}
+
 export interface TableProps {
   columns: TableColumn[];
   items: readonly unknown[];
@@ -406,6 +426,17 @@ export interface TableProps {
   minWidth?: TableLength;
   width?: TableLength;
   maxWidth?: TableLength;
+  /** Group headers over `items`, outermost first. `items` still carries every row, those of
+   *  collapsed groups included; the skin hides what a collapsed group covers. Absent = a
+   *  flat table. */
+  groups?: TableGroupNode[];
+  /** A group's own toggle was used. The skin never tracks collapse state itself. */
+  onToggleGroup?: (id: string) => void;
+  /** No group on screen is expanded — so an expand/collapse-all control offers to expand. */
+  allGroupsCollapsed?: boolean;
+  /** A skin's own expand/collapse-all control was used (the v8 skin has one in the header,
+   *  in front of the columns). Same operation as the table's toolbar button. */
+  onToggleAllGroups?: () => void;
 }
 
 /** Chrome (label/required/error/description) wrapped around an arbitrary node —

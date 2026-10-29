@@ -28,7 +28,9 @@ import {
   type IColumn,
   type IDetailsList,
   ColumnActionsMode,
+  CollapseAllVisibility,
   FontWeights,
+  getIcon,
   ProgressIndicator,
   Callout,
   Icon,
@@ -49,6 +51,7 @@ import type {
   IPersonaProps,
   IDetailsRowProps,
   IDetailsHeaderProps,
+  IGroup,
   IContextualMenuItem,
   IButtonStyles,
   ILinkStyleProps,
@@ -98,6 +101,7 @@ import type {
   MessageBarProps,
   DialogProps,
   DrawerProps,
+  TableGroupNode,
   TableProps,
   IconButtonProps,
   LinkProps,
@@ -1018,6 +1022,85 @@ function V8Cell({
   );
 }
 
+/** The width of one group-nesting step: Fluent's `SPACER_WIDTH` (not exported), which is
+ *  also the header's expand/collapse-all cell. Passed as `indentWidth` so a row's offset and
+ *  the header cell above it cannot drift apart. */
+const GROUP_SPACER_WIDTH = 36;
+
+/**
+ * The header's expand/collapse-all cell, drawn with the same icons a toolbar would use instead
+ * of Fluent's rotating chevron, which DetailsHeader hard-codes. The glyph is painted in a
+ * `::before`, so it needs a font icon — SPFx registers the MDL2 font. An icon set registered
+ * as SVG leaves Fluent's chevron in place.
+ */
+function groupToggleStyles(
+  allCollapsed: boolean,
+): NonNullable<IDetailsHeaderProps["styles"]> {
+  const icon = getIcon(allCollapsed ? "ExploreContent" : "CollapseContent");
+  if (icon?.code === undefined) return {};
+  return {
+    cellIsGroupExpander: [
+      // The icon font's own class; merging a class name carries its base rules (the font)
+      // but not its `::before`, so the glyph is written here.
+      icon.subset.className,
+      { selectors: { "::before": { content: `"${icon.code}"` } } },
+    ],
+    collapseButton: { display: "none" },
+  };
+}
+
+/** A click that a control inside a group header handles itself — not a header toggle. */
+const INTERACTIVE =
+  'a, button, input, select, textarea, [role="button"], [role="link"], [role="checkbox"]';
+
+/** `a` moved `t` of the way to `b`, for two `#rrggbb` colours. */
+function mixHex(a: string, b: string, t: number): string {
+  const ch = (hex: string, i: number): number =>
+    parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return `#${[0, 1, 2]
+    .map((i) =>
+      Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
+function toIGroups(nodes: readonly TableGroupNode[]): IGroup[] {
+  return nodes.map((g) => ({
+    key: g.id,
+    name: g.label,
+    // Names the header row, which is where keyboard focus lands. Without it Fluent labels
+    // the row by its own title element — which our `onRenderTitle` replaces.
+    ariaLabel: g.label,
+    startIndex: g.startIndex,
+    count: g.count,
+    level: g.level,
+    isCollapsed: g.collapsed,
+    ...(g.children && g.children.length > 0
+      ? { children: toIGroups(g.children) }
+      : {}),
+  }));
+}
+
+function groupDepth(nodes: readonly TableGroupNode[]): number {
+  return nodes.reduce(
+    (d, g) => Math.max(d, 1 + (g.children ? groupDepth(g.children) : 0)),
+    0,
+  );
+}
+
+function groupNodes(
+  nodes: readonly TableGroupNode[],
+  out = new Map<string, TableGroupNode>(),
+): Map<string, TableGroupNode> {
+  for (const g of nodes) {
+    out.set(g.id, g);
+    if (g.children) groupNodes(g.children, out);
+  }
+  return out;
+}
+
 export function V8Table(
   p: TableProps & {
     /** The width to lay out against, instead of measuring. A seam for tests, which have no
@@ -1139,8 +1222,29 @@ export function V8Table(
     ),
   }));
 
-  // The resolved columns, padding included.
-  const content = layout.widths.reduce((sum, w) => sum + w + CELL_PADDING, 0);
+  // The resolved columns, padding included — and, when grouped, the step per nesting level
+  // DetailsList puts in front of them: data rows sit offset under their innermost group, and
+  // the header's cell there holds the expand/collapse-all toggle. The justified pass takes
+  // that step back out of the viewport, so the columns land on their resolved widths.
+  const depth = p.groups ? groupDepth(p.groups) : 0;
+  const content =
+    layout.widths.reduce((sum, w) => sum + w + CELL_PADDING, 0) +
+    depth * GROUP_SPACER_WIDTH;
+  // Rebuilt every render: DetailsList's group headers take `isCollapsed` from these, so the
+  // prop stays the only source of collapse state.
+  const groups = p.groups ? toIGroups(p.groups) : undefined;
+  const nodes = p.groups ? groupNodes(p.groups) : undefined;
+  // Default group headers step down per level — three greys, all semibold, every step still
+  // AA-legible — so the outer levels read first. An app's own header is left as given.
+  const levelColors = [
+    theme.palette.neutralPrimary,
+    mixHex(theme.palette.neutralPrimary, theme.palette.neutralSecondary, 0.5),
+    theme.palette.neutralSecondary,
+  ];
+  const groupTitleStyle = (g: TableGroupNode): React.CSSProperties =>
+    g.customHeader
+      ? {}
+      : { color: levelColors[Math.min(g.level, 2)], fontWeight: 600 };
   return (
     // The outer box is the one measured: as wide as the space the table may lay out in.
     <div ref={wrapper}>
@@ -1171,9 +1275,82 @@ export function V8Table(
           // `min-width: 100%`, so they overflow it together. Passed explicitly (it is also the
           // default) because the width behaviour above depends on it.
           constrainMode={ConstrainMode.horizontalConstrained}
+          {...(groups
+            ? {
+                groups,
+                indentWidth: GROUP_SPACER_WIDTH,
+                groupProps: {
+                  // The toolbar owns expand/collapse-all; Fluent's header chevron would be
+                  // a second, unsynchronised one.
+                  collapseAllVisibility: CollapseAllVisibility.hidden,
+                  showEmptyGroups: false,
+                  onRenderHeader: (headerProps, defaultRender) =>
+                    headerProps && defaultRender
+                      ? defaultRender({
+                          ...headerProps,
+                          // Fluent leaves the chevron unnamed; it is named by the group.
+                          expandButtonProps: {
+                            "aria-label": headerProps.group?.name,
+                          },
+                          onToggleCollapse: (g: IGroup) =>
+                            p.onToggleGroup?.(g.key),
+                          // Our header replaces the whole title, Fluent's "(n)" included.
+                          // A grid cell, as Fluent's own title is: the header is a `row`.
+                          onRenderTitle: (titleProps) => {
+                            const g = nodes!.get(titleProps?.group?.key ?? "");
+                            return g ? (
+                              <div
+                                role="gridcell"
+                                aria-colspan={titleProps?.ariaColSpan}
+                                style={{
+                                  alignSelf: "center",
+                                  cursor: "pointer",
+                                  ...groupTitleStyle(g),
+                                }}
+                                // The title toggles its group too, as the chevron does —
+                                // except where a control in an app's header took the click.
+                                onClick={(e) => {
+                                  const hit = (e.target as Element).closest(
+                                    INTERACTIVE,
+                                  );
+                                  if (hit && e.currentTarget.contains(hit))
+                                    return;
+                                  p.onToggleGroup?.(g.id);
+                                }}
+                              >
+                                {g.header}
+                              </div>
+                            ) : null;
+                          },
+                        })
+                      : null,
+                },
+              }
+            : {})}
           onRenderDetailsHeader={(headerProps, defaultRender) =>
             headerProps && defaultRender
-              ? defaultRender({ ...headerProps, styles: HEADER_ROW_STYLES })
+              ? defaultRender({
+                  ...headerProps,
+                  styles: groups
+                    ? {
+                        ...HEADER_ROW_STYLES,
+                        ...groupToggleStyles(p.allGroupsCollapsed ?? false),
+                      }
+                    : HEADER_ROW_STYLES,
+                  // Grouped, the cell in front of the columns is the expand/collapse-all
+                  // toggle — driven by the table, like every group's own, so DetailsList
+                  // never flips collapse state behind its back.
+                  ...(groups
+                    ? {
+                        collapseAllVisibility: CollapseAllVisibility.visible,
+                        isAllCollapsed: p.allGroupsCollapsed ?? false,
+                        onToggleCollapseAll: () => p.onToggleAllGroups?.(),
+                        ariaLabelForToggleAllGroupsButton: p.allGroupsCollapsed
+                          ? "Expand all groups"
+                          : "Collapse all groups",
+                      }
+                    : {}),
+                })
               : null
           }
           {...(p.getRowKey

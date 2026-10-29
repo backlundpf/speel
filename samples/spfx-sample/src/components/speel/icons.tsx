@@ -1,4 +1,6 @@
 import {
+  ChevronsDownUp,
+  ChevronsUpDown,
   Eye,
   Filter,
   Maximize2,
@@ -28,6 +30,9 @@ const FLUENT_TO_LUCIDE: Record<string, LucideIcon> = {
   Filter: Filter,
   FullScreen: Maximize2,
   BackToWindow: Minimize2,
+  // A grouped table's Collapse all / Expand all.
+  CollapseContent: ChevronsDownUp,
+  ExploreContent: ChevronsUpDown,
 };
 
 export function iconFor(name: string): LucideIcon | undefined {

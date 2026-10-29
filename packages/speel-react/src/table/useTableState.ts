@@ -11,6 +11,7 @@ import {
   type ColumnState,
 } from "./columnState.js";
 import { cellText } from "./cellText.js";
+import { groupRows, type GroupLevel, type GroupNode } from "./grouping.js";
 
 export interface TableStateOptions<T> {
   items: readonly T[];
@@ -27,6 +28,8 @@ export interface TableStateOptions<T> {
   scopeFilters?: FilterState;
   /** Filter sets arriving from elsewhere, each carrying how loudly a bad key should fail. */
   filterOrigins?: readonly FilterOrigin[];
+  /** Resolved `groupBy`. Non-empty = grouped: rows come back in grouped order, unpaged. */
+  groupLevels?: readonly GroupLevel<T>[];
 }
 
 /**
@@ -95,8 +98,10 @@ export interface TableApi<T> {
   setPageSize: (n: number) => void;
   pageCount: number;
   total: number;
-  /** Every row passing the filters, in sort order. */
+  /** Every row passing the filters, in sort order — grouped order when grouped. */
   matched: readonly T[];
+  /** The group tree over `matched`, when grouped. */
+  groups: GroupNode<T>[] | undefined;
   /** The rows handed to the adapter. */
   displayed: readonly T[];
 }
@@ -338,7 +343,7 @@ export function useTableState<T>(o: TableStateOptions<T>): TableApi<T> {
     [items, searchColumns, searchActive],
   );
 
-  const matched = useMemo<readonly T[]>(() => {
+  const sorted = useMemo<readonly T[]>(() => {
     const active = Object.entries(effectiveFilters);
     // Keys resolve once per pass, not once per row: a model-resolved key would otherwise
     // walk the entity's properties for every row on the page.
@@ -382,17 +387,29 @@ export function useTableState<T>(o: TableStateOptions<T>): TableApi<T> {
     search,
   ]);
 
+  // Grouping runs over the sorted set, so rows inside a group keep the table's sort while
+  // the groups keep their own order.
+  const levels = o.groupLevels;
+  const grouped = useMemo(
+    () => (levels && levels.length > 0 ? groupRows(sorted, levels) : undefined),
+    [sorted, levels],
+  );
+  const matched = grouped ? grouped.rows : sorted;
+
   const total = matched.length;
-  const pageCount = pageSize ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+  // Grouping turns paging off without touching the page state, so the table pages where it
+  // left off once grouping goes away.
+  const paged = grouped ? undefined : pageSize;
+  const pageCount = paged ? Math.max(1, Math.ceil(total / paged)) : 1;
   // Clamped during render, so a reload that shrinks the set lands on the new last page
   // rather than on a blank one.
   const safePage = Math.min(page, pageCount - 1);
   const displayed = useMemo<readonly T[]>(
     () =>
-      pageSize
-        ? matched.slice(safePage * pageSize, safePage * pageSize + pageSize)
+      paged
+        ? matched.slice(safePage * paged, safePage * paged + paged)
         : matched,
-    [matched, pageSize, safePage],
+    [matched, paged, safePage],
   );
 
   return {
@@ -421,6 +438,7 @@ export function useTableState<T>(o: TableStateOptions<T>): TableApi<T> {
     pageCount,
     total,
     matched,
+    groups: grouped?.roots,
     displayed,
   };
 }

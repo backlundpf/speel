@@ -131,6 +131,12 @@ client-side: it makes a long list navigable, but the fetch still pulls everythin
 reads `‹ Page [2] of 7 ›` — the page is a picker, so a distant page is one pick away rather
 than five clicks — with the item count at the other end of the same line.
 
+### Grouping
+
+`groupBy` folds the matched rows into nested, collapsible, counted groups by a column or a
+computed value, with an expand/collapse-all button. A grouped table is unpaged. See
+[table grouping](table-grouping.md).
+
 ### Export and print
 
 `exportCsv`, `exportXlsx`, and `print` add toolbar actions that write out every matched row

@@ -6,7 +6,14 @@ import {
   useState,
 } from "react";
 import type { KeyboardEvent, MouseEvent, ReactElement, ReactNode } from "react";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
+} from "lucide-react";
 
 import {
   Table,
@@ -32,6 +39,7 @@ import type {
   HeaderRoom,
   RowIntent,
   TableColumn,
+  TableGroupNode,
   TableProps,
   TableSort,
 } from "@speel/react";
@@ -302,6 +310,25 @@ const INTENT_ROW: Record<RowIntent, string> = {
   muted: "text-muted-foreground bg-muted/40",
 };
 
+/** Default group headers step down per level — three greys, all semibold, every step still
+ *  AA-legible — so the outer levels read first. An app's own header is left as given. */
+const GROUP_HEADER_LEVEL = [
+  "text-foreground font-semibold",
+  "text-foreground/80 font-semibold",
+  "text-muted-foreground font-semibold",
+];
+
+/** A click that a control inside a group header handles itself — not a header toggle. */
+const INTERACTIVE =
+  'a, button, input, select, textarea, [role="button"], [role="link"], [role="checkbox"]';
+
+function groupDepth(nodes: readonly TableGroupNode[]): number {
+  return nodes.reduce(
+    (d, g) => Math.max(d, 1 + (g.children ? groupDepth(g.children) : 0)),
+    0,
+  );
+}
+
 export function ShadTable(p: TableProps): ReactElement {
   // Hooks sit before the empty early-return: they may not be conditional.
   const container = useRef<HTMLDivElement>(null);
@@ -338,6 +365,11 @@ export function ShadTable(p: TableProps): ReactElement {
   // fraction off the table's width, and a table that fills its container would scroll by it.
   const padding = Math.round(metrics.padding);
   const measure = textMeasurer(theme.font, theme.fontSize);
+  // Grouped, data rows sit offset under their innermost group: a leading column one step
+  // (8 spacing units) per nesting level, whose header cell holds the expand/collapse-all
+  // toggle. The columns lay out in what is left of the container.
+  const step = Math.round(8 * theme.spacing);
+  const lead = p.groups ? groupDepth(p.groups) * step : 0;
   const layout = resolveColumnWidths(
     p.columns.map((c) =>
       toFlexColumn(
@@ -358,13 +390,100 @@ export function ShadTable(p: TableProps): ReactElement {
       ...(p.width !== undefined ? { width: p.width } : {}),
       ...(p.maxWidth !== undefined ? { maxWidth: p.maxWidth } : {}),
     },
-    containerWidth,
+    Math.max(0, containerWidth - lead),
   );
   // The columns' total, never `layout.tableWidth`: a fixed-layout table spreads any width
   // beyond its columns over them, so a table held to a bound nothing can grow into would
   // widen every column past its resolved width, and a dragged column would not land where
   // it was let go. Spare width stays empty instead, as in CSS flexbox and the v8 skin.
-  const tableWidth = layout.widths.reduce((sum, w) => sum + w + padding, 0);
+  const tableWidth =
+    layout.widths.reduce((sum, w) => sum + w + padding, 0) + lead;
+  const renderRow = (row: unknown, i: number): ReactElement => {
+    const intent = p.getRowIntent?.(row, i);
+    const cls = p.getRowClassName?.(row, i);
+    return (
+      <TableRow
+        key={p.getRowKey ? p.getRowKey(row, i) : i}
+        className={cn(intent ? INTENT_ROW[intent] : undefined, cls)}
+      >
+        {lead > 0 ? <TableCell className="p-0" /> : null}
+        {p.columns.map((c) => (
+          <TableCell
+            key={c.key}
+            className={cn(
+              c.wrap
+                ? "overflow-hidden text-ellipsis whitespace-normal [overflow-wrap:normal] [word-break:normal]"
+                : "truncate",
+              c.align ? ALIGN[c.align] : undefined,
+            )}
+            {...(c.cellTitle
+              ? {
+                  onMouseEnter: (e: MouseEvent<HTMLTableCellElement>) =>
+                    setOverflowTitle(e.currentTarget, () => c.cellTitle!(row)),
+                }
+              : {})}
+          >
+            {c.render(row) as ReactNode}
+          </TableCell>
+        ))}
+      </TableRow>
+    );
+  };
+  // A header row at each group's start, then — when it is expanded — its subgroups, or at
+  // the innermost level the slice of `items` it covers. Depth is indented; the default
+  // header's "Status: …" prefix says the level in words, which a plain table has no row
+  // attribute for.
+  const renderGroups = (nodes: readonly TableGroupNode[]): ReactElement[] =>
+    nodes.flatMap((g) => [
+      <TableRow
+        key={`group:${g.id}`}
+        data-group-level={g.level}
+        className="bg-muted/30"
+      >
+        <TableCell
+          colSpan={p.columns.length + 1}
+          style={{ paddingLeft: g.level * step + padding / 2 }}
+        >
+          <span className="inline-flex items-center gap-1">
+            <button
+              type="button"
+              aria-expanded={!g.collapsed}
+              aria-label={g.label}
+              onClick={() => p.onToggleGroup?.(g.id)}
+              className="hover:bg-accent inline-flex size-6 items-center justify-center rounded-sm"
+            >
+              {g.collapsed ? (
+                <ChevronRight className="size-4" aria-hidden />
+              ) : (
+                <ChevronDown className="size-4" aria-hidden />
+              )}
+            </button>
+            {/* The text toggles its group too, as the chevron does — except where a control in
+                an app's header took the click. Keyboard users have the chevron button. */}
+            <span
+              className={cn(
+                "cursor-pointer",
+                !g.customHeader && GROUP_HEADER_LEVEL[Math.min(g.level, 2)],
+              )}
+              onClick={(e) => {
+                const hit = (e.target as Element).closest(INTERACTIVE);
+                if (hit && e.currentTarget.contains(hit)) return;
+                p.onToggleGroup?.(g.id);
+              }}
+            >
+              {g.header}
+            </span>
+          </span>
+        </TableCell>
+      </TableRow>,
+      ...(g.collapsed
+        ? []
+        : g.children && g.children.length > 0
+          ? renderGroups(g.children)
+          : p.items
+              .slice(g.startIndex, g.startIndex + g.count)
+              .map((row, k) => renderRow(row, g.startIndex + k))),
+    ]);
   return (
     // grid grid-cols-1 (= minmax(0,1fr)) caps the table width inside flex/grid
     // parents (e.g. the SharePoint canvas section) whose default min-width:auto
@@ -376,12 +495,34 @@ export function ShadTable(p: TableProps): ReactElement {
       {/* Fixed layout: the columns are exactly the resolved widths, whatever their content. */}
       <Table style={{ tableLayout: "fixed", width: tableWidth }}>
         <colgroup>
+          {lead > 0 ? <col style={{ width: lead }} /> : null}
           {p.columns.map((c, i) => (
             <col key={c.key} style={{ width: layout.widths[i]! + padding }} />
           ))}
         </colgroup>
         <TableHeader>
           <TableRow>
+            {lead > 0 ? (
+              <TableHead className="p-0 text-center">
+                <button
+                  type="button"
+                  aria-expanded={!p.allGroupsCollapsed}
+                  aria-label={
+                    p.allGroupsCollapsed
+                      ? "Expand all groups"
+                      : "Collapse all groups"
+                  }
+                  onClick={p.onToggleAllGroups}
+                  className="hover:bg-accent inline-flex size-6 items-center justify-center rounded-sm align-middle"
+                >
+                  {p.allGroupsCollapsed ? (
+                    <ChevronsUpDown className="size-4" aria-hidden />
+                  ) : (
+                    <ChevronsDownUp className="size-4" aria-hidden />
+                  )}
+                </button>
+              </TableHead>
+            ) : null}
             {p.columns.map((c, i) => (
               // The primitive's h-10 stays: a table cell's height is a minimum, so a wrapped
               // label still grows the row, and one-line labels keep their height and centring.
@@ -405,38 +546,7 @@ export function ShadTable(p: TableProps): ReactElement {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {p.items.map((row, i) => {
-            const intent = p.getRowIntent?.(row, i);
-            const cls = p.getRowClassName?.(row, i);
-            return (
-              <TableRow
-                key={p.getRowKey ? p.getRowKey(row, i) : i}
-                className={cn(intent ? INTENT_ROW[intent] : undefined, cls)}
-              >
-                {p.columns.map((c) => (
-                  <TableCell
-                    key={c.key}
-                    className={cn(
-                      c.wrap
-                        ? "overflow-hidden text-ellipsis whitespace-normal [overflow-wrap:normal] [word-break:normal]"
-                        : "truncate",
-                      c.align ? ALIGN[c.align] : undefined,
-                    )}
-                    {...(c.cellTitle
-                      ? {
-                          onMouseEnter: (e: MouseEvent<HTMLTableCellElement>) =>
-                            setOverflowTitle(e.currentTarget, () =>
-                              c.cellTitle!(row),
-                            ),
-                        }
-                      : {})}
-                  >
-                    {c.render(row) as ReactNode}
-                  </TableCell>
-                ))}
-              </TableRow>
-            );
-          })}
+          {p.groups ? renderGroups(p.groups) : p.items.map(renderRow)}
         </TableBody>
       </Table>
     </div>

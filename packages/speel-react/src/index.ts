@@ -42,6 +42,7 @@ export type {
   PopoverProps,
   PopoverTriggerProps,
   TableColumn,
+  TableGroupNode,
   TableLength,
   TableProps,
   TableSort,
@@ -136,6 +137,7 @@ export type {
   ArrangedColumn,
 } from "./table/columnState.js";
 export type { TableState, FilterOrigin } from "./table/useTableState.js";
+export type { GroupDescriptor, GroupSpec, RowGroup } from "./table/grouping.js";
 
 // Table views — named per-user views over the URL / scope / view state layers
 export { useTableViews } from "./table/views/useTableViews.js";

@@ -270,6 +270,7 @@ const BUTTON_VARIANT = {
 
 export function ShadButton(p: ButtonProps): ReactElement {
   const tipId = useStableId();
+  const Icon = p.iconName !== undefined ? iconFor(p.iconName) : undefined;
   const tipped = p.tooltip !== undefined;
   const button = (
     <Button
@@ -285,6 +286,7 @@ export function ShadButton(p: ButtonProps): ReactElement {
       className={cn(tipped && "w-full")}
       onClick={p.onClick}
     >
+      {Icon ? <Icon aria-hidden="true" /> : null}
       {p.text}
     </Button>
   );

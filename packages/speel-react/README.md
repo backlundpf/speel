@@ -135,6 +135,8 @@ navigation expands.
   pre-filtered, a column should sort or filter on a derived value, or users need to search rows.
 - [Table export](docs/table-export.md) — read when getting rows out of a table as CSV, Excel, or
   print.
+- [Table grouping](docs/table-grouping.md) — read when a table's rows should fold into nested,
+  counted groups by a column or a computed value.
 - [Surfaces](docs/surfaces.md) — read when opening modal/panel overlays imperatively with
   `useSurfaces` / `useOverlays`, or declaratively with `SpeelModal` / `SpeelPanel`.
 - [Feedback](docs/feedback.md) — read when showing toasts, notifications, or progress for

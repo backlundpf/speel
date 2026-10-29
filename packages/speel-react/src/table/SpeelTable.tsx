@@ -20,9 +20,18 @@ import {
 } from "./columns.js";
 import type {
   TableColumn,
+  TableGroupNode,
   RowIntent,
   TableLength,
 } from "../adapter/SpeelUIAdapter.js";
+import {
+  defaultGroupHeader,
+  groupPathLabel,
+  resolveGroupLevels,
+  type GroupNode,
+  type GroupSpec,
+} from "./grouping.js";
+import { anyVisibleExpanded, useGroupCollapse } from "./useGroupCollapse.js";
 import { FilterBar, type FilterState } from "./filter/FilterBar.js";
 import { isActiveCriteria } from "./filter/match.js";
 import { FilterControl } from "./filter/controls.js";
@@ -132,7 +141,14 @@ export interface SpeelTableProps<T extends IEntity = IEntity> {
    *  rows or their order — not merely when the array is rebuilt: same rows in the same
    *  order is no call, however `columns` or the callback were passed. */
   onMatchedRowsChange?: (rows: readonly T[]) => void;
+  /** Groups the rows into nested, collapsible groups, outermost level first: a field name,
+   *  a column ref (`p.Status`), or a descriptor with its own `by`, `header`, `collapsed` and
+   *  `order`. Grouping takes precedence over `pageSize`: a grouped table is unpaged. */
+  groupBy?: GroupSpec<T>[] | ((p: ColumnRefs<T>) => GroupSpec<T>[]);
 }
+
+const PAGING_OFF_WARNING =
+  "SpeelTable: groupBy takes precedence over pageSize; paging is off while grouped.";
 
 export interface SpeelTableHandle {
   /** Downloads the current filtered-and-sorted rows — every one, not just the visible page. */
@@ -141,6 +157,10 @@ export interface SpeelTableHandle {
   exportXlsx: () => void;
   /** Opens a print window for the same rows and columns the screen shows. */
   print: () => void;
+  /** Expands every group, and every group that appears later in this session. */
+  expandAllGroups: () => void;
+  /** Collapses every group, and every group that appears later in this session. */
+  collapseAllGroups: () => void;
 }
 
 function SpeelTableInner<T extends IEntity>(
@@ -176,6 +196,7 @@ function SpeelTableInner<T extends IEntity>(
     columnChooser,
     scope,
     onMatchedRowsChange,
+    groupBy,
   } = props;
   const db = useSpeelContext();
   const ui = useSpeelUI();
@@ -195,6 +216,13 @@ function SpeelTableInner<T extends IEntity>(
       ),
     [et, columns],
   );
+
+  // Resolved every render, so a changed key is validated the moment it arrives; a key that
+  // names nothing throws, as developer-authored configuration should.
+  const groupLevels =
+    groupBy !== undefined
+      ? resolveGroupLevels<T>(et, resolved, groupBy)
+      : undefined;
 
   const {
     sort,
@@ -219,6 +247,7 @@ function SpeelTableInner<T extends IEntity>(
     setPageSize,
     pageCount,
     total,
+    groups,
   } = useTableState<T>({
     items,
     et,
@@ -231,7 +260,51 @@ function SpeelTableInner<T extends IEntity>(
     ...(onTableStateChange !== undefined ? { onTableStateChange } : {}),
     ...(filterOrigins !== undefined ? { filterOrigins } : {}),
     ...(scope?.filters !== undefined ? { scopeFilters: scope.filters } : {}),
+    ...(groupLevels !== undefined ? { groupLevels } : {}),
   });
+  const grouped = groups !== undefined;
+
+  // Collapse state is the session's, keyed by group id — never TableState, never a view.
+  const collapse = useGroupCollapse<T>();
+  const collapsedById = new Map<string, boolean>();
+  const isCollapsed = (g: GroupNode<T>): boolean => {
+    const known = collapsedById.get(g.id);
+    if (known !== undefined) return known;
+    const c = collapse.isCollapsed(g, groupLevels![g.level]!);
+    collapsedById.set(g.id, c);
+    return c;
+  };
+  const toGroupNode = (g: GroupNode<T>): TableGroupNode => {
+    const level = groupLevels![g.level]!;
+    return {
+      id: g.id,
+      header: level.header ? level.header(g) : defaultGroupHeader(level, g),
+      label: groupPathLabel(groupLevels!, g),
+      count: g.count,
+      level: g.level,
+      startIndex: g.startIndex,
+      collapsed: isCollapsed(g),
+      ...(level.header ? { customHeader: true } : {}),
+      ...(g.children.length > 0
+        ? { children: g.children.map(toGroupNode) }
+        : {}),
+    };
+  };
+  const groupNodes = groups?.map(toGroupNode);
+  const onToggleGroup = (id: string): void =>
+    collapse.toggle(id, collapsedById.get(id) ?? false);
+  const canCollapse =
+    groups !== undefined && anyVisibleExpanded(groups, isCollapsed);
+
+  // Grouping wins over paging. Said once per mount, where a developer will see it, since
+  // the pager silently vanishing reads like a bug.
+  const warnedPaging = useRef(false);
+  const pagingOverridden = grouped && activePageSize !== undefined;
+  useEffect(() => {
+    if (!pagingOverridden || warnedPaging.current) return;
+    warnedPaging.current = true;
+    console.warn(PAGING_OFF_WARNING);
+  }, [pagingOverridden]);
 
   // The charts-over-a-table pattern: whoever renders above this table wants the same rows
   // export sees. The ref keeps a fresh callback identity from re-firing the effect; only a
@@ -412,6 +485,8 @@ function SpeelTableInner<T extends IEntity>(
     exportCsv: runExport,
     exportXlsx: runExportXlsx,
     print: runPrint,
+    expandAllGroups: () => collapse.setAll(false),
+    collapseAllGroups: () => collapse.setAll(true),
   }));
 
   const keyName = et.key.propertyName;
@@ -506,13 +581,21 @@ function SpeelTableInner<T extends IEntity>(
         {...(minWidth !== undefined ? { minWidth } : {})}
         {...(width !== undefined ? { width } : {})}
         {...(maxWidth !== undefined ? { maxWidth } : {})}
+        {...(groupNodes !== undefined
+          ? {
+              groups: groupNodes,
+              onToggleGroup,
+              allGroupsCollapsed: !canCollapse,
+              onToggleAllGroups: () => collapse.setAll(canCollapse),
+            }
+          : {})}
       />
       <TableFooter
         ui={ui}
         shown={total}
         total={items.length}
         filtered={hasActiveFilters || searchActive}
-        {...(activePageSize !== undefined
+        {...(activePageSize !== undefined && !grouped
           ? {
               paging: {
                 page,

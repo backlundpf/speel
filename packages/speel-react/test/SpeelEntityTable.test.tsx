@@ -1,6 +1,12 @@
 import * as React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
 import { useRef } from "react";
 import { DbContext, ModelBuilder } from "@speel/core";
 import { SpeelProvider } from "../src/SpeelProvider.js";
@@ -194,6 +200,31 @@ describe("SpeelEntityTable", () => {
     expect(screen.getByRole("button", { name: "Print" })).toBeInTheDocument();
     ref.current!.print();
     expect(written.join("")).toContain("<td>Printable</td>");
+  });
+
+  it("forwards Excel export and group expand/collapse through the handle", async () => {
+    const ctx = new TCtx({
+      provider: makeFakeProvider({ Tasks: [{ Id: 1, Title: "Grouped" }] }),
+    } as never);
+    const ref = React.createRef<SpeelEntityTableHandle>();
+    render(
+      <SpeelProvider db={ctx as never} ui={fakeAdapter}>
+        <SpeelEntityTable
+          of={Task}
+          ref={ref}
+          columns={["Title"]}
+          groupBy={["Title"]}
+        />
+      </SpeelProvider>,
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Grouped")).toBeInTheDocument(),
+    );
+    expect(typeof ref.current!.exportXlsx).toBe("function");
+    act(() => ref.current!.collapseAllGroups());
+    expect(screen.queryByText("Grouped")).toBeNull();
+    act(() => ref.current!.expandAllGroups());
+    expect(screen.getByText("Grouped")).toBeInTheDocument();
   });
 
   it("expands a lookup column so it renders the related display value", async () => {
