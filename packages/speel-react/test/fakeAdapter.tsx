@@ -5,6 +5,7 @@ import type {
   PopoverProps,
   SpeelUIAdapter,
   TableColumn,
+  TableGroupNode,
   TableSort,
 } from "../src/adapter/SpeelUIAdapter.js";
 import { useStableId } from "../src/fluent-v8/useStableId.js";
@@ -748,8 +749,54 @@ export const fakeAdapter: SpeelUIAdapter = {
     minWidth,
     width,
     maxWidth,
-  }) =>
-    items.length === 0 ? (
+    groups,
+    onToggleGroup,
+  }) => {
+    const renderRow = (row: unknown, i: number): JSX.Element => {
+      // Computed into locals because TypeScript will not narrow `getRowIntent` from an
+      // optional-call test back to "defined" at the second call site.
+      const intent = getRowIntent?.(row, i);
+      const cls = getRowClassName?.(row, i);
+      return (
+        <tr
+          key={getRowKey ? getRowKey(row, i) : i}
+          {...(intent ? { "data-intent": intent } : {})}
+          {...(cls ? { className: cls } : {})}
+        >
+          {columns.map((c) => (
+            <td
+              key={c.key}
+              data-cell-title={c.cellTitle?.(row)}
+              data-align={c.align}
+            >
+              {c.render(row)}
+            </td>
+          ))}
+        </tr>
+      );
+    };
+    const renderGroups = (nodes: TableGroupNode[]): JSX.Element[] =>
+      nodes.flatMap((g) => [
+        <tr key={`group:${g.id}`} data-group-level={g.level}>
+          <td colSpan={columns.length}>
+            <button
+              type="button"
+              aria-expanded={!g.collapsed}
+              aria-label={g.label}
+              onClick={() => onToggleGroup?.(g.id)}
+            />
+            {g.header}
+          </td>
+        </tr>,
+        ...(g.collapsed
+          ? []
+          : g.children && g.children.length > 0
+            ? renderGroups(g.children)
+            : items
+                .slice(g.startIndex, g.startIndex + g.count)
+                .map((row, k) => renderRow(row, g.startIndex + k))),
+      ]);
+    return items.length === 0 ? (
       <div>{emptyMessage ?? "No items."}</div>
     ) : (
       <table
@@ -793,33 +840,10 @@ export const fakeAdapter: SpeelUIAdapter = {
             ))}
           </tr>
         </thead>
-        <tbody>
-          {items.map((row, i) => {
-            // Computed into locals because TypeScript will not narrow `getRowIntent` from an
-            // optional-call test back to "defined" at the second call site.
-            const intent = getRowIntent?.(row, i);
-            const cls = getRowClassName?.(row, i);
-            return (
-              <tr
-                key={getRowKey ? getRowKey(row, i) : i}
-                {...(intent ? { "data-intent": intent } : {})}
-                {...(cls ? { className: cls } : {})}
-              >
-                {columns.map((c) => (
-                  <td
-                    key={c.key}
-                    data-cell-title={c.cellTitle?.(row)}
-                    data-align={c.align}
-                  >
-                    {c.render(row)}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
+        <tbody>{groups ? renderGroups(groups) : items.map(renderRow)}</tbody>
       </table>
-    ),
+    );
+  },
 
   SearchBox: ({ value, onChange, placeholder, ariaLabel }) => (
     <input

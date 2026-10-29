@@ -391,6 +391,22 @@ export interface SearchBoxProps {
   ariaLabel?: string;
 }
 
+/** One group header and the slice of `items` it covers. Rows stay flat, in grouped order. */
+export interface TableGroupNode {
+  id: string;
+  header: ReactNode;
+  /** Plain text for the toggle's accessible name (`header` is a node). */
+  label: string;
+  /** Rows under the group — and the length of the `items` slice it covers. */
+  count: number;
+  /** 0 = the outermost level. */
+  level: number;
+  /** Where the group's rows start in `items`. */
+  startIndex: number;
+  collapsed: boolean;
+  children?: TableGroupNode[];
+}
+
 export interface TableProps {
   columns: TableColumn[];
   items: readonly unknown[];
@@ -406,6 +422,12 @@ export interface TableProps {
   minWidth?: TableLength;
   width?: TableLength;
   maxWidth?: TableLength;
+  /** Group headers over `items`, outermost first. `items` still carries every row, those of
+   *  collapsed groups included; the skin hides what a collapsed group covers. Absent = a
+   *  flat table. */
+  groups?: TableGroupNode[];
+  /** A group's own toggle was used. The skin never tracks collapse state itself. */
+  onToggleGroup?: (id: string) => void;
 }
 
 /** Chrome (label/required/error/description) wrapped around an arbitrary node —

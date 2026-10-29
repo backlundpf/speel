@@ -56,7 +56,7 @@ export interface GroupDescriptor<T> {
   order?: "asc" | "desc" | ((a: unknown, b: unknown) => number);
 }
 
-export type GroupSpec<T> = ColumnRef<T> | GroupDescriptor<T>;
+export type GroupSpec<T> = string | ColumnRef<T> | GroupDescriptor<T>;
 
 /** What `header` and `collapsed` are handed. */
 export interface RowGroup<T> {
@@ -150,12 +150,11 @@ export interface TableGroupNode {
   header: ReactNode;
   /** Plain-text name for the toggle's accessible name (`header` is a node). */
   label: string;
+  /** Rows under the group — and the length of the `items` slice it covers. */
   count: number;
   level: number;
   /** Where the group's rows start in `items`. */
   startIndex: number;
-  /** How many of `items` it covers. */
-  rowCount: number;
   collapsed: boolean;
   children?: TableGroupNode[];
 }
