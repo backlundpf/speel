@@ -16,7 +16,10 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: test:layout installs Chromium through Playwright, which
+    # supports only the Ubuntu releases it lists — ubuntu-latest moved to 26.04 before
+    # Playwright did, and the install fails there. Move it with the Playwright upgrade.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -38,7 +41,7 @@ jobs:
       - run: npm run verify
 
   changeset:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # the same image as verify
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
