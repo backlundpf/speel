@@ -78,9 +78,9 @@ What is exported follows the screen's question, not its layout: the column filte
 search narrow all three outputs, the pager does not, and a column the user has hidden through
 the column chooser is left out of the file and off the paper.
 
-`SpeelTable`'s `ref` exposes `exportCsv()`, `exportXlsx()`, and `print()`. `SpeelEntityTable`'s
-handle carries `exportCsv()` and `print()` beside `reload()`; its Excel export is the toolbar
-button.
+`SpeelTable`'s `ref` exposes `exportCsv()`, `exportXlsx()`, and `print()`; `SpeelEntityTable`'s
+handle carries the same three beside `reload()`. A grouped table exports in grouped order,
+without group heading rows.
 
 ## Boundaries & gotchas
 

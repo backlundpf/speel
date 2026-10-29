@@ -343,6 +343,26 @@ const DashboardBody: React.FC<{
         emptyMessage="No projects yet — create one."
         loadingMessage="Loading projects…"
       />
+      <div style={{ marginTop: 24 }}>
+        <h3>Projects by status — grouped SpeelEntityTable</h3>
+        <SpeelEntityTable
+          of={Project}
+          columns={(p) => [p.Title, p.Owner, p.DueDate]}
+          // Status groups start open; their priority subgroups start closed. The
+          // computed level groups on a value no column holds.
+          groupBy={(p) => [
+            p.Status,
+            { key: p.Priority.key, collapsed: true },
+            {
+              key: "due",
+              by: (r) =>
+                r.DueDate && r.DueDate < new Date() ? "Overdue" : "Upcoming",
+            },
+          ]}
+          emptyMessage="No projects yet — create one."
+          loadingMessage="Loading projects…"
+        />
+      </div>
       <ProgramsSection ctx={ctx} />
       <ArtifactsPanel tableRef={artifactsTableRef} />
     </>
