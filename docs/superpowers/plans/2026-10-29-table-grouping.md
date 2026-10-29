@@ -23,7 +23,7 @@
 - `samples/spfx-sample` must pass `heft build` (`npm --prefix samples/spfx-sample run build:check`).
 - Full gate: `npm run verify` from the repo root.
 
-**Spec deviation (my call):** `TableGroupNode` carries `count` only — no separate `rowCount`. `items` always holds every matched row, so the slice a group covers *is* its count. The spec is updated to match in Task 3.
+**Spec deviation (my call):** `TableGroupNode` carries `count` only — no separate `rowCount`. `items` always holds every matched row, so the slice a group covers _is_ its count. The spec is updated to match in Task 3.
 
 ## Review Focus
 
@@ -38,21 +38,38 @@
 ### Task 1: Pure grouping module
 
 **Files:**
+
 - Create: `packages/speel-react/src/table/grouping.ts`
 - Modify: `packages/speel-react/src/table/columns.ts` (export `columnProxy` and `isColumnRef`; no behaviour change)
 - Test: `packages/speel-react/test/grouping.test.ts`
 
 **Interfaces:**
+
 - Consumes: `resolveColumns`, `resolveKeyTarget`, `ResolvedColumn`, `ColumnRef`, `ColumnRefs` (`columns.ts`); `cellText` (`cellText.ts`); `comparatorFor`-built `Comparator` via the column's `comparator` (`sort.ts`); `isEmptyValue` (`fieldValue.ts`).
 - Produces:
   ```ts
-  export interface GroupDescriptor<T> { key; by?; label?; header?; collapsed?; order? } // verbatim from spec
+  export interface GroupDescriptor<T> {
+    key;
+    by?;
+    label?;
+    header?;
+    collapsed?;
+    order?;
+  } // verbatim from spec
   export type GroupSpec<T> = ColumnRef<T> | GroupDescriptor<T>;
-  export interface RowGroup<T> { id; level; value; label; count; rows; parent? }     // verbatim from spec
+  export interface RowGroup<T> {
+    id;
+    level;
+    value;
+    label;
+    count;
+    rows;
+    parent?;
+  } // verbatim from spec
   /** A group with its place in the grouped row list. */
   export interface GroupNode<T> extends RowGroup<T> {
-    startIndex: number;            // index into GroupedRows.rows
-    children: GroupNode<T>[];      // empty at the innermost level
+    startIndex: number; // index into GroupedRows.rows
+    children: GroupNode<T>[]; // empty at the innermost level
   }
   /** One resolved level. */
   export interface GroupLevel<T> {
@@ -60,28 +77,40 @@
     /** Column header / field display name; absent for a `by` level. Prefixes the default header. */
     title?: string;
     value: (row: T) => unknown;
-    label: (row: T, value: unknown) => string;   // "" = blank
+    label: (row: T, value: unknown) => string; // "" = blank
     compare: (a: unknown, b: unknown) => number; // non-blank values only
     direction: "asc" | "desc";
     header?: (g: RowGroup<T>) => ReactNode;
     collapsed?: boolean | ((g: RowGroup<T>) => boolean);
   }
-  export interface GroupedRows<T> { rows: T[]; roots: GroupNode<T>[] }
+  export interface GroupedRows<T> {
+    rows: T[];
+    roots: GroupNode<T>[];
+  }
   export function resolveGroupLevels<T>(
-    et: EntityType, columns: readonly ResolvedColumn<T>[],
+    et: EntityType,
+    columns: readonly ResolvedColumn<T>[],
     groupBy: GroupSpec<T>[] | ((p: ColumnRefs<T>) => GroupSpec<T>[]),
   ): GroupLevel<T>[];
-  export function groupRows<T>(rows: readonly T[], levels: readonly GroupLevel<T>[]): GroupedRows<T>;
-  export function groupLabel<T>(g: RowGroup<T>): string;            // label, or "(blank)"
-  export function defaultGroupHeader<T>(level: GroupLevel<T>, g: RowGroup<T>): string;
+  export function groupRows<T>(
+    rows: readonly T[],
+    levels: readonly GroupLevel<T>[],
+  ): GroupedRows<T>;
+  export function groupLabel<T>(g: RowGroup<T>): string; // label, or "(blank)"
+  export function defaultGroupHeader<T>(
+    level: GroupLevel<T>,
+    g: RowGroup<T>,
+  ): string;
   ```
 
 Resolution rules (the spec's, made exact):
-- **Column level** (a `ColumnRef`, or a descriptor without `by`): find the `ResolvedColumn` with that key in `columns` (hidden ones are in the full list); if none, and `resolveKeyTarget` finds an entity field, use `resolveColumns(et, [key])[0]`. Neither → throw `SpeelTable: groupBy key '<key>' names no column or field of <EntityName>. Give it a \`by\` to group on a computed value.` `title` = column header; `label` = `descriptor.label?.(value) ?? cellText(col, row)`; `value` = `col.sortAccessor ?? (row => cellText(col, row))`; `compare` = `col.comparator ?? natural` (when `value` fell back to text, natural string compare).
+
+- **Column level** (a `ColumnRef`, or a descriptor without `by`): find the `ResolvedColumn` with that key in `columns` (hidden ones are in the full list); if none, and `resolveKeyTarget` finds an entity field, use `resolveColumns(et, [key])[0]`. Neither → throw `SpeelTable: groupBy key '<key>' names no column or field of <EntityName>. Give it a \`by\` to group on a computed value.` `title`= column header;`label`=`descriptor.label?.(value) ?? cellText(col, row)`; `value`=`col.sortAccessor ?? (row => cellText(col, row))`; `compare`=`col.comparator ?? natural`(when`value` fell back to text, natural string compare).
 - **`by` level:** `title` absent; `value` = `by`; `label` = `descriptor.label?.(value) ?? (isEmptyValue(value) ? "" : String(value))` (a `Date` → `isoDate`); `compare` = natural.
 - `order`: `"asc"`/`"desc"` set `direction`; a function replaces `compare` with `direction: "asc"`.
 
 Bucketing rules:
+
 - Buckets are keyed by label, created in first-seen order, rows kept in input order (input is already table-sorted, so rows inside groups follow the table sort).
 - A group's `value` = the minimum (by `compare`) of its rows' non-blank values; blank group (`label === ""`) has `value: undefined` and always sorts last, regardless of `direction`.
 - Groups at each level sort by `value` with `compare` × direction; ties keep first-seen order.
@@ -107,12 +136,15 @@ Bucketing rules:
 ### Task 2: Collapse state hook
 
 **Files:**
+
 - Create: `packages/speel-react/src/table/useGroupCollapse.ts`
 - Test: `packages/speel-react/test/useGroupCollapse.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `GroupNode`, `GroupLevel` (Task 1).
 - Produces:
+
   ```ts
   export interface GroupCollapse<T> {
     /** Override for this id, else the all-mode, else the level's `collapsed` default (absent = expanded). */
@@ -124,8 +156,12 @@ Bucketing rules:
   }
   export function useGroupCollapse<T>(): GroupCollapse<T>;
   /** "Collapse all" iff some group whose ancestors are all expanded is itself expanded. */
-  export function anyVisibleExpanded<T>(roots: readonly GroupNode<T>[], collapsed: (g: GroupNode<T>) => boolean): boolean;
+  export function anyVisibleExpanded<T>(
+    roots: readonly GroupNode<T>[],
+    collapsed: (g: GroupNode<T>) => boolean,
+  ): boolean;
   ```
+
   State is `{ mode?: boolean; overrides: Record<string, boolean> }` in `useState`; overrides survive ids leaving and returning.
 
 - [ ] **Step 1: Write failing tests** (`renderHook` from Testing Library): default expanded; level `collapsed: true` default; `collapsed` function receives the group; `toggle` overrides; `setAll(true)` beats a level default of `false` and clears a prior override; a later `toggle` layers over the mode; `anyVisibleExpanded` is `false` when every root is collapsed even though a child is expanded, `true` when one root is expanded.
@@ -137,6 +173,7 @@ Bucketing rules:
 ### Task 3: Skin contract, fake adapter, `SpeelTable` integration
 
 **Files:**
+
 - Modify: `packages/speel-react/src/adapter/SpeelUIAdapter.ts` (add `TableGroupNode`; `TableProps.groups?`, `TableProps.onToggleGroup?`)
 - Modify: `packages/speel-react/src/table/useTableState.ts` (option `groupLevels?: readonly GroupLevel<T>[]`; return `groups?: GroupNode<T>[]`)
 - Modify: `packages/speel-react/src/table/SpeelTable.tsx` (prop `groupBy`, handle methods, toggle, warning)
@@ -148,6 +185,7 @@ Bucketing rules:
 - Test: `packages/speel-react/test/SpeelTable.grouping.test.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 1 (`resolveGroupLevels`, `groupRows`, `groupLabel`, `defaultGroupHeader`, `GroupNode`, `GroupLevel`), Task 2 (`useGroupCollapse`, `anyVisibleExpanded`).
 - Produces (skin contract, used by Tasks 4–5):
   ```ts
@@ -169,6 +207,7 @@ Bucketing rules:
   `SpeelTableProps.groupBy?: GroupSpec<T>[] | ((p: ColumnRefs<T>) => GroupSpec<T>[])`; `SpeelTableHandle.expandAllGroups/collapseAllGroups: () => void`.
 
 Wiring decisions:
+
 - Grouped = `groupBy` resolves to ≥1 level. `SpeelTable` resolves levels each render (`resolveGroupLevels(et, resolved, groupBy)`), so a key change re-validates.
 - `useTableState`: when grouped, after the sort, `matched = groupRows(sorted, levels).rows`, `groups = roots`, `displayed = matched`, `pageCount = 1`; `page`/`pageSize` state is returned but never committed by grouping.
 - `TableGroupNode.header` = `level.header?.(g) ?? defaultGroupHeader(level, g)`; `label` = `groupLabel(g)`; `collapsed` = `collapse.isCollapsed(g, level)`. `onToggleGroup(id)` looks up the node's current `collapsed` from the tree built this render.
@@ -200,14 +239,17 @@ Wiring decisions:
 ### Task 4: Fluent v8 skin groups
 
 **Files:**
+
 - Modify: `packages/speel-react/src/fluent-v8/primitives.tsx` (`V8Table`)
 - Test: `packages/speel-react/test/v8TableGroups.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `TableGroupNode`, `TableProps.groups/onToggleGroup` (Task 3).
 - Produces: nothing new.
 
 Decisions:
+
 - Map each node to `IGroup { key: id, name: label, startIndex, count, level, isCollapsed: collapsed, children }`, rebuilt every render (DetailsList mutates `isCollapsed`; rebuilding keeps the prop authoritative).
 - `groupProps`: `headerProps.onToggleCollapse: (g) => p.onToggleGroup?.(g.key)`, `headerProps.onRenderTitle` renders the node's `header` (looked up by `group.key`) so DetailsList's own `(count)` never appears, `collapseAllVisibility: CollapseAllVisibility.hidden`, `showEmptyGroups: false`.
 - Width: with groups, DetailsList adds a group-expand cell and per-level indent spacers to every row and the header. Read the exact widths from the installed `@fluentui/react` (`GroupSpacer`'s `SPACER_WIDTH`, the header's group-expand width / `indentWidth`) and add `depth × spacer` to `content` (both the wrapper `width` and `viewport.width`), where depth = max level + 1. Without groups, `content` is unchanged.
@@ -222,14 +264,17 @@ Decisions:
 ### Task 5: shadcn registry skin groups
 
 **Files:**
+
 - Modify: `registry/src/speel-shadcn/table.tsx` (`ShadTable`)
 - Test: `registry/tests/table.test.tsx`
 - Sync: `samples/spfx-sample/src/components/speel/table.tsx` via `npm run sync:skin` (never hand-edit)
 
 **Interfaces:**
+
 - Consumes: `TableGroupNode`, `TableProps.groups/onToggleGroup` (Task 3, through the registry's `@speel/react` import).
 
 Decisions:
+
 - Recursive render of `TableBody` rows: a group header `TableRow` with `data-group-level`, one `TableCell colSpan={columns.length}` padded left by `level × 1.5rem`, holding a `<button type="button" aria-expanded aria-label={label}>` with lucide `ChevronRight`/`ChevronDown`, then `header`. Expanded innermost groups render `items.slice(startIndex, startIndex + count)` through the existing row markup (extract it to a local `renderRow(row, i)`; `i` = position in `items`).
 - Depth is carried in text by the default header's level prefix (`Status: …`) — the "equivalent" the spec allows on a plain `<table>`.
 
@@ -242,6 +287,7 @@ Decisions:
 ### Task 6: Sample, changeset, docs
 
 **Files:**
+
 - Modify: `samples/spfx-sample/src/webparts/projectDashboard/components/ProjectsDashboard.tsx` (group one table: the Programs table by `Customer`, or the projects table by a choice field — whichever entity field exists; `collapsed` default on the inner level if two levels fit)
 - Create: `.changeset/<name>.md` — `"@speel/react": minor`, one line: `SpeelTable groupBy: nested, collapsible, counted row groups with expand/collapse all; grouping turns paging off.`
 - Create: `packages/speel-react/docs/table-grouping.md`
