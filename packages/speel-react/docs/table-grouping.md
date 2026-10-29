@@ -4,7 +4,7 @@
 
 `groupBy` turns a table's rows into nested, collapsible groups — groups, subgroups,
 sub-subgroups, as deep as you list levels. Each group header names its value and counts its
-rows, the toolbar gains one button that expands or collapses everything, and each level says
+rows, a toggle in front of the column headers expands or collapses everything, and each level says
 whether its groups start open or closed. Reach here when a list reads better split by a
 status, an owner, or a bucket you compute (overdue vs. upcoming), and users want to fold away
 what they are not looking at.
@@ -90,10 +90,12 @@ _inside_ the innermost groups and never reorders the groups themselves.
 
 ### Expanding and collapsing
 
-`collapsed` sets a level's starting state — `true`, or a function of the group. Each header
-has its own toggle, and the toolbar button reads **Collapse all** while any group on screen is
-open, **Expand all** otherwise. That button, and `expandAllGroups()` / `collapseAllGroups()` on
-both components' handles, set the whole table for the rest of the visit: groups that appear
+`collapsed` sets a level's starting state — `true`, or a function of the group. Each group
+header toggles its group — its chevron, or a click on its text (a control inside an app's own
+header keeps its click). The header cell in front of the columns collapses everything while any
+group on screen is open, and expands everything otherwise. That toggle, and
+`expandAllGroups()` / `collapseAllGroups()` on both components' handles, set the whole table
+for the rest of the visit: groups that appear
 later — after a filter change or a `reload()` — follow it. A group the user folds stays folded
 while it is filtered away and back. None of this is saved: collapse state is not part of
 `tableState`, views, or the URL.
@@ -116,13 +118,17 @@ Skins receive the rows flat in grouped order plus a `groups` tree (`TableGroupNo
 label — the group's whole path as text, "Status: Open, Owner: Ann", which names its toggle —
 count, level, start index, collapsed, `customHeader`, children) and an `onToggleGroup(id)`
 callback; they never hold collapse state themselves. A skin may offer its own
-expand/collapse-all from `allGroupsCollapsed` and `onToggleAllGroups`. The Fluent v8 skin
-renders `DetailsList` groups: data rows sit offset under their innermost group, and the header
-cell in front of the columns is an expand/collapse-all chevron beside the toolbar's button.
-The shadcn skin renders header rows with a chevron, data rows flush under the columns. A
-custom skin that ignores `groups` renders a plain table in grouped order.
+expand/collapse-all from `allGroupsCollapsed` and `onToggleAllGroups`. Both built-in skins do
+the same: data rows sit offset under their innermost group by a leading column, and that
+column's header cell is the expand/collapse-all toggle. The Fluent v8 skin renders
+`DetailsList` groups with the MDL2 collapse/expand icons; the shadcn skin renders header rows
+with lucide's. A custom skin that ignores `groups` renders a plain table in grouped order.
 
 ## Boundaries & gotchas
+
+- **Expand/collapse all lives in the skin.** The table renders no toolbar button for it: the
+  built-in skins put it in front of the column headers. A custom skin that ignores
+  `onToggleAllGroups` offers none, though the handle methods still work.
 
 - **Groups are their label text.** Rows whose values display the same text share a group, so
   two groups never look alike — and two distinct values that render identically merge. A

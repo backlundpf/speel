@@ -157,7 +157,7 @@ describe("SpeelTable grouping", () => {
     expect(titles()).toEqual(["T02", "T04", "T06", "T08", "T10", "T12"]);
   });
 
-  it("expands and collapses all", () => {
+  it("expands and collapses all through the skin's header toggle", () => {
     wrap(
       <SpeelTable
         of={Task}
@@ -166,18 +166,18 @@ describe("SpeelTable grouping", () => {
         groupBy={(p) => [p.Status, p.Owner]}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
-    for (const b of screen.getAllByRole("button", { expanded: false }))
-      expect(b).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse all groups" }),
+    );
     expect(dataRows()).toHaveLength(0);
-    fireEvent.click(screen.getByRole("button", { name: "Expand all" }));
+    fireEvent.click(screen.getByRole("button", { name: "Expand all groups" }));
     expect(dataRows()).toHaveLength(12);
     expect(
-      screen.getByRole("button", { name: "Collapse all" }),
+      screen.getByRole("button", { name: "Collapse all groups" }),
     ).toBeInTheDocument();
   });
 
-  it("gives the expand/collapse-all button an icon that matches what it does", () => {
+  it("puts no expand/collapse-all button in the toolbar", () => {
     wrap(
       <SpeelTable
         of={Task}
@@ -186,38 +186,8 @@ describe("SpeelTable grouping", () => {
         groupBy={["Status"]}
       />,
     );
-    expect(
-      screen.getByRole("button", { name: "Collapse all" }),
-    ).toHaveAttribute("data-icon", "CollapseContent");
-    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
-    expect(screen.getByRole("button", { name: "Expand all" })).toHaveAttribute(
-      "data-icon",
-      "ExploreContent",
-    );
-  });
-
-  it("hands the skin a collapse-all toggle that agrees with the toolbar", () => {
-    wrap(
-      <SpeelTable
-        of={Task}
-        items={many}
-        columns={columns}
-        groupBy={(p) => [{ key: "Status", collapsed: true }, p.Owner]}
-      />,
-    );
-    // Every group on screen is collapsed: both offer to expand.
-    fireEvent.click(screen.getByRole("button", { name: "Expand all groups" }));
-    expect(dataRows()).toHaveLength(12);
-    expect(
-      screen.getByRole("button", { name: "Collapse all" }),
-    ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Collapse all groups" }),
-    );
-    expect(dataRows()).toHaveLength(0);
-    expect(
-      screen.getByRole("button", { name: "Expand all" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Collapse all" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Expand all" })).toBeNull();
   });
 
   it("tells the skin which group headers are the app's own", () => {
@@ -239,7 +209,7 @@ describe("SpeelTable grouping", () => {
     for (const tr of level(1)) expect(tr).toHaveAttribute("data-custom-header");
   });
 
-  it("offers Expand all when only hidden subgroups are expanded", () => {
+  it("offers to expand all when only hidden subgroups are expanded", () => {
     wrap(
       <SpeelTable
         of={Task}
@@ -249,8 +219,8 @@ describe("SpeelTable grouping", () => {
       />,
     );
     expect(
-      screen.getByRole("button", { name: "Expand all" }),
-    ).toBeInTheDocument();
+      screen.getByRole("button", { name: "Expand all groups" }),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 
   it("keeps a group collapsed while it is filtered away and back", () => {
@@ -398,6 +368,6 @@ describe("SpeelTable grouping", () => {
         groupBy={["Status"]}
       />,
     );
-    expect(screen.queryByRole("button", { name: /all$/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /all( groups)?$/ })).toBeNull();
   });
 });

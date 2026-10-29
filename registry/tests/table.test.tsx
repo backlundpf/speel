@@ -463,7 +463,8 @@ describe("shadcn Table groups", () => {
     expect(screen.getByText("Status: Open (2)")).toBeInTheDocument();
     expect(screen.getByText("Owner: Ann (2)")).toBeInTheDocument();
     const header = container.querySelector('tr[data-group-level="0"] td')!;
-    expect(header.getAttribute("colspan")).toBe("2");
+    // Every column, plus the leading one the rows are offset by.
+    expect(header.getAttribute("colspan")).toBe("3");
     expect(container.querySelectorAll('tr[data-group-level="1"]')).toHaveLength(
       1,
     );
@@ -545,12 +546,101 @@ describe("shadcn Table groups", () => {
         groups={[{ ...groups(false)[1]!, level: 1, customHeader: true }]}
       />,
     );
-    expect(screen.getByText("Status: Closed (1)").className).toBe("");
+    // No level colour or weight — only the pointer that says the header toggles.
+    expect(screen.getByText("Status: Closed (1)").className).toBe(
+      "cursor-pointer",
+    );
+  });
+
+  it("offsets data rows under their groups by a leading column, one step per level", () => {
+    const { container } = render(
+      <T columns={cols} items={rows} groups={groups(false)} />,
+    );
+    const colEls = container.querySelectorAll("colgroup col");
+    expect(colEls).toHaveLength(cols.length + 1);
+    // Two levels deep (Status → Owner): two 32px steps.
+    expect((colEls[0] as HTMLElement).style.width).toBe("64px");
+    const dataRow = screen.getByText("open one").closest("tr")!;
+    const cells = dataRow.querySelectorAll("td");
+    expect(cells).toHaveLength(cols.length + 1);
+    expect(cells[0]!.textContent).toBe("");
+  });
+
+  it("puts an expand/collapse-all toggle in the header cell in front of the columns", () => {
+    const onToggleAllGroups = vi.fn();
+    const { rerender } = render(
+      <T
+        columns={cols}
+        items={rows}
+        groups={groups(false)}
+        allGroupsCollapsed={false}
+        onToggleAllGroups={onToggleAllGroups}
+      />,
+    );
+    const toggle = screen.getByRole("button", { name: "Collapse all groups" });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle.closest("th")).not.toBeNull();
+    expect(toggle.querySelector("svg")).not.toBeNull();
+    fireEvent.click(toggle);
+    expect(onToggleAllGroups).toHaveBeenCalledTimes(1);
+    rerender(
+      <T
+        columns={cols}
+        items={rows}
+        groups={groups(false)}
+        allGroupsCollapsed
+        onToggleAllGroups={onToggleAllGroups}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Expand all groups" }),
+    ).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("toggles a group from its header text, not only its chevron", () => {
+    const onToggleGroup = vi.fn();
+    render(
+      <T
+        columns={cols}
+        items={rows}
+        groups={groups(false)}
+        onToggleGroup={onToggleGroup}
+      />,
+    );
+    fireEvent.click(screen.getByText("Status: Closed (1)"));
+    expect(onToggleGroup).toHaveBeenCalledWith("s=Closed");
+  });
+
+  it("leaves a click on a control inside a custom header to that control", () => {
+    const onToggleGroup = vi.fn();
+    const onClick = vi.fn();
+    render(
+      <T
+        columns={cols}
+        items={rows}
+        groups={[
+          {
+            ...groups(false)[1]!,
+            customHeader: true,
+            header: (
+              <span>
+                Closed <button onClick={onClick}>Assign</button>
+              </span>
+            ),
+          },
+        ]}
+        onToggleGroup={onToggleGroup}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+    expect(onClick).toHaveBeenCalled();
+    expect(onToggleGroup).not.toHaveBeenCalled();
   });
 
   it("renders a flat table without group rows", () => {
     const { container } = render(<T columns={cols} items={rows} />);
     expect(container.querySelector("tr[data-group-level]")).toBeNull();
     expect(container.querySelectorAll("tbody tr")).toHaveLength(3);
+    expect(container.querySelectorAll("colgroup col")).toHaveLength(2);
   });
 });

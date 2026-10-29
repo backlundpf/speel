@@ -6,7 +6,14 @@ import {
   useState,
 } from "react";
 import type { KeyboardEvent, MouseEvent, ReactElement, ReactNode } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
+} from "lucide-react";
 
 import {
   Table,
@@ -311,6 +318,17 @@ const GROUP_HEADER_LEVEL = [
   "text-muted-foreground font-semibold",
 ];
 
+/** A click that a control inside a group header handles itself — not a header toggle. */
+const INTERACTIVE =
+  'a, button, input, select, textarea, [role="button"], [role="link"], [role="checkbox"]';
+
+function groupDepth(nodes: readonly TableGroupNode[]): number {
+  return nodes.reduce(
+    (d, g) => Math.max(d, 1 + (g.children ? groupDepth(g.children) : 0)),
+    0,
+  );
+}
+
 export function ShadTable(p: TableProps): ReactElement {
   // Hooks sit before the empty early-return: they may not be conditional.
   const container = useRef<HTMLDivElement>(null);
@@ -347,6 +365,11 @@ export function ShadTable(p: TableProps): ReactElement {
   // fraction off the table's width, and a table that fills its container would scroll by it.
   const padding = Math.round(metrics.padding);
   const measure = textMeasurer(theme.font, theme.fontSize);
+  // Grouped, data rows sit offset under their innermost group: a leading column one step
+  // (8 spacing units) per nesting level, whose header cell holds the expand/collapse-all
+  // toggle. The columns lay out in what is left of the container.
+  const step = Math.round(8 * theme.spacing);
+  const lead = p.groups ? groupDepth(p.groups) * step : 0;
   const layout = resolveColumnWidths(
     p.columns.map((c) =>
       toFlexColumn(
@@ -367,13 +390,14 @@ export function ShadTable(p: TableProps): ReactElement {
       ...(p.width !== undefined ? { width: p.width } : {}),
       ...(p.maxWidth !== undefined ? { maxWidth: p.maxWidth } : {}),
     },
-    containerWidth,
+    Math.max(0, containerWidth - lead),
   );
   // The columns' total, never `layout.tableWidth`: a fixed-layout table spreads any width
   // beyond its columns over them, so a table held to a bound nothing can grow into would
   // widen every column past its resolved width, and a dragged column would not land where
   // it was let go. Spare width stays empty instead, as in CSS flexbox and the v8 skin.
-  const tableWidth = layout.widths.reduce((sum, w) => sum + w + padding, 0);
+  const tableWidth =
+    layout.widths.reduce((sum, w) => sum + w + padding, 0) + lead;
   const renderRow = (row: unknown, i: number): ReactElement => {
     const intent = p.getRowIntent?.(row, i);
     const cls = p.getRowClassName?.(row, i);
@@ -382,6 +406,7 @@ export function ShadTable(p: TableProps): ReactElement {
         key={p.getRowKey ? p.getRowKey(row, i) : i}
         className={cn(intent ? INTENT_ROW[intent] : undefined, cls)}
       >
+        {lead > 0 ? <TableCell className="p-0" /> : null}
         {p.columns.map((c) => (
           <TableCell
             key={c.key}
@@ -416,10 +441,8 @@ export function ShadTable(p: TableProps): ReactElement {
         className="bg-muted/30"
       >
         <TableCell
-          colSpan={p.columns.length}
-          style={{
-            paddingLeft: `calc(${g.level * 1.5}rem + ${padding / 2}px)`,
-          }}
+          colSpan={p.columns.length + 1}
+          style={{ paddingLeft: g.level * step + padding / 2 }}
         >
           <span className="inline-flex items-center gap-1">
             <button
@@ -435,12 +458,18 @@ export function ShadTable(p: TableProps): ReactElement {
                 <ChevronDown className="size-4" aria-hidden />
               )}
             </button>
+            {/* The text toggles its group too, as the chevron does — except where a control in
+                an app's header took the click. Keyboard users have the chevron button. */}
             <span
-              className={
-                g.customHeader
-                  ? undefined
-                  : GROUP_HEADER_LEVEL[Math.min(g.level, 2)]
-              }
+              className={cn(
+                "cursor-pointer",
+                !g.customHeader && GROUP_HEADER_LEVEL[Math.min(g.level, 2)],
+              )}
+              onClick={(e) => {
+                const hit = (e.target as Element).closest(INTERACTIVE);
+                if (hit && e.currentTarget.contains(hit)) return;
+                p.onToggleGroup?.(g.id);
+              }}
             >
               {g.header}
             </span>
@@ -466,12 +495,34 @@ export function ShadTable(p: TableProps): ReactElement {
       {/* Fixed layout: the columns are exactly the resolved widths, whatever their content. */}
       <Table style={{ tableLayout: "fixed", width: tableWidth }}>
         <colgroup>
+          {lead > 0 ? <col style={{ width: lead }} /> : null}
           {p.columns.map((c, i) => (
             <col key={c.key} style={{ width: layout.widths[i]! + padding }} />
           ))}
         </colgroup>
         <TableHeader>
           <TableRow>
+            {lead > 0 ? (
+              <TableHead className="p-0 text-center">
+                <button
+                  type="button"
+                  aria-expanded={!p.allGroupsCollapsed}
+                  aria-label={
+                    p.allGroupsCollapsed
+                      ? "Expand all groups"
+                      : "Collapse all groups"
+                  }
+                  onClick={p.onToggleAllGroups}
+                  className="hover:bg-accent inline-flex size-6 items-center justify-center rounded-sm align-middle"
+                >
+                  {p.allGroupsCollapsed ? (
+                    <ChevronsUpDown className="size-4" aria-hidden />
+                  ) : (
+                    <ChevronsDownUp className="size-4" aria-hidden />
+                  )}
+                </button>
+              </TableHead>
+            ) : null}
             {p.columns.map((c, i) => (
               // The primitive's h-10 stays: a table cell's height is a minimum, so a wrapped
               // label still grows the row, and one-line labels keep their height and centring.

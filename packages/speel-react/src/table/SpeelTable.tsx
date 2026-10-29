@@ -521,15 +521,6 @@ function SpeelTableInner<T extends IEntity>(
         {...(exportCsv ? { onExport: runExport } : {})}
         {...(exportXlsx ? { onExportXlsx: runExportXlsx } : {})}
         {...(printProp ? { onPrint: runPrint } : {})}
-        {...(groups !== undefined && groups.length > 0
-          ? {
-              groupToggle: {
-                text: canCollapse ? "Collapse all" : "Expand all",
-                iconName: canCollapse ? "CollapseContent" : "ExploreContent",
-                onClick: () => collapse.setAll(canCollapse),
-              },
-            }
-          : {})}
         {...(columnChooser && chooserAdopters === 0
           ? {
               chooser: (

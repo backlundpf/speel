@@ -109,8 +109,8 @@ export const GroupedProjectsPanel: React.FC<{
           checked={grouped}
           onChange={setGrouped}
         />
-        {/* The toolbar has its own Expand/Collapse all; these drive the same thing from
-            outside the table, through the handle. */}
+        {/* The table's header has its own expand/collapse-all toggle; these drive the same
+            thing from outside the table, through the handle. */}
         <ui.Button
           text="Expand all"
           disabled={!grouped}

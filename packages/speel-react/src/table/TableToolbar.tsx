@@ -7,8 +7,6 @@ export interface TableToolbarProps {
   onExportXlsx?: () => void;
   onPrint?: () => void;
   chooser?: ReactNode;
-  /** Expand/collapse every group of a grouped table. */
-  groupToggle?: { text: string; iconName: string; onClick: () => void };
   /** The active filter chips, grown to fill the row's centre. */
   filters?: ReactNode;
   /** The universal search box, between the chips and the icon actions. */
@@ -27,7 +25,6 @@ export function TableToolbar({
   chooser,
   filters,
   search,
-  groupToggle,
   children,
 }: TableToolbarProps): JSX.Element | null {
   if (
@@ -37,8 +34,7 @@ export function TableToolbar({
     !chooser &&
     !children &&
     !filters &&
-    !search &&
-    !groupToggle
+    !search
   )
     return null;
   return (
@@ -53,14 +49,6 @@ export function TableToolbar({
     >
       {children}
       <div style={{ flex: 1, minWidth: 0 }}>{filters}</div>
-      {groupToggle ? (
-        <ui.Button
-          text={groupToggle.text}
-          iconName={groupToggle.iconName}
-          appearance="subtle"
-          onClick={groupToggle.onClick}
-        />
-      ) : null}
       {search ? <div style={{ width: 220 }}>{search}</div> : null}
       {chooser}
       {onExport ? (

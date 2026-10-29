@@ -30,6 +30,7 @@ import {
   ColumnActionsMode,
   CollapseAllVisibility,
   FontWeights,
+  getIcon,
   ProgressIndicator,
   Callout,
   Icon,
@@ -1026,6 +1027,32 @@ function V8Cell({
  *  the header cell above it cannot drift apart. */
 const GROUP_SPACER_WIDTH = 36;
 
+/**
+ * The header's expand/collapse-all cell, drawn with the same icons a toolbar would use instead
+ * of Fluent's rotating chevron, which DetailsHeader hard-codes. The glyph is painted in a
+ * `::before`, so it needs a font icon — SPFx registers the MDL2 font. An icon set registered
+ * as SVG leaves Fluent's chevron in place.
+ */
+function groupToggleStyles(
+  allCollapsed: boolean,
+): NonNullable<IDetailsHeaderProps["styles"]> {
+  const icon = getIcon(allCollapsed ? "ExploreContent" : "CollapseContent");
+  if (icon?.code === undefined) return {};
+  return {
+    cellIsGroupExpander: [
+      // The icon font's own class; merging a class name carries its base rules (the font)
+      // but not its `::before`, so the glyph is written here.
+      icon.subset.className,
+      { selectors: { "::before": { content: `"${icon.code}"` } } },
+    ],
+    collapseButton: { display: "none" },
+  };
+}
+
+/** A click that a control inside a group header handles itself — not a header toggle. */
+const INTERACTIVE =
+  'a, button, input, select, textarea, [role="button"], [role="link"], [role="checkbox"]';
+
 /** `a` moved `t` of the way to `b`, for two `#rrggbb` colours. */
 function mixHex(a: string, b: string, t: number): string {
   const ch = (hex: string, i: number): number =>
@@ -1277,7 +1304,18 @@ export function V8Table(
                                 aria-colspan={titleProps?.ariaColSpan}
                                 style={{
                                   alignSelf: "center",
+                                  cursor: "pointer",
                                   ...groupTitleStyle(g),
+                                }}
+                                // The title toggles its group too, as the chevron does —
+                                // except where a control in an app's header took the click.
+                                onClick={(e) => {
+                                  const hit = (e.target as Element).closest(
+                                    INTERACTIVE,
+                                  );
+                                  if (hit && e.currentTarget.contains(hit))
+                                    return;
+                                  p.onToggleGroup?.(g.id);
                                 }}
                               >
                                 {g.header}
@@ -1293,7 +1331,12 @@ export function V8Table(
             headerProps && defaultRender
               ? defaultRender({
                   ...headerProps,
-                  styles: HEADER_ROW_STYLES,
+                  styles: groups
+                    ? {
+                        ...HEADER_ROW_STYLES,
+                        ...groupToggleStyles(p.allGroupsCollapsed ?? false),
+                      }
+                    : HEADER_ROW_STYLES,
                   // Grouped, the cell in front of the columns is the expand/collapse-all
                   // toggle — driven by the table, like every group's own, so DetailsList
                   // never flips collapse state behind its back.

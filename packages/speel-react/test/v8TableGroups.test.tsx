@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { registerIcons } from "@fluentui/react";
 import { V8Table } from "../src/fluent-v8/primitives.js";
 import type {
   TableColumn,
@@ -212,6 +213,91 @@ describe("V8Table groups", () => {
     expect(
       screen.getByRole("columnheader", { name: "Expand all groups" }),
     ).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("draws the header toggle with the collapse/expand icons, not Fluent's chevron", () => {
+    // A font icon set, as SPFx registers: the toggle draws the glyph itself.
+    registerIcons({
+      fontFace: { fontFamily: "SpeelTestIcons" },
+      icons: { CollapseContent: "\ue100", ExploreContent: "\ue101" },
+    });
+    const at = (collapsed: boolean) => (
+      <V8Table
+        columns={columns}
+        items={items.slice(0, 2)}
+        groups={nested}
+        allGroupsCollapsed={collapsed}
+        onToggleAllGroups={() => undefined}
+        containerWidth={600}
+      />
+    );
+    /** The glyph a `::before` rule on one of the cell's classes paints. */
+    const glyphOf = (cell: HTMLElement): string | undefined => {
+      const rules = Array.from(document.styleSheets).flatMap((sheet) =>
+        Array.from(sheet.cssRules).map((r) => r.cssText),
+      );
+      for (const c of Array.from(cell.classList)) {
+        for (const r of rules) {
+          const m = new RegExp(`^\\.${c}::before \\{content: "(.)";`).exec(r);
+          if (m) return m[1];
+        }
+      }
+      return undefined;
+    };
+    const { rerender } = render(at(false));
+    const cell = screen.getByRole("columnheader", {
+      name: "Collapse all groups",
+    });
+    expect(glyphOf(cell)).toBe("\ue100");
+    expect(
+      cell.querySelector('[data-icon-name="ChevronRightMed"]'),
+    ).not.toBeVisible();
+    rerender(at(true));
+    expect(
+      glyphOf(screen.getByRole("columnheader", { name: "Expand all groups" })),
+    ).toBe("\ue101");
+  });
+
+  it("toggles a group from its header text, not only its chevron", () => {
+    const onToggleGroup = vi.fn();
+    render(
+      <V8Table
+        columns={columns}
+        items={items}
+        groups={groups(false)}
+        onToggleGroup={onToggleGroup}
+        containerWidth={600}
+      />,
+    );
+    fireEvent.click(screen.getByText("Status: Closed (1)"));
+    expect(onToggleGroup).toHaveBeenCalledWith("s=Closed");
+  });
+
+  it("leaves a click on a control inside a custom header to that control", () => {
+    const onToggleGroup = vi.fn();
+    const onClick = vi.fn();
+    render(
+      <V8Table
+        columns={columns}
+        items={items}
+        groups={[
+          {
+            ...groups(false)[0]!,
+            customHeader: true,
+            header: (
+              <span>
+                Open <button onClick={onClick}>Assign</button>
+              </span>
+            ),
+          },
+        ]}
+        onToggleGroup={onToggleGroup}
+        containerWidth={600}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+    expect(onClick).toHaveBeenCalled();
+    expect(onToggleGroup).not.toHaveBeenCalled();
   });
 
   it("mutes default group headers by level, in at most three steps", () => {

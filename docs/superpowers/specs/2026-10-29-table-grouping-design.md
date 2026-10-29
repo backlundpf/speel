@@ -6,7 +6,7 @@ Date: 2026-10-29 · Status: approved in conversation, pending written-spec revie
 
 `SpeelTable` (and `SpeelEntityTable`, which forwards its props) can group its rows into
 nested, collapsible groups — groups → subgroups → sub-subgroups, as deep as the developer
-lists. Each group header shows the group's row count. A toolbar button expands or collapses
+lists. Each group header shows the group's row count. A header-cell toggle expands or collapses
 every group at once, and each level declares whether its groups start expanded or collapsed.
 
 ## Non-goals (this cycle)
@@ -129,17 +129,18 @@ All new types are exported from `src/index.ts`.
 - **Header styling.** Default headers step down by level — three greys, darkest at the top
   level and settling at the third, all semibold and AA-legible. A custom `header` is
   rendered as given. The v8 skin offsets data rows under their innermost group and puts an
-  expand/collapse-all chevron in the header cell in front of the columns (driven through
-  `allGroupsCollapsed` / `onToggleAllGroups`); the shadcn skin keeps data rows flush.
-- **Expand/collapse all.** A toolbar button with an icon (`CollapseContent` / `ExploreContent`), shown whenever `groupBy` is non-empty: labelled
-  "Collapse all" while any group _on screen_ (every ancestor expanded) is expanded, otherwise
-  "Expand all" — so a collapsed outer level reads "Expand all" even if its hidden subgroups
-  are expanded. Clicking it puts the whole table in that mode for the session: per-group
-  state is cleared and the mode replaces every level's `collapsed` default, so groups that
-  appear or return later (after a filter change, a reload) follow the user's last
-  all-click. Individual toggles after that layer on top as usual. The handle methods are
-  the same operation. _(My call.)_ Rendered by
-  `SpeelTable` through `ui.Button`, so skins only ever toggle single groups.
+  expand/collapse-all toggle in the header cell in front of the columns (driven through
+  `allGroupsCollapsed` / `onToggleAllGroups`); the shadcn skin does the same.
+- **Expand/collapse all.** A toggle in the header cell in front of the columns, rendered by
+  the skin from `allGroupsCollapsed` / `onToggleAllGroups` (no toolbar button): it collapses
+  while any group _on screen_ (every ancestor expanded) is expanded, otherwise expands — so a
+  collapsed outer level offers to expand even if its hidden subgroups are expanded. Using it
+  puts the whole table in that mode for the session: per-group state is cleared and the mode
+  replaces every level's `collapsed` default, so groups that appear or return later (after a
+  filter change, a reload) follow the user's last all-click. Individual toggles after that
+  layer on top as usual. The handle methods are the same operation. _(My call.)_
+- **Group header clicks.** A group toggles from its chevron or a click on its header text; a
+  click on a control inside an app's own header stays with that control.
 - **Default header.** A column level: `<column header>: <label> (<count>)`. A `by` level:
   `<label> (<count>)`. A custom `header` replaces the whole text, count included — the skin
   never appends a count of its own.
@@ -191,11 +192,13 @@ field). Absent `groups` = today's flat table, unchanged.
 
 - **v8 skin** (`src/fluent-v8/primitives.tsx`, `V8Table`): pass `groups` to `DetailsList`,
   render `header` as the group title, include DetailsList's group-expand and indent widths in
-  the width layout (`viewport` / column resolution), suppress DetailsList's own count and its header-row
-  collapse-all chevron (the toolbar button owns that), route the chevron to `onToggleGroup`.
+  the width layout (`viewport` / column resolution), suppress DetailsList's own count, drive
+  its header-row collapse-all cell from `allGroupsCollapsed` / `onToggleAllGroups` with the
+  MDL2 `CollapseContent` / `ExploreContent` glyphs, route the chevron to `onToggleGroup`.
 - **shadcn skin** (`registry/src/speel-shadcn/table.tsx`, authored in the registry first,
   then `npm run sync:skin` into the sample; `check:skin` gates drift): a header row at each
-  group start, indented by level, with a chevron button.
+  group start, indented by level, with a chevron button; a leading column offsets data rows
+  by one step per level, its header cell holding the expand/collapse-all toggle.
 - **Fake adapter** (tests): renders group headers and honours `collapsed`, so `SpeelTable`
   behaviour is testable without a skin.
 
