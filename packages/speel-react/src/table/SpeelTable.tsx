@@ -284,6 +284,7 @@ function SpeelTableInner<T extends IEntity>(
       level: g.level,
       startIndex: g.startIndex,
       collapsed: isCollapsed(g),
+      ...(level.header ? { customHeader: true } : {}),
       ...(g.children.length > 0
         ? { children: g.children.map(toGroupNode) }
         : {}),
@@ -524,6 +525,7 @@ function SpeelTableInner<T extends IEntity>(
           ? {
               groupToggle: {
                 text: canCollapse ? "Collapse all" : "Expand all",
+                iconName: canCollapse ? "CollapseContent" : "ExploreContent",
                 onClick: () => collapse.setAll(canCollapse),
               },
             }

@@ -303,6 +303,14 @@ const INTENT_ROW: Record<RowIntent, string> = {
   muted: "text-muted-foreground bg-muted/40",
 };
 
+/** Default group headers step down per level — two greys and a weight drop, every step
+ *  still AA-legible — so the outer levels read first. An app's own header is left as given. */
+const GROUP_HEADER_LEVEL = [
+  "text-foreground font-semibold",
+  "text-muted-foreground font-semibold",
+  "text-muted-foreground font-normal",
+];
+
 export function ShadTable(p: TableProps): ReactElement {
   // Hooks sit before the empty early-return: they may not be conditional.
   const container = useRef<HTMLDivElement>(null);
@@ -409,7 +417,6 @@ export function ShadTable(p: TableProps): ReactElement {
       >
         <TableCell
           colSpan={p.columns.length}
-          className="font-medium"
           style={{
             paddingLeft: `calc(${g.level * 1.5}rem + ${padding / 2}px)`,
           }}
@@ -428,7 +435,15 @@ export function ShadTable(p: TableProps): ReactElement {
                 <ChevronDown className="size-4" aria-hidden />
               )}
             </button>
-            {g.header}
+            <span
+              className={
+                g.customHeader
+                  ? undefined
+                  : GROUP_HEADER_LEVEL[Math.min(g.level, 2)]
+              }
+            >
+              {g.header}
+            </span>
           </span>
         </TableCell>
       </TableRow>,

@@ -405,6 +405,9 @@ export interface TableGroupNode {
   /** Where the group's rows start in `items`. */
   startIndex: number;
   collapsed: boolean;
+  /** The header is the app's own (`header` on its level): the skin renders it as given,
+   *  without the progressive per-level muting it gives the default headers. */
+  customHeader?: boolean;
   children?: TableGroupNode[];
 }
 

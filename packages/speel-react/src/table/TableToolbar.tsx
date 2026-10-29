@@ -8,7 +8,7 @@ export interface TableToolbarProps {
   onPrint?: () => void;
   chooser?: ReactNode;
   /** Expand/collapse every group of a grouped table. */
-  groupToggle?: { text: string; onClick: () => void };
+  groupToggle?: { text: string; iconName: string; onClick: () => void };
   /** The active filter chips, grown to fill the row's centre. */
   filters?: ReactNode;
   /** The universal search box, between the chips and the icon actions. */
@@ -56,6 +56,7 @@ export function TableToolbar({
       {groupToggle ? (
         <ui.Button
           text={groupToggle.text}
+          iconName={groupToggle.iconName}
           appearance="subtle"
           onClick={groupToggle.onClick}
         />

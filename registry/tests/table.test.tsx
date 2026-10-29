@@ -509,6 +509,45 @@ describe("shadcn Table groups", () => {
     expect(onToggleGroup).toHaveBeenCalledWith("s=Closed");
   });
 
+  it("mutes default group headers by level, in at most three steps", () => {
+    const at = (level: number, extra: Partial<TableGroupNode> = {}) => ({
+      id: `g${level}`,
+      header: `Level ${level}`,
+      label: `L${level}`,
+      count: 1,
+      level,
+      startIndex: 0,
+      collapsed: false,
+      ...extra,
+    });
+    const tree: TableGroupNode[] = [
+      {
+        ...at(0),
+        children: [{ ...at(1), children: [{ ...at(2), children: [at(3)] }] }],
+      },
+    ];
+    render(<T columns={cols} items={rows.slice(0, 1)} groups={tree} />);
+    const cls = (n: number) => screen.getByText(`Level ${n}`).className;
+    expect(cls(0)).toContain("text-foreground");
+    expect(cls(0)).toContain("font-semibold");
+    expect(cls(1)).toContain("text-muted-foreground");
+    expect(cls(1)).toContain("font-semibold");
+    expect(cls(2)).toContain("text-muted-foreground");
+    expect(cls(2)).toContain("font-normal");
+    expect(cls(3)).toBe(cls(2));
+  });
+
+  it("leaves an app's own group header unstyled", () => {
+    render(
+      <T
+        columns={cols}
+        items={rows}
+        groups={[{ ...groups(false)[1]!, level: 1, customHeader: true }]}
+      />,
+    );
+    expect(screen.getByText("Status: Closed (1)").className).toBe("");
+  });
+
   it("renders a flat table without group rows", () => {
     const { container } = render(<T columns={cols} items={rows} />);
     expect(container.querySelector("tr[data-group-level]")).toBeNull();

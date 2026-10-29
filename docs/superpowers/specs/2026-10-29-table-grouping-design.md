@@ -126,7 +126,11 @@ All new types are exported from `src/index.ts`.
   first time takes its level's `collapsed` default. State survives filter, search, sort and
   `reload()` changes (an id that disappears and comes back keeps its last state). Collapsing
   a parent hides its subgroups without changing their own state.
-- **Expand/collapse all.** A toolbar button, shown whenever `groupBy` is non-empty: labelled
+- **Header styling.** Default headers step down by level — top level dark and semibold,
+  second muted and semibold, third and deeper muted and regular, every step AA-legible. A
+  custom `header` is rendered as given. Skins indent only group headers; data rows sit
+  flush under the column headers.
+- **Expand/collapse all.** A toolbar button with an icon (`CollapseContent` / `ExploreContent`), shown whenever `groupBy` is non-empty: labelled
   "Collapse all" while any group _on screen_ (every ancestor expanded) is expanded, otherwise
   "Expand all" — so a collapsed outer level reads "Expand all" even if its hidden subgroups
   are expanded. Clicking it puts the whole table in that mode for the session: per-group
@@ -167,6 +171,8 @@ export interface TableGroupNode {
   /** Where the group's rows start in `items`. */
   startIndex: number;
   collapsed: boolean;
+  /** The header is the app's own (`header`): rendered as given, without per-level muting. */
+  customHeader?: boolean;
   children?: TableGroupNode[];
 }
 

@@ -40,6 +40,35 @@ const groups = (closedCollapsed: boolean): TableGroupNode[] => [
     collapsed: closedCollapsed,
   },
 ];
+const nested: TableGroupNode[] = [
+  {
+    id: "s=Open",
+    header: "Status: Open (2)",
+    label: "Open",
+    count: 2,
+    level: 0,
+    startIndex: 0,
+    collapsed: false,
+    children: [
+      {
+        id: "s=Open/o=Ann",
+        header: "Owner: Ann (2)",
+        label: "Ann",
+        count: 2,
+        level: 1,
+        startIndex: 0,
+        collapsed: false,
+      },
+    ],
+  },
+];
+/** What each header cell renders at. */
+const headerWidths = (container: HTMLElement): number[] =>
+  Array.from(
+    container.querySelectorAll<HTMLElement>(
+      '[data-automationid="ColumnsHeaderColumn"]',
+    ),
+  ).map((el) => parseFloat(el.style.width));
 /** The table's own box: as wide as the columns, spacers included. */
 const tableBox = (container: HTMLElement): number =>
   parseFloat(
@@ -132,28 +161,13 @@ describe("V8Table groups", () => {
     expect(screen.queryByText("closed one")).toBeNull();
   });
 
-  it("widens the table by one spacer per nesting level", () => {
+  it("lays data rows flush under the column headers: no nesting column", () => {
     const flat = render(
       <V8Table columns={columns} items={items} containerWidth={600} />,
     );
     const flatWidth = tableBox(flat.container);
+    const flatColumns = headerWidths(flat.container);
     flat.unmount();
-    const nested: TableGroupNode[] = [
-      {
-        ...groups(false)[0]!,
-        children: [
-          {
-            id: "s=Open/o=Ann",
-            header: "Owner: Ann (2)",
-            label: "Ann",
-            count: 2,
-            level: 1,
-            startIndex: 0,
-            collapsed: false,
-          },
-        ],
-      },
-    ];
     const { container } = render(
       <V8Table
         columns={columns}
@@ -162,6 +176,89 @@ describe("V8Table groups", () => {
         containerWidth={600}
       />,
     );
-    expect(tableBox(container)).toBe(flatWidth + 2 * 36);
+    expect(tableBox(container)).toBe(flatWidth);
+    // DetailsList's justified pass takes a group-expand width per level out of the columns'
+    // room; with no such column drawn, the columns must keep their full widths.
+    expect(headerWidths(container)).toEqual(flatColumns);
+    // One column header per column — no empty group-expander header in front of them.
+    expect(screen.getAllByRole("columnheader")).toHaveLength(columns.length);
+    // A data row holds its cells and nothing else: no spacer cell before them.
+    const row = container.querySelector('[data-automationid="DetailsRow"]')!;
+    expect(
+      row.querySelectorAll('[role="gridcell"], [role="rowheader"]'),
+    ).toHaveLength(columns.length);
+  });
+
+  it("mutes default group headers by level, in at most three steps", () => {
+    const deep: TableGroupNode[] = [
+      {
+        ...nested[0]!,
+        children: [
+          {
+            ...nested[0]!.children![0]!,
+            children: [
+              {
+                id: "s=Open/o=Ann/d=Late",
+                header: "Due: Late (2)",
+                label: "Late",
+                count: 2,
+                level: 2,
+                startIndex: 0,
+                collapsed: false,
+                children: [
+                  {
+                    id: "s=Open/o=Ann/d=Late/x=Deep",
+                    header: "Deep (2)",
+                    label: "Deep",
+                    count: 2,
+                    level: 3,
+                    startIndex: 0,
+                    collapsed: false,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    render(
+      <V8Table
+        columns={columns}
+        items={items.slice(0, 2)}
+        groups={deep}
+        containerWidth={600}
+      />,
+    );
+    const title = (text: string) => screen.getByText(text);
+    expect(title("Status: Open (2)")).toHaveStyle({
+      color: "#323130",
+      fontWeight: 600,
+    });
+    expect(title("Owner: Ann (2)")).toHaveStyle({
+      color: "#605e5c",
+      fontWeight: 600,
+    });
+    expect(title("Due: Late (2)")).toHaveStyle({
+      color: "#605e5c",
+      fontWeight: 400,
+    });
+    expect(title("Deep (2)")).toHaveStyle({
+      color: "#605e5c",
+      fontWeight: 400,
+    });
+  });
+
+  it("leaves an app's own group header unstyled", () => {
+    render(
+      <V8Table
+        columns={columns}
+        items={items}
+        groups={[{ ...groups(false)[1]!, customHeader: true, level: 1 }]}
+        containerWidth={600}
+      />,
+    );
+    const title = screen.getByText("Status: Closed (1)");
+    expect(title.style.color).toBe("");
   });
 });

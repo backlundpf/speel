@@ -1021,9 +1021,9 @@ function V8Cell({
   );
 }
 
-/** The width of one group-nesting spacer: Fluent's `SPACER_WIDTH`, which is also the
- *  header's group-expand cell. Passed as `indentWidth` so the two cannot drift apart. */
-const GROUP_SPACER_WIDTH = 36;
+/** How far each group level's header is indented. Only group headers indent: data rows sit
+ *  flush under the column headers (see `groupNestingDepth: 0` below). */
+const GROUP_INDENT_WIDTH = 36;
 
 function toIGroups(nodes: readonly TableGroupNode[]): IGroup[] {
   return nodes.map((g) => ({
@@ -1049,13 +1049,18 @@ function groupDepth(nodes: readonly TableGroupNode[]): number {
   );
 }
 
-function groupHeaders(
+/** What DetailsList's justified pass takes out of the columns' room per nesting level, for
+ *  a group-expand column it would draw in front of them: its `SPACER_WIDTH`, which the
+ *  package does not export. */
+const GROUP_EXPAND_WIDTH = 36;
+
+function groupNodes(
   nodes: readonly TableGroupNode[],
-  out = new Map<string, React.ReactNode>(),
-): Map<string, React.ReactNode> {
+  out = new Map<string, TableGroupNode>(),
+): Map<string, TableGroupNode> {
   for (const g of nodes) {
-    out.set(g.id, g.header);
-    if (g.children) groupHeaders(g.children, out);
+    out.set(g.id, g);
+    if (g.children) groupNodes(g.children, out);
   }
   return out;
 }
@@ -1181,17 +1186,29 @@ export function V8Table(
     ),
   }));
 
-  // The resolved columns, padding included — and, when grouped, the spacers DetailsList puts
-  // before them: one per nesting level on every row (the header's first is its group-expand
-  // cell, the same width).
-  const depth = p.groups ? groupDepth(p.groups) : 0;
-  const content =
-    layout.widths.reduce((sum, w) => sum + w + CELL_PADDING, 0) +
-    depth * GROUP_SPACER_WIDTH;
+  // The resolved columns, padding included. Grouped or not: the nesting spacers DetailsList
+  // would put before them are turned off.
+  const content = layout.widths.reduce((sum, w) => sum + w + CELL_PADDING, 0);
+  // That column is still deducted from the room the justified pass lays the columns out in,
+  // so the viewport it is handed gets the width back — and the columns land on `content`.
+  const layoutWidth =
+    content + (p.groups ? groupDepth(p.groups) * GROUP_EXPAND_WIDTH : 0);
   // Rebuilt every render: DetailsList's group headers take `isCollapsed` from these, so the
   // prop stays the only source of collapse state.
   const groups = p.groups ? toIGroups(p.groups) : undefined;
-  const headers = p.groups ? groupHeaders(p.groups) : undefined;
+  const nodes = p.groups ? groupNodes(p.groups) : undefined;
+  // Default group headers step down per level — two greys and a weight drop, every step
+  // still AA-legible — so the outer levels read first. An app's own header is left as given.
+  const groupTitleStyle = (g: TableGroupNode): React.CSSProperties =>
+    g.customHeader
+      ? {}
+      : {
+          color:
+            g.level === 0
+              ? theme.palette.neutralPrimary
+              : theme.palette.neutralSecondary,
+          fontWeight: g.level < 2 ? 600 : 400,
+        };
   return (
     // The outer box is the one measured: as wide as the space the table may lay out in.
     <div ref={wrapper}>
@@ -1217,7 +1234,7 @@ export function V8Table(
            * Passing `viewport` explicitly is supported: `withViewport` spreads our props over
            * the value it measured, so ours wins. Only `width` is read for layout.
            */
-          viewport={{ width: content, height: 0 }}
+          viewport={{ width: layoutWidth, height: 0 }}
           // Fluent's own root is the scroller: header and rows are inline blocks with
           // `min-width: 100%`, so they overflow it together. Passed explicitly (it is also the
           // default) because the width behaviour above depends on it.
@@ -1225,7 +1242,7 @@ export function V8Table(
           {...(groups
             ? {
                 groups,
-                indentWidth: GROUP_SPACER_WIDTH,
+                indentWidth: GROUP_INDENT_WIDTH,
                 groupProps: {
                   // The toolbar owns expand/collapse-all; Fluent's header chevron would be
                   // a second, unsynchronised one.
@@ -1235,6 +1252,9 @@ export function V8Table(
                     headerProps && defaultRender
                       ? defaultRender({
                           ...headerProps,
+                          // A group header stretches to its viewport: the table's own width,
+                          // not the widened one the column layout is handed.
+                          viewport: { width: content, height: 0 },
                           // Fluent leaves the chevron unnamed; it is named by the group.
                           expandButtonProps: {
                             "aria-label": headerProps.group?.name,
@@ -1243,15 +1263,21 @@ export function V8Table(
                             p.onToggleGroup?.(g.key),
                           // Our header replaces the whole title, Fluent's "(n)" included.
                           // A grid cell, as Fluent's own title is: the header is a `row`.
-                          onRenderTitle: (titleProps) => (
-                            <div
-                              role="gridcell"
-                              aria-colspan={titleProps?.ariaColSpan}
-                              style={{ alignSelf: "center", fontWeight: 600 }}
-                            >
-                              {headers!.get(titleProps?.group?.key ?? "")}
-                            </div>
-                          ),
+                          onRenderTitle: (titleProps) => {
+                            const g = nodes!.get(titleProps?.group?.key ?? "");
+                            return g ? (
+                              <div
+                                role="gridcell"
+                                aria-colspan={titleProps?.ariaColSpan}
+                                style={{
+                                  alignSelf: "center",
+                                  ...groupTitleStyle(g),
+                                }}
+                              >
+                                {g.header}
+                              </div>
+                            ) : null;
+                          },
                         })
                       : null,
                 },
@@ -1259,7 +1285,14 @@ export function V8Table(
             : {})}
           onRenderDetailsHeader={(headerProps, defaultRender) =>
             headerProps && defaultRender
-              ? defaultRender({ ...headerProps, styles: HEADER_ROW_STYLES })
+              ? defaultRender({
+                  ...headerProps,
+                  styles: HEADER_ROW_STYLES,
+                  // Grouped, DetailsList reserves an empty group-expander column before the
+                  // headers (and a spacer per level before every row's cells). Only group
+                  // headers indent here, so neither is wanted.
+                  ...(groups ? { groupNestingDepth: 0 } : {}),
+                })
               : null
           }
           {...(p.getRowKey
@@ -1299,7 +1332,7 @@ export function V8Table(
                 },
               }
             : {})}
-          {...(p.getRowIntent || p.getRowClassName
+          {...(p.getRowIntent || p.getRowClassName || groups
             ? {
                 onRenderRow: (
                   rowProps?: IDetailsRowProps,
@@ -1312,6 +1345,8 @@ export function V8Table(
                   const background = rowBackground(intent);
                   return defaultRender({
                     ...rowProps,
+                    // Flush under the column headers: no per-level spacer (see the header).
+                    ...(groups ? { groupNestingDepth: 0 } : {}),
                     ...(cls ? { className: cls } : {}),
                     ...(background
                       ? {

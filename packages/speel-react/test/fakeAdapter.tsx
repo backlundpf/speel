@@ -777,7 +777,11 @@ export const fakeAdapter: SpeelUIAdapter = {
     };
     const renderGroups = (nodes: TableGroupNode[]): JSX.Element[] =>
       nodes.flatMap((g) => [
-        <tr key={`group:${g.id}`} data-group-level={g.level}>
+        <tr
+          key={`group:${g.id}`}
+          data-group-level={g.level}
+          {...(g.customHeader ? { "data-custom-header": "" } : {})}
+        >
           <td colSpan={columns.length}>
             <button
               type="button"

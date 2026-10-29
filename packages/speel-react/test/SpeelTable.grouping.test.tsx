@@ -177,6 +177,44 @@ describe("SpeelTable grouping", () => {
     ).toBeInTheDocument();
   });
 
+  it("gives the expand/collapse-all button an icon that matches what it does", () => {
+    wrap(
+      <SpeelTable
+        of={Task}
+        items={many}
+        columns={columns}
+        groupBy={["Status"]}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Collapse all" }),
+    ).toHaveAttribute("data-icon", "CollapseContent");
+    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
+    expect(screen.getByRole("button", { name: "Expand all" })).toHaveAttribute(
+      "data-icon",
+      "ExploreContent",
+    );
+  });
+
+  it("tells the skin which group headers are the app's own", () => {
+    const { container } = wrap(
+      <SpeelTable
+        of={Task}
+        items={many}
+        columns={columns}
+        groupBy={(p) => [
+          p.Status,
+          { key: p.Owner.key, header: (g) => <i>{g.label}</i> },
+        ]}
+      />,
+    );
+    const level = (n: number) =>
+      Array.from(container.querySelectorAll(`tr[data-group-level="${n}"]`));
+    for (const tr of level(0))
+      expect(tr).not.toHaveAttribute("data-custom-header");
+    for (const tr of level(1)) expect(tr).toHaveAttribute("data-custom-header");
+  });
+
   it("offers Expand all when only hidden subgroups are expanded", () => {
     wrap(
       <SpeelTable
