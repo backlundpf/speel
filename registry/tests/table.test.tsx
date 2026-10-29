@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import type { TableColumn } from "@speel/react";
+import type { TableColumn, TableGroupNode } from "@speel/react";
 
 import { shadcnAdapter } from "@/speel-shadcn/adapter";
 import { shadMetrics } from "@/speel-shadcn/table";
@@ -410,5 +410,108 @@ describe("shadcn Table theme", () => {
       raf.mockRestore();
       window.ResizeObserver = savedRO;
     }
+  });
+});
+
+describe("shadcn Table groups", () => {
+  type Row = { t: string };
+  const cols: TableColumn[] = [
+    { key: "t", header: "Title", render: (r) => (r as Row).t },
+    { key: "u", header: "Other", render: () => "·" },
+  ];
+  const rows: Row[] = [
+    { t: "open one" },
+    { t: "open two" },
+    { t: "closed one" },
+  ];
+  const groups = (closedCollapsed: boolean): TableGroupNode[] => [
+    {
+      id: "s=Open",
+      header: "Status: Open (2)",
+      label: "Open",
+      count: 2,
+      level: 0,
+      startIndex: 0,
+      collapsed: false,
+      children: [
+        {
+          id: "s=Open/o=Ann",
+          header: "Owner: Ann (2)",
+          label: "Ann",
+          count: 2,
+          level: 1,
+          startIndex: 0,
+          collapsed: false,
+        },
+      ],
+    },
+    {
+      id: "s=Closed",
+      header: "Status: Closed (1)",
+      label: "Closed",
+      count: 1,
+      level: 0,
+      startIndex: 2,
+      collapsed: closedCollapsed,
+    },
+  ];
+
+  it("renders a header row per group, spanning every column", () => {
+    const { container } = render(
+      <T columns={cols} items={rows} groups={groups(false)} />,
+    );
+    expect(screen.getByText("Status: Open (2)")).toBeInTheDocument();
+    expect(screen.getByText("Owner: Ann (2)")).toBeInTheDocument();
+    const header = container.querySelector('tr[data-group-level="0"] td')!;
+    expect(header.getAttribute("colspan")).toBe("2");
+    expect(container.querySelectorAll('tr[data-group-level="1"]')).toHaveLength(
+      1,
+    );
+    expect(screen.getByText("closed one")).toBeInTheDocument();
+  });
+
+  it("nests a subgroup inside its parent, before the next root", () => {
+    const { container } = render(
+      <T columns={cols} items={rows} groups={groups(false)} />,
+    );
+    const order = Array.from(container.querySelectorAll("tbody tr")).map(
+      (tr) => tr.textContent,
+    );
+    expect(order[0]).toContain("Status: Open (2)");
+    expect(order[1]).toContain("Owner: Ann (2)");
+    expect(order[2]).toContain("open one");
+    expect(order[4]).toContain("Status: Closed (1)");
+  });
+
+  it("hides the rows of a collapsed group", () => {
+    render(<T columns={cols} items={rows} groups={groups(true)} />);
+    expect(screen.getByText("open one")).toBeInTheDocument();
+    expect(screen.queryByText("closed one")).toBeNull();
+  });
+
+  it("names each toggle by its group, reports it by id, and says whether it is expanded", () => {
+    const onToggleGroup = vi.fn();
+    render(
+      <T
+        columns={cols}
+        items={rows}
+        groups={groups(true)}
+        onToggleGroup={onToggleGroup}
+      />,
+    );
+    const closed = screen.getByRole("button", { name: "Closed" });
+    expect(closed).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "Open" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    fireEvent.click(closed);
+    expect(onToggleGroup).toHaveBeenCalledWith("s=Closed");
+  });
+
+  it("renders a flat table without group rows", () => {
+    const { container } = render(<T columns={cols} items={rows} />);
+    expect(container.querySelector("tr[data-group-level]")).toBeNull();
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(3);
   });
 });

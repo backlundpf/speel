@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import type { KeyboardEvent, MouseEvent, ReactElement, ReactNode } from "react";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight } from "lucide-react";
 
 import {
   Table,
@@ -32,6 +32,7 @@ import type {
   HeaderRoom,
   RowIntent,
   TableColumn,
+  TableGroupNode,
   TableProps,
   TableSort,
 } from "@speel/react";
@@ -365,6 +366,80 @@ export function ShadTable(p: TableProps): ReactElement {
   // widen every column past its resolved width, and a dragged column would not land where
   // it was let go. Spare width stays empty instead, as in CSS flexbox and the v8 skin.
   const tableWidth = layout.widths.reduce((sum, w) => sum + w + padding, 0);
+  const renderRow = (row: unknown, i: number): ReactElement => {
+    const intent = p.getRowIntent?.(row, i);
+    const cls = p.getRowClassName?.(row, i);
+    return (
+      <TableRow
+        key={p.getRowKey ? p.getRowKey(row, i) : i}
+        className={cn(intent ? INTENT_ROW[intent] : undefined, cls)}
+      >
+        {p.columns.map((c) => (
+          <TableCell
+            key={c.key}
+            className={cn(
+              c.wrap
+                ? "overflow-hidden text-ellipsis whitespace-normal [overflow-wrap:normal] [word-break:normal]"
+                : "truncate",
+              c.align ? ALIGN[c.align] : undefined,
+            )}
+            {...(c.cellTitle
+              ? {
+                  onMouseEnter: (e: MouseEvent<HTMLTableCellElement>) =>
+                    setOverflowTitle(e.currentTarget, () => c.cellTitle!(row)),
+                }
+              : {})}
+          >
+            {c.render(row) as ReactNode}
+          </TableCell>
+        ))}
+      </TableRow>
+    );
+  };
+  // A header row at each group's start, then — when it is expanded — its subgroups, or at
+  // the innermost level the slice of `items` it covers. Depth is indented; the default
+  // header's "Status: …" prefix says the level in words, which a plain table has no row
+  // attribute for.
+  const renderGroups = (nodes: readonly TableGroupNode[]): ReactElement[] =>
+    nodes.flatMap((g) => [
+      <TableRow
+        key={`group:${g.id}`}
+        data-group-level={g.level}
+        className="bg-muted/30"
+      >
+        <TableCell
+          colSpan={p.columns.length}
+          className="font-medium"
+          style={{
+            paddingLeft: `calc(${g.level * 1.5}rem + ${padding / 2}px)`,
+          }}
+        >
+          <span className="inline-flex items-center gap-1">
+            <button
+              type="button"
+              aria-expanded={!g.collapsed}
+              aria-label={g.label}
+              onClick={() => p.onToggleGroup?.(g.id)}
+              className="hover:bg-accent inline-flex size-6 items-center justify-center rounded-sm"
+            >
+              {g.collapsed ? (
+                <ChevronRight className="size-4" aria-hidden />
+              ) : (
+                <ChevronDown className="size-4" aria-hidden />
+              )}
+            </button>
+            {g.header}
+          </span>
+        </TableCell>
+      </TableRow>,
+      ...(g.collapsed
+        ? []
+        : g.children && g.children.length > 0
+          ? renderGroups(g.children)
+          : p.items
+              .slice(g.startIndex, g.startIndex + g.count)
+              .map((row, k) => renderRow(row, g.startIndex + k))),
+    ]);
   return (
     // grid grid-cols-1 (= minmax(0,1fr)) caps the table width inside flex/grid
     // parents (e.g. the SharePoint canvas section) whose default min-width:auto
@@ -405,38 +480,7 @@ export function ShadTable(p: TableProps): ReactElement {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {p.items.map((row, i) => {
-            const intent = p.getRowIntent?.(row, i);
-            const cls = p.getRowClassName?.(row, i);
-            return (
-              <TableRow
-                key={p.getRowKey ? p.getRowKey(row, i) : i}
-                className={cn(intent ? INTENT_ROW[intent] : undefined, cls)}
-              >
-                {p.columns.map((c) => (
-                  <TableCell
-                    key={c.key}
-                    className={cn(
-                      c.wrap
-                        ? "overflow-hidden text-ellipsis whitespace-normal [overflow-wrap:normal] [word-break:normal]"
-                        : "truncate",
-                      c.align ? ALIGN[c.align] : undefined,
-                    )}
-                    {...(c.cellTitle
-                      ? {
-                          onMouseEnter: (e: MouseEvent<HTMLTableCellElement>) =>
-                            setOverflowTitle(e.currentTarget, () =>
-                              c.cellTitle!(row),
-                            ),
-                        }
-                      : {})}
-                  >
-                    {c.render(row) as ReactNode}
-                  </TableCell>
-                ))}
-              </TableRow>
-            );
-          })}
+          {p.groups ? renderGroups(p.groups) : p.items.map(renderRow)}
         </TableBody>
       </Table>
     </div>
