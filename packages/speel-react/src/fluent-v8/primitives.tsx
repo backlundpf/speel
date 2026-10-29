@@ -28,6 +28,7 @@ import {
   type IColumn,
   type IDetailsList,
   ColumnActionsMode,
+  CollapseAllVisibility,
   FontWeights,
   ProgressIndicator,
   Callout,
@@ -49,6 +50,7 @@ import type {
   IPersonaProps,
   IDetailsRowProps,
   IDetailsHeaderProps,
+  IGroup,
   IContextualMenuItem,
   IButtonStyles,
   ILinkStyleProps,
@@ -98,6 +100,7 @@ import type {
   MessageBarProps,
   DialogProps,
   DrawerProps,
+  TableGroupNode,
   TableProps,
   IconButtonProps,
   LinkProps,
@@ -1018,6 +1021,42 @@ function V8Cell({
   );
 }
 
+/** The width of one group-nesting spacer: Fluent's `SPACER_WIDTH`, which is also the
+ *  header's group-expand cell. Passed as `indentWidth` so the two cannot drift apart. */
+const GROUP_SPACER_WIDTH = 36;
+
+function toIGroups(nodes: readonly TableGroupNode[]): IGroup[] {
+  return nodes.map((g) => ({
+    key: g.id,
+    name: g.label,
+    startIndex: g.startIndex,
+    count: g.count,
+    level: g.level,
+    isCollapsed: g.collapsed,
+    ...(g.children && g.children.length > 0
+      ? { children: toIGroups(g.children) }
+      : {}),
+  }));
+}
+
+function groupDepth(nodes: readonly TableGroupNode[]): number {
+  return nodes.reduce(
+    (d, g) => Math.max(d, 1 + (g.children ? groupDepth(g.children) : 0)),
+    0,
+  );
+}
+
+function groupHeaders(
+  nodes: readonly TableGroupNode[],
+  out = new Map<string, React.ReactNode>(),
+): Map<string, React.ReactNode> {
+  for (const g of nodes) {
+    out.set(g.id, g.header);
+    if (g.children) groupHeaders(g.children, out);
+  }
+  return out;
+}
+
 export function V8Table(
   p: TableProps & {
     /** The width to lay out against, instead of measuring. A seam for tests, which have no
@@ -1139,8 +1178,17 @@ export function V8Table(
     ),
   }));
 
-  // The resolved columns, padding included.
-  const content = layout.widths.reduce((sum, w) => sum + w + CELL_PADDING, 0);
+  // The resolved columns, padding included — and, when grouped, the spacers DetailsList puts
+  // before them: one per nesting level on every row (the header's first is its group-expand
+  // cell, the same width).
+  const depth = p.groups ? groupDepth(p.groups) : 0;
+  const content =
+    layout.widths.reduce((sum, w) => sum + w + CELL_PADDING, 0) +
+    depth * GROUP_SPACER_WIDTH;
+  // Rebuilt every render: DetailsList's group headers take `isCollapsed` from these, so the
+  // prop stays the only source of collapse state.
+  const groups = p.groups ? toIGroups(p.groups) : undefined;
+  const headers = p.groups ? groupHeaders(p.groups) : undefined;
   return (
     // The outer box is the one measured: as wide as the space the table may lay out in.
     <div ref={wrapper}>
@@ -1171,6 +1219,38 @@ export function V8Table(
           // `min-width: 100%`, so they overflow it together. Passed explicitly (it is also the
           // default) because the width behaviour above depends on it.
           constrainMode={ConstrainMode.horizontalConstrained}
+          {...(groups
+            ? {
+                groups,
+                indentWidth: GROUP_SPACER_WIDTH,
+                groupProps: {
+                  // The toolbar owns expand/collapse-all; Fluent's header chevron would be
+                  // a second, unsynchronised one.
+                  collapseAllVisibility: CollapseAllVisibility.hidden,
+                  showEmptyGroups: false,
+                  onRenderHeader: (headerProps, defaultRender) =>
+                    headerProps && defaultRender
+                      ? defaultRender({
+                          ...headerProps,
+                          // Fluent leaves the chevron unnamed; it is named by the group.
+                          expandButtonProps: {
+                            "aria-label": headerProps.group?.name,
+                          },
+                          onToggleCollapse: (g: IGroup) =>
+                            p.onToggleGroup?.(g.key),
+                          // Our header replaces the whole title, Fluent's "(n)" included.
+                          onRenderTitle: (titleProps) => (
+                            <div
+                              style={{ alignSelf: "center", fontWeight: 600 }}
+                            >
+                              {headers!.get(titleProps?.group?.key ?? "")}
+                            </div>
+                          ),
+                        })
+                      : null,
+                },
+              }
+            : {})}
           onRenderDetailsHeader={(headerProps, defaultRender) =>
             headerProps && defaultRender
               ? defaultRender({ ...headerProps, styles: HEADER_ROW_STYLES })
