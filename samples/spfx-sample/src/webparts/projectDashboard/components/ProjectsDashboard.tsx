@@ -24,6 +24,7 @@ import { ProjectDashboardContext } from "../../../speel/ProjectDashboardContext"
 import { Project } from "../../../entities/Project";
 import { Programs } from "../../../entities/Programs";
 import { ArtifactsPanel } from "./ArtifactsPanel";
+import { GroupedProjectsPanel } from "./GroupedProjectsPanel";
 import { ProjectArtifact } from "../../../entities/ProjectArtifact";
 
 const SECTIONS: FormSection[] = [
@@ -128,8 +129,10 @@ const DashboardBody: React.FC<{
   const { toast, tasks, showForm, showDocumentForm } = useOverlays();
   const tableRef = React.useRef<SpeelEntityTableHandle>(null);
   const artifactsTableRef = React.useRef<SpeelEntityTableHandle>(null);
+  const groupedTableRef = React.useRef<SpeelEntityTableHandle>(null);
   const reload = (): void => {
     void tableRef.current?.reload();
+    void groupedTableRef.current?.reload();
   };
 
   // The select column: a box per row, and one in the header for every row the table matches.
@@ -343,26 +346,7 @@ const DashboardBody: React.FC<{
         emptyMessage="No projects yet — create one."
         loadingMessage="Loading projects…"
       />
-      <div style={{ marginTop: 24 }}>
-        <h3>Projects by status — grouped SpeelEntityTable</h3>
-        <SpeelEntityTable
-          of={Project}
-          columns={(p) => [p.Title, p.Owner, p.DueDate]}
-          // Status groups start open; their priority subgroups start closed. The
-          // computed level groups on a value no column holds.
-          groupBy={(p) => [
-            p.Status,
-            { key: p.Priority.key, collapsed: true },
-            {
-              key: "due",
-              by: (r) =>
-                r.DueDate && r.DueDate < new Date() ? "Overdue" : "Upcoming",
-            },
-          ]}
-          emptyMessage="No projects yet — create one."
-          loadingMessage="Loading projects…"
-        />
-      </div>
+      <GroupedProjectsPanel tableRef={groupedTableRef} />
       <ProgramsSection ctx={ctx} />
       <ArtifactsPanel tableRef={artifactsTableRef} />
     </>
