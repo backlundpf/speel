@@ -76,6 +76,17 @@ export function npmPublished({ status, stdout, stderr }, version) {
   throw new Error(`npm view failed (exit ${status}): ${stderr.trim()}`);
 }
 
+/**
+ * `npm publish`: exit 0 → "published"; "cannot publish over" (E403) → "already-published",
+ * e.g. a re-run whose `npm view` lagged behind a publish; anything else throws.
+ */
+export function publishOutcome({ status, stderr }) {
+  if (status === 0) return "published";
+  if (/cannot publish over the previously published version/i.test(stderr))
+    return "already-published";
+  throw new Error(`npm publish failed (exit ${status}): ${stderr.trim()}`);
+}
+
 /** `gh release view <tag>`: exit 0 → exists; "release not found" → not; else throw. */
 export function releaseFound({ status, stderr }) {
   if (status === 0) return true;
