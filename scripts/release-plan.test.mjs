@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   PUBLISH_ORDER,
   npmPublished,
+  publishOutcome,
   releaseFound,
   tagFound,
   distTagFor,
@@ -222,4 +223,29 @@ test("tagFound: exit 0 → true; exit 2 (no match) → false; anything else thro
   assert.equal(tagFound({ status: 0, stderr: "" }), true);
   assert.equal(tagFound({ status: 2, stderr: "" }), false);
   assert.throws(() => tagFound({ status: 128, stderr: "fatal: auth" }), /auth/);
+});
+
+test("publishOutcome: exit 0 → published; 'cannot publish over' E403 → already-published; anything else throws", () => {
+  assert.equal(publishOutcome({ status: 0, stderr: "" }), "published");
+  assert.equal(
+    publishOutcome({
+      status: 1,
+      stderr:
+        "npm error code E403\nnpm error 403 403 Forbidden - PUT https://registry.npmjs.org/@speel%2fcore - You cannot publish over the previously published versions: 0.1.0-beta.5.\n",
+    }),
+    "already-published",
+  );
+  assert.throws(
+    () =>
+      publishOutcome({
+        status: 1,
+        stderr:
+          "npm error code E403\nnpm error 403 Forbidden - not authorized to publish",
+      }),
+    /npm publish failed \(exit 1\)/,
+  );
+  assert.throws(
+    () => publishOutcome({ status: 1, stderr: "npm error code ECONNRESET" }),
+    /ECONNRESET/,
+  );
 });

@@ -16,6 +16,7 @@ import { join } from "node:path";
 import {
   npmPublished,
   planRelease,
+  publishOutcome,
   releaseFound,
   releaseNotes,
   tagFound,
@@ -92,8 +93,9 @@ if (plan.runGates) {
   for (const script of ["build", "check:node-esm", "typecheck", "test"])
     run("npm", ["run", script]);
 }
+// stderr is captured (and echoed) to recognise a package npm already has.
 for (const name of plan.toPublish) {
-  run("npm", [
+  const args = [
     "publish",
     "--workspace",
     name,
@@ -102,7 +104,15 @@ for (const name of plan.toPublish) {
     "--access",
     "public",
     "--provenance",
-  ]);
+  ];
+  console.log(`$ npm ${args.join(" ")}`);
+  const r = spawnSync("npm", args, {
+    stdio: ["inherit", "inherit", "pipe"],
+    encoding: "utf8",
+  });
+  process.stderr.write(r.stderr ?? "");
+  if (publishOutcome(r) === "already-published")
+    console.log(`${name}@${plan.version} is already on npm — skipping`);
 }
 if (plan.createRelease) {
   const notes = releaseNotes(
