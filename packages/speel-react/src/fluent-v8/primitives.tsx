@@ -1471,6 +1471,26 @@ export function V8Table(
  * icons, checkmarks, section headers with dividers, arrow-key navigation, and menu roles —
  * all of which a hand-rolled button stack has to fake, badly.
  */
+const MENU_TOOLTIP_HOST = { root: { display: "block" } };
+
+/**
+ * Wraps a menu item that has a tooltip (carried in `item.data.tooltip`) in a TooltipHost,
+ * around Fluent's own item button, so focus moving onto the item — by arrow key or
+ * pointer — shows it. One module-level component: a per-render one would remount items.
+ */
+type MenuItemWrapperAs = NonNullable<
+  IContextualMenuItem["contextualMenuItemWrapperAs"]
+>;
+const TooltipMenuItem: MenuItemWrapperAs = (props) => {
+  const { defaultRender: Default, ...rest } = props;
+  const tip = (props.item.data as { tooltip?: string } | undefined)?.tooltip;
+  return (
+    <TooltipHost content={tip ?? ""} styles={MENU_TOOLTIP_HOST}>
+      {Default ? <Default {...rest} /> : null}
+    </TooltipHost>
+  );
+};
+
 export function V8Menu(p: MenuProps): JSX.Element {
   const anchor = React.useRef<HTMLSpanElement>(null);
   const items: IContextualMenuItem[] = p.sections.map((section, i) => ({
@@ -1487,6 +1507,13 @@ export function V8Menu(p: MenuProps): JSX.Element {
           ? { iconProps: { iconName: item.iconName } }
           : {}),
         ...(item.disabled ? { disabled: true } : {}),
+        ...(item.tooltip !== undefined
+          ? {
+              data: { tooltip: item.tooltip },
+              ariaDescription: item.tooltip,
+              contextualMenuItemWrapperAs: TooltipMenuItem,
+            }
+          : {}),
         // canCheck makes the row a choice: it reserves the checkmark gutter so the
         // unchecked siblings still align.
         ...(item.checked !== undefined

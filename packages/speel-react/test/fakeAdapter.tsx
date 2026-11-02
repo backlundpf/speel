@@ -897,9 +897,13 @@ export const fakeAdapter: SpeelUIAdapter = {
                   {...(item.checked !== undefined
                     ? { "aria-checked": item.checked }
                     : {})}
-                  disabled={item.disabled}
+                  disabled={item.disabled && item.tooltip === undefined}
+                  aria-disabled={item.disabled || undefined}
+                  title={item.tooltip}
+                  aria-description={item.tooltip}
                   data-icon={item.iconName}
                   onClick={() => {
+                    if (item.disabled) return;
                     item.onClick?.();
                     onOpenChange(false);
                   }}

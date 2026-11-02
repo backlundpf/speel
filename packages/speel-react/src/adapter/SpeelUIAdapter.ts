@@ -300,6 +300,12 @@ export interface MenuItem {
   disabled?: boolean;
   /** Marks a choice as the current one — a checkmark, not a pressed button. */
   checked?: boolean;
+  /**
+   * What the item does, or why it is disabled — {@link ButtonProps.tooltip}'s contract:
+   * shown on hover and keyboard focus, the item's accessible description, and present
+   * while `disabled` (a disabled item with a tooltip stays focusable so it can be read).
+   */
+  tooltip?: string;
   onClick?: () => void;
 }
 
