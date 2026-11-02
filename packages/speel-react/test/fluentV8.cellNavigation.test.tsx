@@ -1,118 +1,147 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { DbContext, ModelBuilder } from "@speel/core";
-import type { IDetailsListProps, IDetailsRowProps } from "@fluentui/react";
-import type { TableProps } from "../src/adapter/SpeelUIAdapter.js";
+import { V8Table } from "../src/fluent-v8/primitives.js";
+import { SpeelProvider } from "../src/SpeelProvider.js";
+import { SpeelTable } from "../src/table/SpeelTable.js";
+import type {
+  SpeelUIAdapter,
+  TableProps,
+} from "../src/adapter/SpeelUIAdapter.js";
+import { fakeAdapter } from "./fakeAdapter.js";
+import { makeFakeProvider } from "./fakeProvider.js";
 
 /**
- * `cellNavigation: "tab"` (#82): Tab walks the editors in cells. jsdom does not run
- * FocusZone's tabindex management, so these pin the props handed to DetailsList; the
- * keyboard behaviour itself is checked live.
+ * `cellNavigation: "tab"` (#82): Tab and Shift+Tab move between the editors in cells, in
+ * reading order, across rows. Fluent's FocusZones can't do this — Tab at a row's end
+ * lands on the next row's container, not its first editor (seen live) — so the table
+ * moves focus itself, which jsdom runs for real.
  */
 
-const seen: { props?: IDetailsListProps | undefined } = {};
-vi.mock("@fluentui/react", async (orig) => {
-  const actual = await orig<typeof import("@fluentui/react")>();
-  const Real = actual.DetailsList;
-  return {
-    ...actual,
-    DetailsList: (p: IDetailsListProps) => {
-      seen.props = p;
-      return <Real {...p} />;
-    },
-  };
-});
-
-const { V8Table } = await import("../src/fluent-v8/primitives.js");
-const { FocusZoneDirection, FocusZoneTabbableElements } =
-  await import("@fluentui/react");
-
 const rows = [{ id: 1 }, { id: 2 }];
-const columns = [
-  { key: "a", header: "A", render: () => <input aria-label="a" /> },
+const columns: TableProps["columns"] = [
+  {
+    key: "a",
+    header: "A",
+    render: (r) => <input aria-label={`A${(r as { id: number }).id}`} />,
+  },
+  {
+    key: "b",
+    header: "B",
+    render: (r) => (
+      <button type="button">{`B${(r as { id: number }).id}`}</button>
+    ),
+  },
 ];
 
-/** The row FocusZone props a row would be rendered with. */
-function rowZone(): IDetailsRowProps["focusZoneProps"] {
-  const onRenderRow = seen.props!.onRenderRow;
-  if (!onRenderRow) return undefined;
-  let rendered: IDetailsRowProps | undefined;
-  onRenderRow(
-    { item: rows[0], itemIndex: 0, focusZoneProps: { direction: 1 } } as never,
-    (rp) => {
-      rendered = rp;
-      return null;
-    },
+function renderTable(extra: Partial<TableProps> = {}) {
+  render(
+    <>
+      <V8Table
+        columns={columns}
+        items={rows}
+        getRowKey={(r) => String((r as { id: number }).id)}
+        containerWidth={400}
+        {...extra}
+      />
+      <button type="button">After</button>
+    </>,
   );
-  return rendered?.focusZoneProps;
 }
 
-beforeEach(() => {
-  seen.props = undefined;
-});
+/** Press Tab on the focused element; return whether the table took the key. */
+const tab = (shift = false): boolean =>
+  !fireEvent.keyDown(document.activeElement!, { key: "Tab", shiftKey: shift });
 
-describe("V8Table cellNavigation", () => {
-  it("tab: list and row zones handle Tab across all tabbables", () => {
+describe("V8Table cellNavigation='tab'", () => {
+  it("Tab moves to the next editor, across the row and on to the next row", () => {
+    renderTable({ cellNavigation: "tab" });
+    screen.getByRole("textbox", { name: "A1" }).focus();
+    expect(tab()).toBe(true);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "B1" }),
+    );
+    expect(tab()).toBe(true);
+    expect(document.activeElement).toBe(
+      screen.getByRole("textbox", { name: "A2" }),
+    );
+  });
+
+  it("Shift+Tab moves back, onto the previous row's last editor", () => {
+    renderTable({ cellNavigation: "tab" });
+    screen.getByRole("textbox", { name: "A2" }).focus();
+    expect(tab(true)).toBe(true);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "B1" }),
+    );
+  });
+
+  it("Tab from the last editor is left to the browser, so it leaves the table", () => {
+    renderTable({ cellNavigation: "tab" });
+    screen.getByRole("button", { name: "B2" }).focus();
+    expect(tab()).toBe(false);
+  });
+
+  it("Shift+Tab from the first editor is left to the browser", () => {
+    renderTable({ cellNavigation: "tab" });
+    screen.getByRole("textbox", { name: "A1" }).focus();
+    expect(tab(true)).toBe(false);
+  });
+
+  it("skips disabled editors", () => {
+    render(
+      <V8Table
+        columns={[
+          {
+            key: "a",
+            header: "A",
+            render: (r) => (
+              <input
+                aria-label={`A${(r as { id: number }).id}`}
+                disabled={(r as { id: number }).id === 2}
+              />
+            ),
+          },
+        ]}
+        items={[{ id: 1 }, { id: 2 }, { id: 3 }]}
+        getRowKey={(r) => String((r as { id: number }).id)}
+        containerWidth={400}
+        cellNavigation="tab"
+      />,
+    );
+    screen.getByRole("textbox", { name: "A1" }).focus();
+    tab();
+    expect(document.activeElement).toBe(
+      screen.getByRole("textbox", { name: "A3" }),
+    );
+  });
+
+  it("without cellNavigation the table leaves Tab alone", () => {
+    renderTable();
+    screen.getByRole("textbox", { name: "A1" }).focus();
+    expect(tab()).toBe(false);
+    expect(document.activeElement).toBe(
+      screen.getByRole("textbox", { name: "A1" }),
+    );
+  });
+
+  it("tab: every row is drawn (virtualization off by default)", () => {
+    const many = Array.from({ length: 60 }, (_, i) => ({ id: i + 1 }));
     render(
       <V8Table
         columns={columns}
-        items={rows}
-        cellNavigation="tab"
+        items={many}
+        getRowKey={(r) => String((r as { id: number }).id)}
         containerWidth={400}
+        cellNavigation="tab"
       />,
     );
-    expect(seen.props!.focusZoneProps?.handleTabKey).toBe(
-      FocusZoneTabbableElements.all,
-    );
-    // Passing focusZoneProps replaces DetailsList's vertical default; keep it.
-    expect(seen.props!.focusZoneProps?.direction).toBe(
-      FocusZoneDirection.vertical,
-    );
-    const zone = rowZone();
-    expect(zone?.handleTabKey).toBe(FocusZoneTabbableElements.all);
-    // The row keeps the direction DetailsList gave it.
-    expect(zone?.direction).toBe(1);
-  });
-
-  it("tab: virtualization is off by default", () => {
-    render(
-      <V8Table
-        columns={columns}
-        items={rows}
-        cellNavigation="tab"
-        containerWidth={400}
-      />,
-    );
-    expect(seen.props!.onShouldVirtualize?.({})).toBe(false);
-  });
-
-  it("tab with virtualize: true keeps virtualization", () => {
-    render(
-      <V8Table
-        columns={columns}
-        items={rows}
-        cellNavigation="tab"
-        virtualize
-        containerWidth={400}
-      />,
-    );
-    expect(seen.props!.onShouldVirtualize).toBeUndefined();
-  });
-
-  it("without cellNavigation nothing changes", () => {
-    render(<V8Table columns={columns} items={rows} containerWidth={400} />);
-    expect(seen.props!.focusZoneProps).toBeUndefined();
-    expect(seen.props!.onShouldVirtualize).toBeUndefined();
-    expect(rowZone()).toBeUndefined();
+    expect(screen.getByRole("textbox", { name: "A60" })).toBeInTheDocument();
   });
 });
 
 describe("SpeelTable forwards cellNavigation", () => {
-  it("passes it to the skin's Table", async () => {
-    const { SpeelProvider } = await import("../src/SpeelProvider.js");
-    const { SpeelTable } = await import("../src/table/SpeelTable.js");
-    const { fakeAdapter } = await import("./fakeAdapter.js");
-    const { makeFakeProvider } = await import("./fakeProvider.js");
+  it("passes it to the skin's Table", () => {
     class Thing {
       Id?: number;
     }
@@ -125,7 +154,7 @@ describe("SpeelTable forwards cellNavigation", () => {
       }
     }
     let got: unknown;
-    const ui = {
+    const ui: SpeelUIAdapter = {
       ...fakeAdapter,
       Table: (p: TableProps) => {
         got = p.cellNavigation;

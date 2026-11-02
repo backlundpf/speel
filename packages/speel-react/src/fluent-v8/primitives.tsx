@@ -1,7 +1,5 @@
 import * as React from "react";
 import {
-  FocusZoneDirection,
-  FocusZoneTabbableElements,
   TextField,
   SpinButton,
   Dropdown,
@@ -1144,6 +1142,36 @@ function groupNodes(
   return out;
 }
 
+/** What counts as an editor in a cell: anything a user types into or presses. */
+const CELL_EDITOR =
+  'input:not([type="hidden"]), select, textarea, button, a[href], [contenteditable="true"]';
+
+/**
+ * `cellNavigation: "tab"`: Tab / Shift+Tab move to the next / previous editor in the rows,
+ * in reading order. Fluent's FocusZones can't: at a row's end, Tab lands on the next row's
+ * container, and the editors they manage carry `tabindex="-1"`. At either end the key is
+ * left to the browser, so Tab from the last editor leaves the table.
+ */
+function moveBetweenCellEditors(e: React.KeyboardEvent<HTMLElement>): void {
+  if (e.key !== "Tab" || e.altKey || e.ctrlKey || e.metaKey) return;
+  const rows = e.currentTarget.querySelector(".ms-DetailsList-contentWrapper");
+  const from = e.target as HTMLElement;
+  if (!rows || !rows.contains(from)) return;
+  const editors = Array.from(
+    rows.querySelectorAll<HTMLElement>(CELL_EDITOR),
+  ).filter(
+    (el) =>
+      !(el as HTMLInputElement).disabled && !el.closest('[aria-hidden="true"]'),
+  );
+  const at = editors.indexOf(from);
+  if (at < 0) return;
+  const next = editors[at + (e.shiftKey ? -1 : 1)];
+  if (!next) return;
+  e.preventDefault();
+  e.stopPropagation();
+  next.focus();
+}
+
 export function V8Table(
   p: TableProps & {
     /** The width to lay out against, instead of measuring. A seam for tests, which have no
@@ -1291,7 +1319,10 @@ export function V8Table(
       : { color: levelColors[Math.min(g.level, 2)], fontWeight: 600 };
   return (
     // The outer box is the one measured: as wide as the space the table may lay out in.
-    <div ref={wrapper}>
+    <div
+      ref={wrapper}
+      {...(tabCells ? { onKeyDownCapture: moveBetweenCellEditors } : {})}
+    >
       {/* The table's own box: the columns' total, so rows and borders end where the columns
           do — spare width that nothing can grow into stays outside it, as in the shadcn skin —
           capped at the container so a wider table scrolls inside DetailsList rather than past
@@ -1321,15 +1352,6 @@ export function V8Table(
           constrainMode={ConstrainMode.horizontalConstrained}
           {...(p.virtualize === false || (tabCells && p.virtualize !== true)
             ? { onShouldVirtualize: () => false }
-            : {})}
-          {...(tabCells
-            ? {
-                // Supplying focusZoneProps replaces DetailsList's own, direction included.
-                focusZoneProps: {
-                  direction: FocusZoneDirection.vertical,
-                  handleTabKey: FocusZoneTabbableElements.all,
-                },
-              }
             : {})}
           {...(groups
             ? {
@@ -1446,7 +1468,7 @@ export function V8Table(
                 },
               }
             : {})}
-          {...(p.getRowIntent || p.getRowClassName || tabCells
+          {...(p.getRowIntent || p.getRowClassName
             ? {
                 onRenderRow: (
                   rowProps?: IDetailsRowProps,
@@ -1459,14 +1481,6 @@ export function V8Table(
                   const background = rowBackground(intent);
                   return defaultRender({
                     ...rowProps,
-                    ...(tabCells
-                      ? {
-                          focusZoneProps: {
-                            ...rowProps.focusZoneProps,
-                            handleTabKey: FocusZoneTabbableElements.all,
-                          },
-                        }
-                      : {}),
                     ...(cls ? { className: cls } : {}),
                     ...(background
                       ? {
