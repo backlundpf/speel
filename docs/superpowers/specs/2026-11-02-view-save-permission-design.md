@@ -47,6 +47,11 @@ need the app to answer `canPublish` only because they live in a list the app cho
   (`options.settings ?? createEntityUserSettingsStore(db, …)`) with `canWrite` answered by
   `this.authorization.hasPermission("addListItems", list(USER_SETTINGS_LIST))`. An app that
   passes its own `options.settings` keeps whatever that store answers.
+- **Checked once** (user decision): the default store's `canWrite` memoizes its answer — the
+  first call starts the permission read and every later call, from any table, returns that
+  same promise, so a page with several tables reads access once per identity. A rejected read
+  is not an answer: it is evicted so the next call retries (the rule `AuthorizationService`
+  already applies to its permission masks).
 - **`TableViewStore`** (`@speel/react`, `viewStore.ts`) gains an optional
   `canSave?(): Promise<boolean>`, mirroring `SharedTableViewStore.canPublish` but defaulting
   the other way: omitted means yes. `createLocalViewStore()` does not implement it.
