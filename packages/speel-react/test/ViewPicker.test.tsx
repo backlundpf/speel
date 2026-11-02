@@ -541,3 +541,15 @@ describe("ViewPicker save permissions (#105)", () => {
     expect(item("Unpublish")).toBeNull();
   });
 });
+
+describe("ViewPicker for a user who can't save (#105)", () => {
+  it("shows no empty This view heading", () => {
+    renderPicker({ canSaveViews: false, canSetStartingView: false });
+    openMenu();
+    expect(screen.queryByRole("group", { name: "This view" })).toBeNull();
+    // The rest of the menu is still there.
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: "Needs action" }),
+    ).toBeInTheDocument();
+  });
+});

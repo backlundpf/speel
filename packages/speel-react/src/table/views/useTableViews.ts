@@ -202,10 +202,17 @@ function sameQuestion(a: TableState, b: TableState): boolean {
 /**
  * A "may I write?" answer for the load: an absent question means yes; a failed one means no,
  * for this load only — hiding an action beats one that 403s, and the picker still loads.
+ * `ask` is called inside a promise, so even a check that throws synchronously is a "no", not
+ * a crashed table; callers pass it as a closure so a class-based store keeps its `this`.
  */
 const mayWrite = (
   ask: (() => Promise<boolean>) | undefined,
-): Promise<boolean> => (ask ? ask().catch(() => false) : Promise.resolve(true));
+): Promise<boolean> =>
+  ask === undefined
+    ? Promise.resolve(true)
+    : Promise.resolve()
+        .then(ask)
+        .catch(() => false);
 
 /**
  * Named views over three layers of state.
@@ -301,8 +308,9 @@ export function useTableViews(o: TableViewsOptions): TableViews {
         ? sharedStore.list(tableId)
         : Promise.resolve<StoredView[]>([]),
       sharedStore ? sharedStore.canPublish() : Promise.resolve(false),
-      mayWrite(viewStore.canSave),
-      mayWrite(settingsStore?.canWrite),
+      // Called on their stores, not detached: a class-based store's check reads `this`.
+      mayWrite(viewStore.canSave && (() => viewStore.canSave!())),
+      mayWrite(settingsStore?.canWrite && (() => settingsStore.canWrite!())),
     ]).then(
       ([mine, theirs, mayPublish, maySave, mayStart]) => {
         if (!live) return;

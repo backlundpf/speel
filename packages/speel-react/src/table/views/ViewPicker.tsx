@@ -241,7 +241,9 @@ export function ViewPicker({ ui, views: v }: ViewPickerProps): JSX.Element {
       <ui.Menu
         open={open}
         onOpenChange={setOpen}
-        sections={sections}
+        // A user who can't save views, on a table without a column chooser, has nothing
+        // under "This view": a titled section with no items is noise, so it is dropped.
+        sections={sections.filter((s) => s.items.length > 0)}
         trigger={
           <ui.Button
             text={`${activeName}${unsaved ? " •" : ""}`}

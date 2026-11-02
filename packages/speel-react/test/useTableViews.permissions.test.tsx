@@ -199,3 +199,62 @@ describe("useTableViews save permissions", () => {
     await waitFor(() => expect(store.save).toHaveBeenCalled());
   });
 });
+
+describe("useTableViews save permissions: how the checks are called", () => {
+  /** A class-based store: valid against the interface, and its checks read `this`. */
+  class ClassStore implements TableViewStore {
+    constructor(private readonly ok: boolean) {}
+    canSave(): Promise<boolean> {
+      return Promise.resolve(this.ok);
+    }
+    list(): Promise<StoredView[]> {
+      return Promise.resolve([mine]);
+    }
+    save(v: StoredView): Promise<StoredView> {
+      return Promise.resolve(v);
+    }
+    remove(): Promise<void> {
+      return Promise.resolve();
+    }
+  }
+
+  it("calls a class-based store's canSave on the store", async () => {
+    renderWith(new ClassStore(true));
+    await ready();
+    expect(text("cansave")).toBe("true");
+  });
+
+  it("a check that throws synchronously is no, and the table still renders", async () => {
+    renderWith(
+      storeWith(() => {
+        throw new Error("sync");
+      }),
+    );
+    await ready();
+    expect(text("cansave")).toBe("false");
+    expect(text("count")).toBe("1");
+  });
+
+  it("calls a class-based settings store's canWrite on the store", async () => {
+    class ClassSettings {
+      readonly inner = createLocalUserSettingsStore();
+      constructor(private readonly ok: boolean) {}
+      getAll() {
+        return this.inner.getAll();
+      }
+      set(k: string, v: unknown) {
+        return this.inner.set(k, v);
+      }
+      remove(k: string) {
+        return this.inner.remove(k);
+      }
+      canWrite(): Promise<boolean> {
+        return Promise.resolve(this.ok);
+      }
+    }
+    renderWith(undefined, new ClassSettings(true));
+    await ready();
+    expect(text("cansave")).toBe("true");
+    expect(text("canstart")).toBe("true");
+  });
+});
