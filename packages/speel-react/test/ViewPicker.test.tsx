@@ -45,6 +45,8 @@ function views(over: Partial<TableViews> = {}): TableViews {
     activeView: undefined,
     activeIsShared: false,
     canPublish: false,
+    canSaveViews: true,
+    canSetStartingView: true,
     canEditActive: false,
     activeIsStartingView: false,
     loading: false,
