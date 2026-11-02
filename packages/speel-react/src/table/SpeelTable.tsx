@@ -67,6 +67,9 @@ function sameRows<T>(a: readonly T[], b: readonly T[]): boolean {
 }
 
 /** A custom per-row action rendered in the actions column after the built-ins. */
+/** A row action's key: a built-in's name, or a custom action's `RowAction.key`. */
+export type RowActionKey = "view" | "edit" | "delete" | (string & {});
+
 export interface RowAction<T> {
   key: string;
   /** Skin icon name (Fluent icon name in the v8 skin). */
@@ -92,6 +95,12 @@ export interface SpeelTableProps<T extends IEntity = IEntity> {
     onEdit?: (row: T) => void;
     onDelete?: (row: T) => void;
     custom?: RowAction<T>[];
+    /** Whether an action is offered on a row (item permissions, the row's status).
+     *  Unset: every action on every row. A hidden action leaves its slot empty, so the
+     *  remaining buttons line up down the column. */
+    available?: (action: RowActionKey, row: T) => boolean;
+    /** A row's button's accessible name ("Edit item 7"); its tooltip stays the title. */
+    ariaLabel?: (action: RowActionKey, row: T) => string;
   };
   getRowKey?: (row: T) => string;
   emptyMessage?: string;
@@ -392,10 +401,27 @@ function SpeelTableInner<T extends IEntity>(
   }));
 
   const ra = rowActions ?? {};
-  const customActions = ra.custom ?? [];
-  const actionCount =
-    [ra.onView, ra.onEdit, ra.onDelete].filter(Boolean).length +
-    customActions.length;
+  // Built-ins first, then custom ones, in one ordered list keyed for `available`.
+  const actionList: RowAction<T>[] = [
+    ...(ra.onView
+      ? [{ key: "view", iconName: "View", title: "View", onClick: ra.onView }]
+      : []),
+    ...(ra.onEdit
+      ? [{ key: "edit", iconName: "Edit", title: "Edit", onClick: ra.onEdit }]
+      : []),
+    ...(ra.onDelete
+      ? [
+          {
+            key: "delete",
+            iconName: "Delete",
+            title: "Delete",
+            onClick: ra.onDelete,
+          },
+        ]
+      : []),
+    ...(ra.custom ?? []),
+  ];
+  const actionCount = actionList.length;
   if (actionCount > 0) {
     tableColumns.push({
       key: "__actions",
@@ -407,35 +433,28 @@ function SpeelTableInner<T extends IEntity>(
       shrink: 0,
       render: (row: unknown) => (
         <div style={{ display: "flex", gap: 4 }}>
-          {ra.onView ? (
-            <ui.IconButton
-              iconName="View"
-              title="View"
-              onClick={() => ra.onView!(row as T)}
-            />
-          ) : null}
-          {ra.onEdit ? (
-            <ui.IconButton
-              iconName="Edit"
-              title="Edit"
-              onClick={() => ra.onEdit!(row as T)}
-            />
-          ) : null}
-          {ra.onDelete ? (
-            <ui.IconButton
-              iconName="Delete"
-              title="Delete"
-              onClick={() => ra.onDelete!(row as T)}
-            />
-          ) : null}
-          {customActions.map((a) => (
-            <ui.IconButton
-              key={a.key}
-              iconName={a.iconName}
-              title={a.title}
-              onClick={() => a.onClick(row as T)}
-            />
-          ))}
+          {actionList.map((a) => {
+            const r = row as T;
+            const shown = ra.available ? ra.available(a.key, r) : true;
+            const name = shown && ra.ariaLabel ? ra.ariaLabel(a.key, r) : undefined;
+            return (
+              // A fixed 32px slot per action: a hidden one leaves a gap, not a shift.
+              <span
+                key={a.key}
+                data-row-action-slot=""
+                style={{ display: "inline-flex", width: 32, flex: "0 0 32px" }}
+              >
+                {shown ? (
+                  <ui.IconButton
+                    iconName={a.iconName}
+                    title={a.title}
+                    {...(name !== undefined ? { ariaLabel: name } : {})}
+                    onClick={() => a.onClick(r)}
+                  />
+                ) : null}
+              </span>
+            );
+          })}
         </div>
       ),
     });
