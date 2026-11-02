@@ -24,6 +24,7 @@ import { ProjectDashboardContext } from "../../../speel/ProjectDashboardContext"
 import { Project } from "../../../entities/Project";
 import { Programs } from "../../../entities/Programs";
 import { ArtifactsPanel } from "./ArtifactsPanel";
+import { FixWaveDemo } from "./FixWaveDemo";
 import { GroupedProjectsPanel } from "./GroupedProjectsPanel";
 import { ProjectArtifact } from "../../../entities/ProjectArtifact";
 
@@ -349,6 +350,7 @@ const DashboardBody: React.FC<{
       <GroupedProjectsPanel tableRef={groupedTableRef} />
       <ProgramsSection ctx={ctx} />
       <ArtifactsPanel tableRef={artifactsTableRef} />
+      <FixWaveDemo />
     </>
   );
 };
