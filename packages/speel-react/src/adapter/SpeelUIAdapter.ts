@@ -452,6 +452,13 @@ export interface TableProps {
    *  table whose rows hold live inputs. Unset: the skin's default (the v8 skin
    *  virtualizes; the shadcn skin never does). */
   virtualize?: boolean;
+  /**
+   * `"tab"`: Tab and Shift+Tab move between the editors in cells, across a row and on to
+   * the next, for keyboard data entry; Tab from the last leaves the table. Unset: the
+   * skin's default keyboard model. It turns virtualization off unless `virtualize` is
+   * `true` — Tab can only reach rows that are drawn.
+   */
+  cellNavigation?: "tab";
 }
 
 /** Chrome (label/required/error/description) wrapped around an arbitrary node —

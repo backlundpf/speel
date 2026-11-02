@@ -106,6 +106,8 @@ export interface SpeelTableProps<T extends IEntity = IEntity> {
   emptyMessage?: string;
   /** `false` renders every row rather than only those in view — see TableProps.virtualize. */
   virtualize?: boolean;
+  /** `"tab"`: Tab moves between editors in cells — see TableProps.cellNavigation. */
+  cellNavigation?: "tab";
   sortable?: boolean;
   filterable?: boolean;
   /** Semantic row emphasis; the skin picks the colours so they stay consistent per skin. */
@@ -190,6 +192,7 @@ function SpeelTableInner<T extends IEntity>(
     getRowKey,
     emptyMessage,
     virtualize,
+    cellNavigation,
     sortable = true,
     filterable = true,
     rowIntent,
@@ -596,6 +599,7 @@ function SpeelTableInner<T extends IEntity>(
         getRowKey={rowKey}
         {...(emptyMessage !== undefined ? { emptyMessage } : {})}
         {...(virtualize !== undefined ? { virtualize } : {})}
+        {...(cellNavigation !== undefined ? { cellNavigation } : {})}
         {...(sortable ? { onSortChange, ...(sort ? { sort } : {}) } : {})}
         {...(rowIntent
           ? { getRowIntent: (row: unknown) => rowIntent(row as T) }

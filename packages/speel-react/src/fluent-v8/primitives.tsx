@@ -1,5 +1,7 @@
 import * as React from "react";
 import {
+  FocusZoneDirection,
+  FocusZoneTabbableElements,
   TextField,
   SpinButton,
   Dropdown,
@@ -1152,6 +1154,7 @@ export function V8Table(
 ): JSX.Element {
   // Called before the empty early-return: hooks may not sit behind a conditional.
   const theme = useTheme();
+  const tabCells = p.cellNavigation === "tab";
   const wrapper = React.useRef<HTMLDivElement>(null);
   const list = React.useRef<IDetailsList>(null);
 
@@ -1317,8 +1320,18 @@ export function V8Table(
           // `min-width: 100%`, so they overflow it together. Passed explicitly (it is also the
           // default) because the width behaviour above depends on it.
           constrainMode={ConstrainMode.horizontalConstrained}
-          {...(p.virtualize === false
+          {...(p.virtualize === false ||
+          (tabCells && p.virtualize !== true)
             ? { onShouldVirtualize: () => false }
+            : {})}
+          {...(tabCells
+            ? {
+                // Supplying focusZoneProps replaces DetailsList's own, direction included.
+                focusZoneProps: {
+                  direction: FocusZoneDirection.vertical,
+                  handleTabKey: FocusZoneTabbableElements.all,
+                },
+              }
             : {})}
           {...(groups
             ? {
@@ -1435,7 +1448,7 @@ export function V8Table(
                 },
               }
             : {})}
-          {...(p.getRowIntent || p.getRowClassName
+          {...(p.getRowIntent || p.getRowClassName || tabCells
             ? {
                 onRenderRow: (
                   rowProps?: IDetailsRowProps,
@@ -1448,6 +1461,14 @@ export function V8Table(
                   const background = rowBackground(intent);
                   return defaultRender({
                     ...rowProps,
+                    ...(tabCells
+                      ? {
+                          focusZoneProps: {
+                            ...rowProps.focusZoneProps,
+                            handleTabKey: FocusZoneTabbableElements.all,
+                          },
+                        }
+                      : {}),
                     ...(cls ? { className: cls } : {}),
                     ...(background
                       ? {
