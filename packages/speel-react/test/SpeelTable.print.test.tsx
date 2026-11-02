@@ -189,4 +189,21 @@ describe("SpeelTable print", () => {
     ).not.toThrow();
     expect(written).toHaveLength(0);
   });
+
+  it("print omits an export:false column, which stays in the chooser", () => {
+    wrap(
+      <SpeelTable
+        of={Task}
+        items={many}
+        print
+        columnChooser
+        columns={[{ key: "Title" }, { key: "Status", export: false }]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Print" }));
+    expect(doc()).toContain("<th>Title</th>");
+    expect(doc()).not.toContain("<th>Status</th>");
+    fireEvent.click(screen.getByRole("button", { name: "Choose columns" }));
+    expect(screen.getByRole("checkbox", { name: "Status" })).toBeChecked();
+  });
 });

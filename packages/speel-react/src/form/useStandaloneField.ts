@@ -49,6 +49,8 @@ export interface StandaloneFieldOptions<TValue> {
    * header is the visible label. The field renders no label; this is its accessible name.
    */
   ariaLabel?: string;
+  /** Help text: under the input in edit mode, behind an info icon on a display. */
+  description?: string;
   /** Shown while the control is empty (text, number, and the selection combobox). */
   placeholder?: string;
   /** A multiline Text field grows with its content instead of scrolling. */
@@ -125,6 +127,9 @@ export function useStandaloneField<TValue = unknown>(
     ...(options !== undefined ? { options } : {}),
     ...(create !== undefined ? { create } : {}),
     ...(opts.ariaLabel !== undefined ? { ariaLabel: opts.ariaLabel } : {}),
+    ...(opts.description !== undefined
+      ? { description: opts.description }
+      : {}),
     ...(opts.placeholder !== undefined
       ? { placeholder: opts.placeholder }
       : {}),

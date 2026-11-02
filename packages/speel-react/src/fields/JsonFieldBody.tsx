@@ -1,7 +1,10 @@
 import type { FieldConfig, FormMode } from "@speel/core";
 import { patchShapeInstance, shapeValueErrors } from "@speel/core";
 import type { FieldHandle } from "../form/FieldHandle.js";
-import type { FieldChrome } from "../adapter/SpeelUIAdapter.js";
+import type {
+  FieldChrome,
+  FieldDisplayProps,
+} from "../adapter/SpeelUIAdapter.js";
 import { useSpeelUI } from "../context.js";
 import { ShapeFieldRow } from "./ShapeFieldRow.js";
 
@@ -84,7 +87,7 @@ export function JsonFieldBody({
   // rejects handing that to FieldDisplayProps' `label?: string` by explicit name even
   // though it is always a real string at this call site — a spread carries the key's
   // actual presence/absence across instead, the same way chromeOf's own callers do.
-  const display: FieldChrome = {
+  const display: Omit<FieldDisplayProps, "children"> = {
     ...chrome,
     ...(errorMessage !== undefined ? { error: errorMessage } : {}),
   };

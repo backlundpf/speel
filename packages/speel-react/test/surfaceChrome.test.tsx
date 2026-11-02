@@ -124,3 +124,42 @@ describe("surface chrome (fakeAdapter)", () => {
     expect(screen.queryByTestId("resize-handle")).toBeNull();
   });
 });
+
+describe("surfaces forward ariaLabel (fakeAdapter)", () => {
+  it("SpeelModal content variant", () => {
+    wrap(
+      <SpeelModal open onOpenChange={() => {}} ariaLabel="Named modal">
+        body
+      </SpeelModal>,
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Named modal" }),
+    ).toBeInTheDocument();
+  });
+
+  it("SpeelPanel content variant", () => {
+    wrap(
+      <SpeelPanel open onOpenChange={() => {}} ariaLabel="Named panel">
+        body
+      </SpeelPanel>,
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Named panel" }),
+    ).toBeInTheDocument();
+  });
+
+  it("SurfaceForm (form variant)", () => {
+    wrap(
+      <SpeelModal
+        open
+        onOpenChange={() => {}}
+        entity={entity()}
+        mode="edit"
+        ariaLabel="Named form"
+      />,
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Named form" }),
+    ).toBeInTheDocument();
+  });
+});

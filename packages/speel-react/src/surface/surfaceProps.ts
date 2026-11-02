@@ -17,6 +17,8 @@ export interface SurfaceChromeProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
+  /** Accessible name when there is no `title` — see DialogProps.ariaLabel. */
+  ariaLabel?: string;
   blocking?: boolean;
   size?: "small" | "medium" | "large";
   /** User can resize the surface (the skin applies the default when undefined). */

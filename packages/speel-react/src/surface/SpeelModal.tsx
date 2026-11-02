@@ -27,6 +27,7 @@ export function SpeelModal<T extends IEntity>(
     open,
     onOpenChange,
     title,
+    ariaLabel,
     blocking,
     size,
     resizable,
@@ -42,6 +43,7 @@ export function SpeelModal<T extends IEntity>(
       open={open}
       onOpenChange={onOpenChange}
       {...(title !== undefined ? { title } : {})}
+      {...(ariaLabel !== undefined ? { ariaLabel } : {})}
       {...(blocking !== undefined ? { blocking } : {})}
       {...(size !== undefined ? { size } : {})}
       {...(resizable !== undefined ? { resizable } : {})}

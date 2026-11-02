@@ -114,9 +114,9 @@ built-in skins do, measure the container with `useContainerWidth`, map each colu
 font) and whole-pixel cell padding, render the widths `resolveColumnWidths` returns in a table
 box as wide as their total, and stop drags at `MIN_RESIZE_WIDTH` and the column's own bounds.
 
-**Menu** — `MenuProps` carries titled sections of items with icons and optional checkmarks.
-Map it to the library's own menu (Fluent's `ContextualMenu`, radix's dropdown menu), not
-a popover of buttons: roles, arrow keys and checkmark alignment are the point.
+**Menu** — `MenuProps` carries titled sections of items with icons, checkmarks and tooltips.
+Map it to the library's own menu (Fluent's `ContextualMenu`, radix's dropdown menu): roles,
+arrow keys and alignment are the point; a `tooltip` shows on focus, even on a disabled item.
 
 **Feedback primitives** — `ButtonProps`, `IconButtonProps`, `MessageBarProps`, and
 `PopoverProps` serve every generic action or message. `appearance: "danger"` is a

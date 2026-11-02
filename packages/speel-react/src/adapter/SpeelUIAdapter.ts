@@ -267,6 +267,11 @@ export interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
+  /**
+   * The surface's accessible name when it has no `title` (a title names it, and wins).
+   * A surface with neither is unnamed; skins warn about that in development.
+   */
+  ariaLabel?: string;
   blocking?: boolean;
   size?: "small" | "medium" | "large";
   children: ReactNode;
@@ -295,6 +300,12 @@ export interface MenuItem {
   disabled?: boolean;
   /** Marks a choice as the current one — a checkmark, not a pressed button. */
   checked?: boolean;
+  /**
+   * What the item does, or why it is disabled — {@link ButtonProps.tooltip}'s contract:
+   * shown on hover and keyboard focus, the item's accessible description, and present
+   * while `disabled` (a disabled item with a tooltip stays focusable so it can be read).
+   */
+  tooltip?: string;
   onClick?: () => void;
 }
 
@@ -437,6 +448,17 @@ export interface TableProps {
   /** A skin's own expand/collapse-all control was used (the v8 skin has one in the header,
    *  in front of the columns). Same operation as the table's toolbar button. */
   onToggleAllGroups?: () => void;
+  /** `false` renders every row instead of only those scrolled into view — for a small
+   *  table whose rows hold live inputs. Unset: the skin's default (the v8 skin
+   *  virtualizes; the shadcn skin never does). */
+  virtualize?: boolean;
+  /**
+   * `"tab"`: Tab and Shift+Tab move between the editors in cells, across a row and on to
+   * the next, for keyboard data entry; Tab from the last leaves the table. Unset: the
+   * skin's default keyboard model. It turns virtualization off unless `virtualize` is
+   * `true` — Tab can only reach rows that are drawn.
+   */
+  cellNavigation?: "tab";
 }
 
 /** Chrome (label/required/error/description) wrapped around an arbitrary node —

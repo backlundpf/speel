@@ -3,6 +3,9 @@ import { loadEnv, type SitePage } from "../helpers/env";
 
 /** XPath string literal (our field labels contain no quotes). */
 const xp = (s: string): string => `'${s}'`;
+/** A regex matching `s` literally. */
+const escapeRegExp = (s: string): string =>
+  s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Plain, serialisable projection of a Project crossing the evaluate boundary.
  *  (window.pd.ctx returns live entity instances, which can't cross as-is.) */
@@ -199,9 +202,12 @@ export class ProjectDashboardPage {
     );
   }
   /** A selection field (Choice, lookup, collection): a Fluent ComboBox whose input
-   *  carries the field label as its accessible name. */
+   *  carries the field label as its accessible name. A required field's name ends in the
+   *  label's " *" marker (Fluent draws it as `::after` content, which counts). */
   private combobox(scope: Locator, label: string): Locator {
-    return scope.getByRole("combobox", { name: label, exact: true });
+    return scope.getByRole("combobox", {
+      name: new RegExp(`^${escapeRegExp(label)}( \\*)?$`),
+    });
   }
   /** Fluent DatePicker trigger (combobox nested in the TextField sibling). */
   private dateField(scope: Locator, label: string): Locator {
@@ -223,6 +229,12 @@ export class ProjectDashboardPage {
     await this.combobox(scope, label).click();
     await this.page.getByRole("option", { name: option, exact: true }).click();
   }
+  /** Pick whichever option a lookup lists first — for a required lookup whose rows are
+   *  site data the test doesn't own (Program). Waits for the options to load. */
+  async selectFirstOption(scope: Locator, label: string): Promise<void> {
+    await this.combobox(scope, label).click();
+    await this.page.getByRole("option").first().click();
+  }
   /** Open the calendar and click a day-of-month (default 15, always in view). */
   async pickDueDate(scope: Locator, day = "15"): Promise<void> {
     await this.dateField(scope, "Due Date").click();
@@ -233,13 +245,15 @@ export class ProjectDashboardPage {
       .click();
   }
 
-  /** Fill the minimal valid create set (Owner/Budget aren't required for Low priority). */
+  /** Fill the minimal valid create set (Owner/Budget aren't required for Low priority;
+   *  Program is always required). */
   async fillValidProject(title: string): Promise<void> {
     const m = this.modal();
     await this.fillText(m, "Title", title);
     await this.selectChoice(m, "Status", "Planning");
     await this.selectChoice(m, "Priority", "Low");
     await this.pickDueDate(m);
+    await this.selectFirstOption(m, "Program");
   }
 
   /** A toast message (portaled MessageBar). */
@@ -247,10 +261,10 @@ export class ProjectDashboardPage {
     return this.page.getByText(text, { exact: true });
   }
 
-  /** The clickable title cell (opens the view modal). A Fluent `Link` with an
-   *  onClick but no href renders as a <button>, not an <a>. */
+  /** The clickable title cell (opens the view modal). The column renders a `ui.Link` with
+   *  the project's `?project=` href, so it is a real <a> — a link, not a button. */
   titleLink(title: string): Locator {
-    return this.page.getByRole("button", { name: title, exact: true });
+    return this.page.getByRole("link", { name: title, exact: true });
   }
   /** A per-row action icon button ('View' | 'Edit' | 'Delete'). */
   rowAction(title: string, action: "View" | "Edit" | "Delete"): Locator {

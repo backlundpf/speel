@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { Maximize2, Minimize2, X } from "lucide-react";
 
@@ -32,9 +32,17 @@ import type {
   DialogProps,
   DrawerProps,
   PopoverProps,
+  MenuItem,
   MenuProps,
 } from "@speel/react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
+import { useStableId } from "./compat";
 import { iconFor } from "./icons";
 
 const DIALOG_WIDTH = { small: 480, medium: 640, large: 840 } as const;
@@ -75,36 +83,9 @@ export function ShadMenu(p: MenuProps): ReactElement {
             {section.title !== undefined ? (
               <DropdownMenuLabel>{section.title}</DropdownMenuLabel>
             ) : null}
-            {section.items.map((item) => {
-              const Icon =
-                item.iconName !== undefined
-                  ? iconFor(item.iconName)
-                  : undefined;
-              const body = (
-                <>
-                  {Icon ? <Icon className="size-4" /> : null}
-                  {item.text}
-                </>
-              );
-              return item.checked !== undefined ? (
-                <DropdownMenuCheckboxItem
-                  key={item.key}
-                  checked={item.checked}
-                  disabled={item.disabled}
-                  onSelect={() => item.onClick?.()}
-                >
-                  {body}
-                </DropdownMenuCheckboxItem>
-              ) : (
-                <DropdownMenuItem
-                  key={item.key}
-                  disabled={item.disabled}
-                  onSelect={() => item.onClick?.()}
-                >
-                  {body}
-                </DropdownMenuItem>
-              );
-            })}
+            {section.items.map((item) => (
+              <MenuEntry key={item.key} item={item} />
+            ))}
           </div>
         ))}
       </DropdownMenuContent>
@@ -112,7 +93,87 @@ export function ShadMenu(p: MenuProps): ReactElement {
   );
 }
 
+/**
+ * One menu item. With a tooltip it follows Button.tooltip's contract: a Radix tooltip on
+ * hover and focus, a screen-reader copy as its description, and — when disabled — it
+ * stays in the roving focus (Radix skips `disabled` items) as `aria-disabled`, ignoring
+ * selection, so the reason can still be read.
+ */
+function MenuEntry({ item }: { item: MenuItem }): ReactElement {
+  const tipId = useStableId();
+  const Icon = item.iconName !== undefined ? iconFor(item.iconName) : undefined;
+  const tipped = item.tooltip !== undefined;
+  const softDisabled = tipped && !!item.disabled;
+  const common = {
+    disabled: !!item.disabled && !tipped,
+    onSelect: (e: Event) => {
+      if (softDisabled) {
+        e.preventDefault();
+        return;
+      }
+      item.onClick?.();
+    },
+    ...(tipped ? { "aria-describedby": tipId } : {}),
+    ...(softDisabled ? { "aria-disabled": true, className: "opacity-50" } : {}),
+    children: (
+      <>
+        {Icon ? <Icon className="size-4" /> : null}
+        {item.text}
+      </>
+    ),
+  };
+  const entry =
+    item.checked !== undefined ? (
+      <DropdownMenuCheckboxItem checked={item.checked} {...common} />
+    ) : (
+      <DropdownMenuItem {...common} />
+    );
+  if (!tipped) return entry;
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>{entry}</TooltipTrigger>
+        <TooltipContent side="right" className="speel-shadcn">
+          {item.tooltip}
+        </TooltipContent>
+      </Tooltip>
+      <span id={tipId} className="sr-only">
+        {item.tooltip}
+      </span>
+    </TooltipProvider>
+  );
+}
+
+/**
+ * Warns once per surface instance, in development, when it has neither a title nor an
+ * `ariaLabel` — an unnamed dialog is announced as just "dialog".
+ */
+function useWarnIfUnnamed(kind: string, p: DialogProps): void {
+  const warned = useRef(false);
+  if (
+    // Guarded: a browser bundle may not define `process` at all.
+    (typeof process === "undefined" || process.env.NODE_ENV !== "production") &&
+    p.open &&
+    p.title === undefined &&
+    p.ariaLabel === undefined &&
+    !warned.current
+  ) {
+    warned.current = true;
+    console.warn(
+      `speel: a ${kind} has neither a title nor an ariaLabel, so screen readers announce it unnamed. Pass ariaLabel.`,
+    );
+  }
+}
+
+/**
+ * The surface's name: the visible title, else `ariaLabel` for screen readers only. Radix
+ * requires a title element, so an unnamed surface keeps an empty, hidden one.
+ */
+const titleText = (p: DialogProps): string => p.title ?? p.ariaLabel ?? "";
+const titleHidden = (p: DialogProps): boolean => p.title === undefined;
+
 export function ShadDialog(p: DialogProps): ReactElement {
+  useWarnIfUnnamed("modal", p);
   const resizable = p.resizable ?? true;
   const draggable = p.draggable ?? true;
   const showFs = p.fullscreenToggle ?? true;
@@ -190,10 +251,15 @@ export function ShadDialog(p: DialogProps): ReactElement {
             draggable && !fullscreen && "cursor-move touch-none",
           )}
         >
-          {/* DialogTitle always rendered for a11y; renders empty string when title is undefined */}
-          <DialogTitle className="grow truncate text-lg font-semibold">
-            {p.title ?? ""}
+          <DialogTitle
+            className={cn(
+              "grow truncate text-lg font-semibold",
+              titleHidden(p) && "sr-only",
+            )}
+          >
+            {titleText(p)}
           </DialogTitle>
+          {titleHidden(p) ? <div className="grow" /> : null}
           {showFs ? (
             <Button
               type="button"
@@ -248,6 +314,7 @@ export function ShadDialog(p: DialogProps): ReactElement {
 }
 
 export function ShadDrawer(p: DrawerProps): ReactElement {
+  useWarnIfUnnamed("panel", p);
   const resizable = p.resizable ?? true;
   const atEnd = p.position !== "start";
   const presetW = SHEET_WIDTH[p.size ?? "medium"];
@@ -309,9 +376,15 @@ export function ShadDrawer(p: DrawerProps): ReactElement {
             headerPrClass,
           )}
         >
-          <SheetTitle className="grow truncate text-lg font-semibold">
-            {p.title ?? ""}
+          <SheetTitle
+            className={cn(
+              "grow truncate text-lg font-semibold",
+              titleHidden(p) && "sr-only",
+            )}
+          >
+            {titleText(p)}
           </SheetTitle>
+          {titleHidden(p) ? <div className="grow" /> : null}
         </div>
         <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
           {p.children as ReactNode}

@@ -113,6 +113,7 @@ export { SpeelTable } from "./table/SpeelTable.js";
 export type {
   SpeelTableProps,
   RowAction,
+  RowActionKey,
   SpeelTableHandle,
 } from "./table/SpeelTable.js";
 export { SpeelEntityTable } from "./table/SpeelEntityTable.js";

@@ -192,16 +192,22 @@ export function V8NumberInput(p: NumberInputProps): JSX.Element {
   const chrome = chromeFrom(p);
   const aria = useFieldAria(chrome);
   const name = nameOf(p);
+  // The chrome owns the label (#100): SpinButton's own draws no required marker, sits
+  // inline, and would land after a currency prefix. Its `ariaLabel` names the wrapper
+  // div, not the input — so the input is named here, by the label or inline.
+  const inputProps: React.InputHTMLAttributes<HTMLInputElement> = {
+    id: aria.controlId,
+    ...(p.label !== undefined ? { "aria-labelledby": aria.labelId } : {}),
+    ...(name !== undefined ? { "aria-label": name } : {}),
+    ...(p.required ? { "aria-required": true } : {}),
+    ...(p.placeholder !== undefined ? { placeholder: p.placeholder } : {}),
+  };
   const control = (
     <SpinButton
-      {...(p.label !== undefined ? { label: p.label } : {})}
       {...(aria.describedBy !== undefined
         ? { ariaDescribedBy: aria.describedBy }
         : {})}
-      {...(name !== undefined ? { ariaLabel: name } : {})}
-      {...(p.placeholder !== undefined
-        ? { inputProps: { placeholder: p.placeholder } }
-        : {})}
+      inputProps={inputProps}
       // `== null` catches null as well as undefined: an empty number column
       // arrives as null, and String(null) is the word "null" in the user's box.
       value={p.value == null ? "" : String(p.value)}
@@ -216,7 +222,7 @@ export function V8NumberInput(p: NumberInputProps): JSX.Element {
   );
   const hasAdorn = p.prefix !== undefined || p.suffix !== undefined;
   return (
-    <V8Field chrome={chrome} aria={aria} renderLabel={false}>
+    <V8Field chrome={chrome} aria={aria}>
       {hasAdorn ? (
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           {p.prefix !== undefined && <span>{p.prefix}</span>}
@@ -541,6 +547,33 @@ function viewportBounds(): {
 }
 
 /**
+ * Warns once per surface instance, in development, when it has neither a title nor an
+ * `ariaLabel` — an unnamed dialog is announced as just "dialog".
+ */
+function useWarnIfUnnamed(kind: string, p: DialogProps): void {
+  const warned = React.useRef(false);
+  if (
+    // Guarded: a browser bundle may not define `process` at all.
+    (typeof process === "undefined" || process.env.NODE_ENV !== "production") &&
+    p.open &&
+    p.title === undefined &&
+    p.ariaLabel === undefined &&
+    !warned.current
+  ) {
+    warned.current = true;
+    console.warn(
+      `speel: a ${kind} has neither a title nor an ariaLabel, so screen readers announce it unnamed. Pass ariaLabel.`,
+    );
+  }
+}
+
+/** Fluent's Popup takes the name a surface without a title gets. */
+const popupName = (p: DialogProps): { ariaLabel?: string } =>
+  p.title === undefined && p.ariaLabel !== undefined
+    ? { ariaLabel: p.ariaLabel }
+    : {};
+
+/**
  * Centered modal on Fluent `Modal` (not `Dialog`, which imposes its own header +
  * a second scroll container). The content is a flex column that fills the modal:
  * a sticky header (title + fullscreen + close — also the drag handle), a single
@@ -555,6 +588,8 @@ export function V8Dialog(p: DialogProps): JSX.Element {
   const [fullscreen, setFullscreen] = React.useState(
     p.defaultFullscreen ?? false,
   );
+  useWarnIfUnnamed("modal", p);
+  const titleId = useStableId();
   const presetW = DIALOG_WIDTH[p.size ?? "medium"];
   const presetH = DIALOG_HEIGHT[p.size ?? "medium"];
   const { size, transform, dragHandleProps, resizeHandleProps } = useDragResize(
@@ -607,7 +642,9 @@ export function V8Dialog(p: DialogProps): JSX.Element {
       focusTrapZoneProps={{ disableRestoreFocus: true }}
       popupProps={{
         onRestoreFocus: ({ containsFocus }) => restore(containsFocus),
+        ...popupName(p),
       }}
+      {...(p.title !== undefined ? { titleAriaId: titleId } : {})}
       styles={{
         // Own drag/resize: a translate keeps the top-left fixed while resizing (and applies
         // the drag offset). Not applied in fullscreen (centered, full size).
@@ -652,6 +689,7 @@ export function V8Dialog(p: DialogProps): JSX.Element {
           }}
         >
           <span
+            id={titleId}
             style={{
               fontWeight: 600,
               fontSize: 18,
@@ -685,6 +723,9 @@ export function V8Dialog(p: DialogProps): JSX.Element {
         {/* Scrolling body — the only scroll container. */}
         <div
           ref={bodyRef}
+          // Fluent's List finds its scroll parent by this attribute: without it, a virtualized
+          // table in the modal measures against the window and stops drawing rows.
+          data-is-scrollable="true"
           style={{
             flex: "1 1 auto",
             overflow: "auto",
@@ -1101,6 +1142,36 @@ function groupNodes(
   return out;
 }
 
+/** What counts as an editor in a cell: anything a user types into or presses. */
+const CELL_EDITOR =
+  'input:not([type="hidden"]), select, textarea, button, a[href], [contenteditable="true"]';
+
+/**
+ * `cellNavigation: "tab"`: Tab / Shift+Tab move to the next / previous editor in the rows,
+ * in reading order. Fluent's FocusZones can't: at a row's end, Tab lands on the next row's
+ * container, and the editors they manage carry `tabindex="-1"`. At either end the key is
+ * left to the browser, so Tab from the last editor leaves the table.
+ */
+function moveBetweenCellEditors(e: React.KeyboardEvent<HTMLElement>): void {
+  if (e.key !== "Tab" || e.altKey || e.ctrlKey || e.metaKey) return;
+  const rows = e.currentTarget.querySelector(".ms-DetailsList-contentWrapper");
+  const from = e.target as HTMLElement;
+  if (!rows || !rows.contains(from)) return;
+  const editors = Array.from(
+    rows.querySelectorAll<HTMLElement>(CELL_EDITOR),
+  ).filter(
+    (el) =>
+      !(el as HTMLInputElement).disabled && !el.closest('[aria-hidden="true"]'),
+  );
+  const at = editors.indexOf(from);
+  if (at < 0) return;
+  const next = editors[at + (e.shiftKey ? -1 : 1)];
+  if (!next) return;
+  e.preventDefault();
+  e.stopPropagation();
+  next.focus();
+}
+
 export function V8Table(
   p: TableProps & {
     /** The width to lay out against, instead of measuring. A seam for tests, which have no
@@ -1110,6 +1181,7 @@ export function V8Table(
 ): JSX.Element {
   // Called before the empty early-return: hooks may not sit behind a conditional.
   const theme = useTheme();
+  const tabCells = p.cellNavigation === "tab";
   const wrapper = React.useRef<HTMLDivElement>(null);
   const list = React.useRef<IDetailsList>(null);
 
@@ -1247,7 +1319,10 @@ export function V8Table(
       : { color: levelColors[Math.min(g.level, 2)], fontWeight: 600 };
   return (
     // The outer box is the one measured: as wide as the space the table may lay out in.
-    <div ref={wrapper}>
+    <div
+      ref={wrapper}
+      {...(tabCells ? { onKeyDownCapture: moveBetweenCellEditors } : {})}
+    >
       {/* The table's own box: the columns' total, so rows and borders end where the columns
           do — spare width that nothing can grow into stays outside it, as in the shadcn skin —
           capped at the container so a wider table scrolls inside DetailsList rather than past
@@ -1275,6 +1350,9 @@ export function V8Table(
           // `min-width: 100%`, so they overflow it together. Passed explicitly (it is also the
           // default) because the width behaviour above depends on it.
           constrainMode={ConstrainMode.horizontalConstrained}
+          {...(p.virtualize === false || (tabCells && p.virtualize !== true)
+            ? { onShouldVirtualize: () => false }
+            : {})}
           {...(groups
             ? {
                 groups,
@@ -1427,6 +1505,26 @@ export function V8Table(
   );
 }
 
+const MENU_TOOLTIP_HOST = { root: { display: "block" } };
+
+/**
+ * Wraps a menu item that has a tooltip (carried in `item.data.tooltip`) in a TooltipHost,
+ * around Fluent's own item button, so focus moving onto the item — by arrow key or
+ * pointer — shows it. One module-level component: a per-render one would remount items.
+ */
+type MenuItemWrapperAs = NonNullable<
+  IContextualMenuItem["contextualMenuItemWrapperAs"]
+>;
+const TooltipMenuItem: MenuItemWrapperAs = (props) => {
+  const { defaultRender: Default, ...rest } = props;
+  const tip = (props.item.data as { tooltip?: string } | undefined)?.tooltip;
+  return (
+    <TooltipHost content={tip ?? ""} styles={MENU_TOOLTIP_HOST}>
+      {Default ? <Default {...rest} /> : null}
+    </TooltipHost>
+  );
+};
+
 /**
  * A real menu, not a popover full of buttons: ContextualMenu supplies left-aligned rows,
  * icons, checkmarks, section headers with dividers, arrow-key navigation, and menu roles —
@@ -1448,6 +1546,13 @@ export function V8Menu(p: MenuProps): JSX.Element {
           ? { iconProps: { iconName: item.iconName } }
           : {}),
         ...(item.disabled ? { disabled: true } : {}),
+        ...(item.tooltip !== undefined
+          ? {
+              data: { tooltip: item.tooltip },
+              ariaDescription: item.tooltip,
+              contextualMenuItemWrapperAs: TooltipMenuItem,
+            }
+          : {}),
         // canCheck makes the row a choice: it reserves the checkmark gutter so the
         // unchecked siblings still align.
         ...(item.checked !== undefined
@@ -1479,6 +1584,7 @@ export function V8Menu(p: MenuProps): JSX.Element {
 }
 
 export function V8Panel(p: DrawerProps): JSX.Element {
+  useWarnIfUnnamed("panel", p);
   const resizable = p.resizable ?? true;
   const preset = PANEL_WIDTH[p.size ?? "medium"];
   const presetNum = parseInt(preset, 10);
@@ -1513,12 +1619,14 @@ export function V8Panel(p: DrawerProps): JSX.Element {
       focusTrapZoneProps={{ disableRestoreFocus: true }}
       popupProps={{
         onRestoreFocus: ({ containsFocus }) => restore(containsFocus),
+        ...popupName(p),
       }}
       type={p.position === "start" ? PanelType.customNear : PanelType.custom}
       customWidth={width}
       isBlocking={p.blocking ?? false}
       isLightDismiss={!p.blocking}
       hasCloseButton={!p.blocking}
+      closeButtonAriaLabel="Close"
       isFooterAtBottom
       {...(p.title !== undefined ? { headerText: p.title } : {})}
       {...(p.footer ? { onRenderFooterContent: () => <>{p.footer}</> } : {})}

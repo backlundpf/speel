@@ -184,4 +184,12 @@ describe("SpeelTable search", () => {
     // An outside change replaces what was typed.
     expect(box().value).toBe("report");
   });
+
+  it("search still matches an export:false column", () => {
+    wrap({
+      columns: [{ key: "Title" }, { key: "Owner", export: false }],
+    });
+    search("smith");
+    expect(titles()).toEqual(["Audit plan"]);
+  });
 });

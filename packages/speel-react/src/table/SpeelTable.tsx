@@ -67,6 +67,9 @@ function sameRows<T>(a: readonly T[], b: readonly T[]): boolean {
 }
 
 /** A custom per-row action rendered in the actions column after the built-ins. */
+/** A row action's key: a built-in's name, or a custom action's `RowAction.key`. */
+export type RowActionKey = "view" | "edit" | "delete" | (string & {});
+
 export interface RowAction<T> {
   key: string;
   /** Skin icon name (Fluent icon name in the v8 skin). */
@@ -92,9 +95,19 @@ export interface SpeelTableProps<T extends IEntity = IEntity> {
     onEdit?: (row: T) => void;
     onDelete?: (row: T) => void;
     custom?: RowAction<T>[];
+    /** Whether an action is offered on a row (item permissions, the row's status).
+     *  Unset: every action on every row. A hidden action leaves its slot empty, so the
+     *  remaining buttons line up down the column. */
+    available?: (action: RowActionKey, row: T) => boolean;
+    /** A row's button's accessible name ("Edit item 7"); its tooltip stays the title. */
+    ariaLabel?: (action: RowActionKey, row: T) => string;
   };
   getRowKey?: (row: T) => string;
   emptyMessage?: string;
+  /** `false` renders every row rather than only those in view — see TableProps.virtualize. */
+  virtualize?: boolean;
+  /** `"tab"`: Tab moves between editors in cells — see TableProps.cellNavigation. */
+  cellNavigation?: "tab";
   sortable?: boolean;
   filterable?: boolean;
   /** Semantic row emphasis; the skin picks the colours so they stay consistent per skin. */
@@ -115,7 +128,8 @@ export interface SpeelTableProps<T extends IEntity = IEntity> {
   /** Extra toolbar content, rendered before the Export button. */
   toolbar?: ReactNode;
   /** Adds a universal search box to the toolbar. It matches every visible column's text —
-   *  what export and print read — and every whitespace-separated term must appear in a row.
+   *  what export and print read, plus any `export: false` column — and every
+   *  whitespace-separated term must appear in a row.
    *  The text is part of `tableState`, so it rides the URL and views like a filter does. */
   search?: boolean | { placeholder?: string };
   /** The whole user-adjustable state — columns, sort, filters, paging — as one controlled
@@ -177,6 +191,8 @@ function SpeelTableInner<T extends IEntity>(
     rowActions,
     getRowKey,
     emptyMessage,
+    virtualize,
+    cellNavigation,
     sortable = true,
     filterable = true,
     rowIntent,
@@ -391,10 +407,27 @@ function SpeelTableInner<T extends IEntity>(
   }));
 
   const ra = rowActions ?? {};
-  const customActions = ra.custom ?? [];
-  const actionCount =
-    [ra.onView, ra.onEdit, ra.onDelete].filter(Boolean).length +
-    customActions.length;
+  // Built-ins first, then custom ones, in one ordered list keyed for `available`.
+  const actionList: RowAction<T>[] = [
+    ...(ra.onView
+      ? [{ key: "view", iconName: "View", title: "View", onClick: ra.onView }]
+      : []),
+    ...(ra.onEdit
+      ? [{ key: "edit", iconName: "Edit", title: "Edit", onClick: ra.onEdit }]
+      : []),
+    ...(ra.onDelete
+      ? [
+          {
+            key: "delete",
+            iconName: "Delete",
+            title: "Delete",
+            onClick: ra.onDelete,
+          },
+        ]
+      : []),
+    ...(ra.custom ?? []),
+  ];
+  const actionCount = actionList.length;
   if (actionCount > 0) {
     tableColumns.push({
       key: "__actions",
@@ -406,35 +439,29 @@ function SpeelTableInner<T extends IEntity>(
       shrink: 0,
       render: (row: unknown) => (
         <div style={{ display: "flex", gap: 4 }}>
-          {ra.onView ? (
-            <ui.IconButton
-              iconName="View"
-              title="View"
-              onClick={() => ra.onView!(row as T)}
-            />
-          ) : null}
-          {ra.onEdit ? (
-            <ui.IconButton
-              iconName="Edit"
-              title="Edit"
-              onClick={() => ra.onEdit!(row as T)}
-            />
-          ) : null}
-          {ra.onDelete ? (
-            <ui.IconButton
-              iconName="Delete"
-              title="Delete"
-              onClick={() => ra.onDelete!(row as T)}
-            />
-          ) : null}
-          {customActions.map((a) => (
-            <ui.IconButton
-              key={a.key}
-              iconName={a.iconName}
-              title={a.title}
-              onClick={() => a.onClick(row as T)}
-            />
-          ))}
+          {actionList.map((a) => {
+            const r = row as T;
+            const shown = ra.available ? ra.available(a.key, r) : true;
+            const name =
+              shown && ra.ariaLabel ? ra.ariaLabel(a.key, r) : undefined;
+            return (
+              // A fixed 32px slot per action: a hidden one leaves a gap, not a shift.
+              <span
+                key={a.key}
+                data-row-action-slot=""
+                style={{ display: "inline-flex", width: 32, flex: "0 0 32px" }}
+              >
+                {shown ? (
+                  <ui.IconButton
+                    iconName={a.iconName}
+                    title={a.title}
+                    {...(name !== undefined ? { ariaLabel: name } : {})}
+                    onClick={() => a.onClick(r)}
+                  />
+                ) : null}
+              </span>
+            );
+          })}
         </div>
       ),
     });
@@ -449,12 +476,14 @@ function SpeelTableInner<T extends IEntity>(
 
   // `visible` rather than `tableColumns`, so the actions column is excluded without filtering —
   // and export follows visibility, since export mirrors the screen.
+  // A column can opt out of all three (`export: false`) while staying on screen.
+  const exported = visible.filter((c) => c.export !== false);
   const runExport = (): void => {
     const prefix =
       (typeof exportCsv === "object" ? exportCsv.fileNamePrefix : undefined) ??
       (of as { name?: string }).name ??
       "export";
-    downloadCsv(csvFileName(prefix, new Date()), buildCsv(visible, matched));
+    downloadCsv(csvFileName(prefix, new Date()), buildCsv(exported, matched));
   };
 
   const runExportXlsx = (): void => {
@@ -464,7 +493,7 @@ function SpeelTableInner<T extends IEntity>(
     const sheetName = opts?.sheetName ?? entityName ?? "Sheet1";
     downloadXlsx(
       xlsxFileName(prefix, new Date()),
-      buildXlsx(visible, matched, sheetName),
+      buildXlsx(exported, matched, sheetName),
     );
   };
 
@@ -475,7 +504,7 @@ function SpeelTableInner<T extends IEntity>(
       "Print";
     const w = window.open("", "_blank");
     if (!w) return; // popup blocked — a silent no-op, no toast plumbing this cycle
-    w.document.write(buildPrintHtml(title, visible, matched, new Date()));
+    w.document.write(buildPrintHtml(title, exported, matched, new Date()));
     w.document.close();
     w.addEventListener("afterprint", () => w.close());
     w.focus();
@@ -570,6 +599,8 @@ function SpeelTableInner<T extends IEntity>(
         items={displayed}
         getRowKey={rowKey}
         {...(emptyMessage !== undefined ? { emptyMessage } : {})}
+        {...(virtualize !== undefined ? { virtualize } : {})}
+        {...(cellNavigation !== undefined ? { cellNavigation } : {})}
         {...(sortable ? { onSortChange, ...(sort ? { sort } : {}) } : {})}
         {...(rowIntent
           ? { getRowIntent: (row: unknown) => rowIntent(row as T) }

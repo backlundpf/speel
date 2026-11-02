@@ -669,6 +669,7 @@ export const fakeAdapter: SpeelUIAdapter = {
     open,
     onOpenChange,
     title,
+    ariaLabel,
     blocking,
     children,
     footer,
@@ -684,7 +685,7 @@ export const fakeAdapter: SpeelUIAdapter = {
     return (
       <div
         role="dialog"
-        aria-label={title ?? "dialog"}
+        aria-label={title ?? ariaLabel ?? "dialog"}
         data-fullscreen={String(fs)}
         data-draggable={String(draggable ?? true)}
       >
@@ -715,13 +716,14 @@ export const fakeAdapter: SpeelUIAdapter = {
     open,
     onOpenChange,
     title,
+    ariaLabel,
     blocking,
     children,
     footer,
     resizable,
   }) =>
     open ? (
-      <div role="dialog" aria-label={title ?? "panel"}>
+      <div role="dialog" aria-label={title ?? ariaLabel ?? "panel"}>
         {title ? <h2>{title}</h2> : null}
         {children}
         <div data-testid="surface-footer">{footer}</div>
@@ -895,9 +897,13 @@ export const fakeAdapter: SpeelUIAdapter = {
                   {...(item.checked !== undefined
                     ? { "aria-checked": item.checked }
                     : {})}
-                  disabled={item.disabled}
+                  disabled={item.disabled && item.tooltip === undefined}
+                  aria-disabled={item.disabled || undefined}
+                  title={item.tooltip}
+                  aria-description={item.tooltip}
                   data-icon={item.iconName}
                   onClick={() => {
+                    if (item.disabled) return;
                     item.onClick?.();
                     onOpenChange(false);
                   }}
@@ -912,11 +918,14 @@ export const fakeAdapter: SpeelUIAdapter = {
     </span>
   ),
 
-  FieldDisplay: ({ label, required, error, children }) =>
+  FieldDisplay: ({ label, required, error, description, children }) =>
     chrome(
       label,
       required,
       error,
-      <span data-testid="display">{children}</span>,
+      <>
+        <span data-testid="display">{children}</span>
+        {description !== undefined ? <span>{description}</span> : null}
+      </>,
     ),
 };
