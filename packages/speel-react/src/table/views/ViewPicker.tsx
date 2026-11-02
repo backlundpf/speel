@@ -120,13 +120,20 @@ export function ViewPicker({ ui, views: v }: ViewPickerProps): JSX.Element {
               },
             ]
           : []),
-        {
-          key: "save-as",
-          text: "Save as new view",
-          iconName: "Add",
-          onClick: createView,
-        },
-        ...(v.canPublish && v.activeView !== undefined
+        // Each action is offered only when the store it writes to can be written (#105):
+        // a 403 after the click is a worse failure than not offering it.
+        ...(v.canSaveViews
+          ? [
+              {
+                key: "save-as",
+                text: "Save as new view",
+                iconName: "Add",
+                onClick: createView,
+              },
+            ]
+          : []),
+        // Publishing moves a view between the personal and shared stores, so it needs both.
+        ...(v.canPublish && v.canSaveViews && v.activeView !== undefined
           ? [
               v.activeIsShared
                 ? {
@@ -158,6 +165,11 @@ export function ViewPicker({ ui, views: v }: ViewPickerProps): JSX.Element {
                 iconName: "Delete",
                 onClick: () => void v.remove(),
               },
+            ]),
+        // The starting view is the user's own setting, on any saved view — shared ones the
+        // user can't edit included.
+        ...(v.activeView !== undefined && v.canSetStartingView
+          ? [
               {
                 key: "starting",
                 text: v.activeIsStartingView
@@ -166,7 +178,8 @@ export function ViewPicker({ ui, views: v }: ViewPickerProps): JSX.Element {
                 iconName: "Pinned",
                 onClick: () => void v.setStartingView(),
               },
-            ]),
+            ]
+          : []),
       ],
     },
     {
@@ -228,7 +241,9 @@ export function ViewPicker({ ui, views: v }: ViewPickerProps): JSX.Element {
       <ui.Menu
         open={open}
         onOpenChange={setOpen}
-        sections={sections}
+        // A user who can't save views, on a table without a column chooser, has nothing
+        // under "This view": a titled section with no items is noise, so it is dropped.
+        sections={sections.filter((s) => s.items.length > 0)}
         trigger={
           <ui.Button
             text={`${activeName}${unsaved ? " •" : ""}`}

@@ -58,6 +58,11 @@ For a per-browser store instead — an app that has not provisioned the list, or
 `useSettings(createLocalUserSettingsStore())` when building the identity. An app can supply any
 object implementing the contract; nothing above the seam knows where settings live.
 
+An optional `canWrite()` says whether the current user may create and change settings, so a
+surface can hide an action that would write them rather than offer one that 403s — the table
+view picker does (see [table views](table-views.md)). Omitted means yes. `identity.settings`
+answers it from the user's add permission on the settings list, checked once per identity.
+
 See [identity's settings page](../../speel-identity/docs/settings.md) for the storage model
 itself.
 

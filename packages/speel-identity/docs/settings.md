@@ -73,6 +73,11 @@ listener covers the case the debounce creates.
 identity builder puts preferences in `localStorage` instead — for an app that has not
 provisioned the list, or a test — and any object implementing `UserSettingsStore` will do.
 
+**It can say whether the user may write.** `canWrite()` lets a surface hide an action that would
+write settings instead of offering one that 403s. `identity.settings` answers it from the user's
+add permission on the settings list, read once per identity and shared by every caller (a failed
+read is retried); a store you supply answers for itself, or omits it to mean yes.
+
 **Saved table views ride on this.** `useTableViews` stores a user's views as settings when
 identity is wired, so an arrangement follows them to another machine without the app wiring
 anything.

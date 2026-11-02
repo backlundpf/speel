@@ -10,6 +10,10 @@ import { FakeIdentityProvider } from "../src/testing/FakeIdentityProvider.js";
 import { IdentityDbContext } from "../src/IdentityDbContext.js";
 import { initSpeelIdentity } from "../src/initSpeelIdentity.js";
 import { USER_SETTINGS_LIST } from "../src/UserSetting.js";
+import {
+  createEntityUserSettingsStore,
+  createLocalUserSettingsStore,
+} from "../src/userSettingsStore.js";
 
 class AppContext extends IdentityDbContext {}
 class Thing {
@@ -95,5 +99,80 @@ describe("identity.settings", () => {
     await expect(identity.settings.set("x", 1)).rejects.toThrow(
       /IdentityDbContext/,
     );
+  });
+});
+
+describe("identity.settings.canWrite", () => {
+  const SETTINGS = { kind: "list", list: USER_SETTINGS_LIST } as const;
+  function withPermissions() {
+    const sp = new FakeStorageProvider();
+    const ids = new FakeIdentityProvider();
+    const db = initSpeelDbContext(AppContext, (b) => b.useProvider(sp));
+    const identity = initSpeelIdentity(db, (b) => b.useProvider(ids));
+    return { identity, ids };
+  }
+  const settingsReads = (ids: FakeIdentityProvider): string[] =>
+    ids.reads.filter((r) => r.includes(USER_SETTINGS_LIST));
+
+  it("canWrite is true with addListItems on the settings list", async () => {
+    const { identity, ids } = withPermissions();
+    ids.seedPermissions(SETTINGS, ["viewListItems", "addListItems"]);
+    expect(await identity.settings.canWrite!()).toBe(true);
+  });
+
+  it("canWrite is false without it", async () => {
+    const { identity, ids } = withPermissions();
+    ids.seedPermissions(SETTINGS, ["viewListItems"]);
+    expect(await identity.settings.canWrite!()).toBe(false);
+  });
+
+  it("reads access once across calls", async () => {
+    const { identity, ids } = withPermissions();
+    ids.seedPermissions(SETTINGS, ["addListItems"]);
+    await Promise.all([
+      identity.settings.canWrite!(),
+      identity.settings.canWrite!(),
+    ]);
+    await identity.settings.canWrite!();
+    expect(settingsReads(ids)).toHaveLength(1);
+  });
+
+  it("checks once even after a save drops identity's permission cache", async () => {
+    const { identity, ids } = withPermissions();
+    ids.seedPermissions(SETTINGS, ["addListItems"]);
+    await identity.settings.canWrite!();
+    await identity.settings.set("k", 1);
+    await identity.settings.canWrite!();
+    expect(settingsReads(ids)).toHaveLength(1);
+  });
+
+  it("retries after a failed read", async () => {
+    const { identity, ids } = withPermissions();
+    let calls = 0;
+    const real = ids.getEffectivePermissionsAsync.bind(ids);
+    ids.seedPermissions(SETTINGS, ["addListItems"]);
+    ids.getEffectivePermissionsAsync = (...args) => {
+      calls += 1;
+      return calls === 1 ? Promise.reject(new Error("boom")) : real(...args);
+    };
+    await expect(identity.settings.canWrite!()).rejects.toThrow("boom");
+    expect(await identity.settings.canWrite!()).toBe(true);
+  });
+
+  it("a store passed with useSettings is used as-is", () => {
+    const sp = new FakeStorageProvider();
+    const db = initSpeelDbContext(AppContext, (b) => b.useProvider(sp));
+    const identity = initSpeelIdentity(db, (b) =>
+      b
+        .useProvider(new FakeIdentityProvider())
+        .useSettings(createLocalUserSettingsStore()),
+    );
+    expect(identity.settings.canWrite).toBeUndefined();
+  });
+
+  it("createEntityUserSettingsStore without canWrite answers nothing", () => {
+    const sp = new FakeStorageProvider();
+    const db = initSpeelDbContext(AppContext, (b) => b.useProvider(sp));
+    expect(createEntityUserSettingsStore(db).canWrite).toBeUndefined();
   });
 });

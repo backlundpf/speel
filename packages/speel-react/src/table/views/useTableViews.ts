@@ -83,7 +83,21 @@ export interface TableViews {
   activeIsShared: boolean;
   /** May the user publish, rename, or delete shared views? */
   canPublish: boolean;
-  /** Is the active view the user's to change — personal, or shared when they may publish? */
+  /**
+   * May the user save personal views — create, change, delete? The view store's `canSave`;
+   * `false` while loading, and when the check fails.
+   */
+  canSaveViews: boolean;
+  /**
+   * May the user pick the view they start on? That choice is a user setting, so the settings
+   * store's `canWrite` answers; `false` while loading, and when the check fails.
+   */
+  canSetStartingView: boolean;
+  /**
+   * Is the active view the user's to change — personal when they may save views, shared when
+   * they may publish? When it is not, Save, Rename and Delete are not offered and column or
+   * page-size tweaks stay in the session, shown as pending.
+   */
   canEditActive: boolean;
   /** Is the active view the one this user starts on? */
   activeIsStartingView: boolean;
@@ -186,6 +200,21 @@ function sameQuestion(a: TableState, b: TableState): boolean {
 }
 
 /**
+ * A "may I write?" answer for the load: an absent question means yes; a failed one means no,
+ * for this load only — hiding an action beats one that 403s, and the picker still loads.
+ * `ask` is called inside a promise, so even a check that throws synchronously is a "no", not
+ * a crashed table; callers pass it as a closure so a class-based store keeps its `this`.
+ */
+const mayWrite = (
+  ask: (() => Promise<boolean>) | undefined,
+): Promise<boolean> =>
+  ask === undefined
+    ? Promise.resolve(true)
+    : Promise.resolve()
+        .then(ask)
+        .catch(() => false);
+
+/**
  * Named views over three layers of state.
  *
  * Columns write through to the active view on a debounce, because layout fiddling is casual
@@ -234,6 +263,8 @@ export function useTableViews(o: TableViewsOptions): TableViews {
   const [views, setViews] = useState<StoredView[]>([]);
   const [sharedViews, setSharedViews] = useState<StoredView[]>([]);
   const [canPublish, setCanPublish] = useState(false);
+  const [canSaveViews, setCanSaveViews] = useState(false);
+  const [canSetStartingView, setCanSetStartingView] = useState(false);
   const [activeId, setActiveId] = useState<string | undefined>(undefined);
   // Which app-authored view is selected. Consulted only while no stored view is active, so
   // switching to a stored view and back lands where the user left off.
@@ -277,12 +308,17 @@ export function useTableViews(o: TableViewsOptions): TableViews {
         ? sharedStore.list(tableId)
         : Promise.resolve<StoredView[]>([]),
       sharedStore ? sharedStore.canPublish() : Promise.resolve(false),
+      // Called on their stores, not detached: a class-based store's check reads `this`.
+      mayWrite(viewStore.canSave && (() => viewStore.canSave!())),
+      mayWrite(settingsStore?.canWrite && (() => settingsStore.canWrite!())),
     ]).then(
-      ([mine, theirs, mayPublish]) => {
+      ([mine, theirs, mayPublish, maySave, mayStart]) => {
         if (!live) return;
         setViews(mine);
         setSharedViews(theirs);
         setCanPublish(mayPublish);
+        setCanSaveViews(maySave);
+        setCanSetStartingView(mayStart);
         setLoading(false);
       },
       (e: unknown) => {
@@ -294,7 +330,7 @@ export function useTableViews(o: TableViewsOptions): TableViews {
     return () => {
       live = false;
     };
-  }, [viewStore, sharedStore, tableId]);
+  }, [viewStore, sharedStore, settingsStore, tableId]);
 
   // One Set per mounted table, the same bookkeeping a dead filter key gets: a name that
   // resolves to nothing is worth saying once, not once per render.
@@ -380,7 +416,7 @@ export function useTableViews(o: TableViewsOptions): TableViews {
    * (Save, Rename, Delete, held column edits) already keys off it.
    */
   const canEditActive =
-    activeView !== undefined && (!activeIsShared || canPublish);
+    activeView !== undefined && (activeIsShared ? canPublish : canSaveViews);
   const activeDefaultView =
     defaultViews.find((v) => v.name === activeDefaultName) ?? defaultView;
   const base = activeView?.descriptor ?? activeDefaultView.descriptor;
@@ -625,6 +661,7 @@ export function useTableViews(o: TableViewsOptions): TableViews {
 
   const saveAs = (name: string): Promise<void> =>
     guard(async () => {
+      if (!canSaveViews) return;
       const saved = await viewStore.save({
         id: "",
         tableId,
@@ -670,7 +707,7 @@ export function useTableViews(o: TableViewsOptions): TableViews {
 
   const setStartingView = (): Promise<void> =>
     guard(() => {
-      if (activeView) setStartingViewId(activeView.id);
+      if (activeView && canSetStartingView) setStartingViewId(activeView.id);
       return Promise.resolve();
     });
 
@@ -681,7 +718,15 @@ export function useTableViews(o: TableViewsOptions): TableViews {
    */
   const publish = (): Promise<void> =>
     guard(async () => {
-      if (!activeView || activeIsShared || !sharedStore || !canPublish) return;
+      // A move: it writes the personal store too, so it needs both answers.
+      if (
+        !activeView ||
+        activeIsShared ||
+        !sharedStore ||
+        !canPublish ||
+        !canSaveViews
+      )
+        return;
       const shared = await sharedStore.save({ ...activeView, id: "" });
       await viewStore.remove(activeView.id);
       setViews((prev) => prev.filter((v) => v.id !== activeView.id));
@@ -692,7 +737,14 @@ export function useTableViews(o: TableViewsOptions): TableViews {
   /** The same move backwards: the team's view becomes the publisher's own again. */
   const unpublish = (): Promise<void> =>
     guard(async () => {
-      if (!activeView || !activeIsShared || !sharedStore || !canPublish) return;
+      if (
+        !activeView ||
+        !activeIsShared ||
+        !sharedStore ||
+        !canPublish ||
+        !canSaveViews
+      )
+        return;
       const mine = await viewStore.save({ ...activeView, id: "" });
       await sharedStore.remove(activeView.id);
       setSharedViews((prev) => prev.filter((v) => v.id !== activeView.id));
@@ -764,6 +816,8 @@ export function useTableViews(o: TableViewsOptions): TableViews {
     activeView,
     activeIsShared,
     canPublish,
+    canSaveViews,
+    canSetStartingView,
     canEditActive,
     activeIsStartingView:
       activeView !== undefined && activeView.id === startingViewId,
