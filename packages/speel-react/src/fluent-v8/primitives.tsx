@@ -192,16 +192,22 @@ export function V8NumberInput(p: NumberInputProps): JSX.Element {
   const chrome = chromeFrom(p);
   const aria = useFieldAria(chrome);
   const name = nameOf(p);
+  // The chrome owns the label (#100): SpinButton's own draws no required marker, sits
+  // inline, and would land after a currency prefix. Its `ariaLabel` names the wrapper
+  // div, not the input — so the input is named here, by the label or inline.
+  const inputProps: React.InputHTMLAttributes<HTMLInputElement> = {
+    id: aria.controlId,
+    ...(p.label !== undefined ? { "aria-labelledby": aria.labelId } : {}),
+    ...(name !== undefined ? { "aria-label": name } : {}),
+    ...(p.required ? { "aria-required": true } : {}),
+    ...(p.placeholder !== undefined ? { placeholder: p.placeholder } : {}),
+  };
   const control = (
     <SpinButton
-      {...(p.label !== undefined ? { label: p.label } : {})}
       {...(aria.describedBy !== undefined
         ? { ariaDescribedBy: aria.describedBy }
         : {})}
-      {...(name !== undefined ? { ariaLabel: name } : {})}
-      {...(p.placeholder !== undefined
-        ? { inputProps: { placeholder: p.placeholder } }
-        : {})}
+      inputProps={inputProps}
       // `== null` catches null as well as undefined: an empty number column
       // arrives as null, and String(null) is the word "null" in the user's box.
       value={p.value == null ? "" : String(p.value)}
@@ -216,7 +222,7 @@ export function V8NumberInput(p: NumberInputProps): JSX.Element {
   );
   const hasAdorn = p.prefix !== undefined || p.suffix !== undefined;
   return (
-    <V8Field chrome={chrome} aria={aria} renderLabel={false}>
+    <V8Field chrome={chrome} aria={aria}>
       {hasAdorn ? (
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           {p.prefix !== undefined && <span>{p.prefix}</span>}
