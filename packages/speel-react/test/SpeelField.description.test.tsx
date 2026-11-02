@@ -30,6 +30,7 @@ class Gift {
   Refunded?: boolean;
   Program?: Program;
   ProgramId?: number;
+  Code?: string;
 }
 class Ctx extends DbContext {
   protected override onModelCreating(mb: ModelBuilder): void {
@@ -65,20 +66,27 @@ class Ctx extends DbContext {
         .hasDisplayField((p) => p.Title)
         .hasDisplayName("Program")
         .hasDescription("The program it supports");
+      b.property((e) => e.Code)
+        .isText()
+        .hasDisplayName("Code")
+        .hasDescription("Assigned on receipt")
+        .isReadOnly();
     });
   }
 }
 
-function renderGift(): { markTouched: (name: string) => void } {
+function renderGift(
+  mode: "edit" | "view" = "edit",
+): { markTouched: (name: string) => void } {
   const ctx = new Ctx({ provider: makeFakeProvider({ Programs: [] }) } as never);
   const gift = Object.assign(new Gift(), { Id: 1 });
   let touch: (name: string) => void = () => {};
   function Inner() {
-    const form = useEntityForm(gift, "edit");
+    const form = useEntityForm(gift, mode);
     touch = (n) => form.markTouched(n);
     return (
       <EntityFormProvider value={form as never}>
-        {["DonorName", "Amount", "DonorType", "Refunded", "Program"].map(
+        {["DonorName", "Amount", "DonorType", "Refunded", "Program", "Code"].map(
           (n) => (
             <SpeelField key={n} name={n} />
           ),
@@ -126,6 +134,26 @@ describe("a property's description in edit mode", () => {
     expect(describedBy(input)).toEqual(
       expect.arrayContaining([desc.id, err.id]),
     );
+  });
+});
+
+describe("a property's description on a display", () => {
+  it("view mode shows the icon, not the text", () => {
+    renderGift("view");
+    expect(
+      screen.getByRole("button", { name: "More information about Donor Name" }),
+    ).toBeInTheDocument();
+    // Only the tooltip's hidden copy: no subtext line under the value.
+    expect(
+      screen.getAllByText("Last name as printed on the check"),
+    ).toHaveLength(1);
+  });
+
+  it("read-only field shows the icon", () => {
+    renderGift("edit");
+    expect(
+      screen.getByRole("button", { name: "More information about Code" }),
+    ).toBeInTheDocument();
   });
 });
 

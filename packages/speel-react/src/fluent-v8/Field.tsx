@@ -1,5 +1,13 @@
 import * as React from "react";
-import { Label, Text, getTheme } from "@fluentui/react";
+import {
+  IconButton,
+  Label,
+  Text,
+  TooltipHost,
+  getTheme,
+  hiddenContentStyle,
+  mergeStyles,
+} from "@fluentui/react";
 import type { ReactNode } from "react";
 import type { FieldChrome } from "../adapter/SpeelUIAdapter.js";
 import { useStableId } from "./useStableId.js";
@@ -78,36 +86,71 @@ export function useFieldAria(chrome: FieldChrome): FieldAria {
   };
 }
 
+const visuallyHidden = mergeStyles(hiddenContentStyle);
+const INFO_BUTTON_STYLES = {
+  root: { width: 20, height: 20 },
+  icon: { fontSize: 12 },
+};
+
 /**
  * Uniform Fluent v8 chrome: Label (+required) / control / error / description.
  *
  * `renderLabel={false}` when the control draws its own label — the chrome still owns
  * the error and description, so every field's help text looks the same wherever the
  * name came from.
+ *
+ * `descriptionAs="icon"` (displays) moves the description behind an info button beside the
+ * label: the tooltip's always-present hidden copy carries `descriptionId`, so whatever the
+ * display points `aria-describedby` at still resolves. With no label to sit beside, there
+ * is no button — only the hidden description.
  */
 export function V8Field({
   chrome,
   aria,
   renderLabel = true,
+  descriptionAs = "text",
   children,
 }: {
   chrome: FieldChrome;
   aria: FieldAria;
   renderLabel?: boolean;
+  descriptionAs?: "text" | "icon";
   children: ReactNode;
 }): JSX.Element {
   const theme = getTheme();
+  const showLabel = renderLabel && chrome.label !== undefined;
+  const asIcon = descriptionAs === "icon" && chrome.description !== undefined;
+  const label = showLabel ? (
+    <Label
+      id={aria.labelId}
+      htmlFor={aria.controlId}
+      required={!!chrome.required}
+      disabled={!!chrome.disabled}
+    >
+      {chrome.label}
+    </Label>
+  ) : null;
   return (
     <div>
-      {renderLabel && chrome.label !== undefined && (
-        <Label
-          id={aria.labelId}
-          htmlFor={aria.controlId}
-          required={!!chrome.required}
-          disabled={!!chrome.disabled}
-        >
-          {chrome.label}
-        </Label>
+      {asIcon && showLabel ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {label}
+          <TooltipHost content={chrome.description!} id={aria.descriptionId}>
+            <IconButton
+              iconProps={{ iconName: "Info" }}
+              ariaLabel={`More information about ${chrome.label}`}
+              aria-describedby={aria.descriptionId}
+              styles={INFO_BUTTON_STYLES}
+            />
+          </TooltipHost>
+        </div>
+      ) : (
+        label
+      )}
+      {asIcon && !showLabel && (
+        <span id={aria.descriptionId} className={visuallyHidden}>
+          {chrome.description}
+        </span>
       )}
       {children}
       {chrome.error !== undefined && (
@@ -120,7 +163,7 @@ export function V8Field({
           {chrome.error}
         </Text>
       )}
-      {chrome.description !== undefined && (
+      {chrome.description !== undefined && !asIcon && (
         <Text
           id={aria.descriptionId}
           variant="small"

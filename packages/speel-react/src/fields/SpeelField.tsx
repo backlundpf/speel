@@ -2,7 +2,11 @@ import type { FieldConfig } from "@speel/core";
 import { useSpeelUI } from "../context.js";
 import { useField } from "../form/useField.js";
 import type { FieldHandle } from "../form/FieldHandle.js";
-import type { FieldChrome, SpeelUIAdapter } from "../adapter/SpeelUIAdapter.js";
+import type {
+  FieldChrome,
+  FieldDisplayProps,
+  SpeelUIAdapter,
+} from "../adapter/SpeelUIAdapter.js";
 import { formatFieldValue } from "./format.js";
 import { LookupDispatchBody } from "./PrincipalFieldBody.js";
 import { SelectionFieldBody } from "./SelectionFieldBody.js";
@@ -38,7 +42,11 @@ function RenderField({ field }: { field: FieldHandle }): JSX.Element | null {
 
   // 1) render override wins (undefined = fall back to the default body)
   if (field.render !== undefined) {
-    return <ui.FieldDisplay {...nameOf(field)}>{field.render}</ui.FieldDisplay>;
+    return (
+      <ui.FieldDisplay {...displayOf(field, isDisplay(field) ? "icon" : "text")}>
+        {field.render}
+      </ui.FieldDisplay>
+    );
   }
   // 2) Json is dispatched here, ahead of the view/read-only branch below: a shape
   // renders as a FIELDSET of its own properties in every mode (each nested
@@ -51,9 +59,9 @@ function RenderField({ field }: { field: FieldHandle }): JSX.Element | null {
     return <JsonFieldBody field={field} chrome={chromeOf(field)} />;
   }
   // 3) view mode or read-only → formatted display (not a disabled input)
-  if (field.mode === "view" || field.readOnly) {
+  if (isDisplay(field)) {
     return (
-      <ui.FieldDisplay {...nameOf(field)}>
+      <ui.FieldDisplay {...displayOf(field, "icon")}>
         {formatFieldValue(field.config as FieldConfig, field.value)}
       </ui.FieldDisplay>
     );
@@ -67,6 +75,24 @@ function nameOf(field: FieldHandle): Pick<FieldChrome, "label" | "ariaLabel"> {
   return field.ariaLabel !== undefined
     ? { ariaLabel: field.ariaLabel }
     : { label: field.displayName };
+}
+
+/** View mode or read-only: the field is read, not filled in. */
+function isDisplay(field: FieldHandle): boolean {
+  return field.mode === "view" || field.readOnly;
+}
+
+/** A FieldDisplay's name plus its description, shown as an info icon or as help text. */
+function displayOf(
+  field: FieldHandle,
+  descriptionAs: "text" | "icon",
+): Pick<FieldDisplayProps, "label" | "ariaLabel" | "description" | "descriptionAs"> {
+  return {
+    ...nameOf(field),
+    ...(field.description !== undefined
+      ? { description: field.description, descriptionAs }
+      : {}),
+  };
 }
 
 /** Build a clean chrome object (only defined keys — friendly to exactOptionalPropertyTypes). */
@@ -198,7 +224,7 @@ function renderInput(ui: SpeelUIAdapter, field: FieldHandle): JSX.Element {
       return <LookupDispatchBody field={field} chrome={chrome} />;
     default:
       return (
-        <ui.FieldDisplay {...nameOf(field)}>
+        <ui.FieldDisplay {...displayOf(field, "text")}>
           {formatFieldValue(config, field.value)}
         </ui.FieldDisplay>
       );

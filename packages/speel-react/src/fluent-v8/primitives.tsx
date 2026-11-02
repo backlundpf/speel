@@ -1566,7 +1566,11 @@ export function V8FieldDisplay(p: FieldDisplayProps): JSX.Element {
   const chrome = chromeFrom(p);
   const aria = useFieldAria(chrome);
   return (
-    <V8Field chrome={chrome} aria={aria}>
+    <V8Field
+      chrome={chrome}
+      aria={aria}
+      descriptionAs={p.descriptionAs ?? "icon"}
+    >
       {/* Read-only, so not a labelable element: `group` gives it a name an AT can
           reach, which a bare div cannot carry. */}
       <div
