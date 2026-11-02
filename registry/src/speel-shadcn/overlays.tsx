@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { Maximize2, Minimize2, X } from "lucide-react";
 
@@ -112,7 +112,37 @@ export function ShadMenu(p: MenuProps): ReactElement {
   );
 }
 
+/**
+ * Warns once per surface instance, in development, when it has neither a title nor an
+ * `ariaLabel` — an unnamed dialog is announced as just "dialog".
+ */
+function useWarnIfUnnamed(kind: string, p: DialogProps): void {
+  const warned = useRef(false);
+  if (
+    // Guarded: a browser bundle may not define `process` at all.
+    (typeof process === "undefined" ||
+      process.env.NODE_ENV !== "production") &&
+    p.open &&
+    p.title === undefined &&
+    p.ariaLabel === undefined &&
+    !warned.current
+  ) {
+    warned.current = true;
+    console.warn(
+      `speel: a ${kind} has neither a title nor an ariaLabel, so screen readers announce it unnamed. Pass ariaLabel.`,
+    );
+  }
+}
+
+/**
+ * The surface's name: the visible title, else `ariaLabel` for screen readers only. Radix
+ * requires a title element, so an unnamed surface keeps an empty, hidden one.
+ */
+const titleText = (p: DialogProps): string => p.title ?? p.ariaLabel ?? "";
+const titleHidden = (p: DialogProps): boolean => p.title === undefined;
+
 export function ShadDialog(p: DialogProps): ReactElement {
+  useWarnIfUnnamed("modal", p);
   const resizable = p.resizable ?? true;
   const draggable = p.draggable ?? true;
   const showFs = p.fullscreenToggle ?? true;
@@ -190,10 +220,15 @@ export function ShadDialog(p: DialogProps): ReactElement {
             draggable && !fullscreen && "cursor-move touch-none",
           )}
         >
-          {/* DialogTitle always rendered for a11y; renders empty string when title is undefined */}
-          <DialogTitle className="grow truncate text-lg font-semibold">
-            {p.title ?? ""}
+          <DialogTitle
+            className={cn(
+              "grow truncate text-lg font-semibold",
+              titleHidden(p) && "sr-only",
+            )}
+          >
+            {titleText(p)}
           </DialogTitle>
+          {titleHidden(p) ? <div className="grow" /> : null}
           {showFs ? (
             <Button
               type="button"
@@ -248,6 +283,7 @@ export function ShadDialog(p: DialogProps): ReactElement {
 }
 
 export function ShadDrawer(p: DrawerProps): ReactElement {
+  useWarnIfUnnamed("panel", p);
   const resizable = p.resizable ?? true;
   const atEnd = p.position !== "start";
   const presetW = SHEET_WIDTH[p.size ?? "medium"];
@@ -309,9 +345,15 @@ export function ShadDrawer(p: DrawerProps): ReactElement {
             headerPrClass,
           )}
         >
-          <SheetTitle className="grow truncate text-lg font-semibold">
-            {p.title ?? ""}
+          <SheetTitle
+            className={cn(
+              "grow truncate text-lg font-semibold",
+              titleHidden(p) && "sr-only",
+            )}
+          >
+            {titleText(p)}
           </SheetTitle>
+          {titleHidden(p) ? <div className="grow" /> : null}
         </div>
         <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
           {p.children as ReactNode}
