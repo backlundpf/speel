@@ -448,6 +448,10 @@ export interface TableProps {
   /** A skin's own expand/collapse-all control was used (the v8 skin has one in the header,
    *  in front of the columns). Same operation as the table's toolbar button. */
   onToggleAllGroups?: () => void;
+  /** `false` renders every row instead of only those scrolled into view — for a small
+   *  table whose rows hold live inputs. Unset: the skin's default (the v8 skin
+   *  virtualizes; the shadcn skin never does). */
+  virtualize?: boolean;
 }
 
 /** Chrome (label/required/error/description) wrapped around an arbitrary node —

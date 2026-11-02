@@ -724,6 +724,9 @@ export function V8Dialog(p: DialogProps): JSX.Element {
         {/* Scrolling body — the only scroll container. */}
         <div
           ref={bodyRef}
+          // Fluent's List finds its scroll parent by this attribute: without it, a virtualized
+          // table in the modal measures against the window and stops drawing rows.
+          data-is-scrollable="true"
           style={{
             flex: "1 1 auto",
             overflow: "auto",
@@ -1314,6 +1317,9 @@ export function V8Table(
           // `min-width: 100%`, so they overflow it together. Passed explicitly (it is also the
           // default) because the width behaviour above depends on it.
           constrainMode={ConstrainMode.horizontalConstrained}
+          {...(p.virtualize === false
+            ? { onShouldVirtualize: () => false }
+            : {})}
           {...(groups
             ? {
                 groups,
@@ -1466,11 +1472,6 @@ export function V8Table(
   );
 }
 
-/**
- * A real menu, not a popover full of buttons: ContextualMenu supplies left-aligned rows,
- * icons, checkmarks, section headers with dividers, arrow-key navigation, and menu roles —
- * all of which a hand-rolled button stack has to fake, badly.
- */
 const MENU_TOOLTIP_HOST = { root: { display: "block" } };
 
 /**
@@ -1491,6 +1492,11 @@ const TooltipMenuItem: MenuItemWrapperAs = (props) => {
   );
 };
 
+/**
+ * A real menu, not a popover full of buttons: ContextualMenu supplies left-aligned rows,
+ * icons, checkmarks, section headers with dividers, arrow-key navigation, and menu roles —
+ * all of which a hand-rolled button stack has to fake, badly.
+ */
 export function V8Menu(p: MenuProps): JSX.Element {
   const anchor = React.useRef<HTMLSpanElement>(null);
   const items: IContextualMenuItem[] = p.sections.map((section, i) => ({

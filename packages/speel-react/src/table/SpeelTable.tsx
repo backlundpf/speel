@@ -104,6 +104,8 @@ export interface SpeelTableProps<T extends IEntity = IEntity> {
   };
   getRowKey?: (row: T) => string;
   emptyMessage?: string;
+  /** `false` renders every row rather than only those in view — see TableProps.virtualize. */
+  virtualize?: boolean;
   sortable?: boolean;
   filterable?: boolean;
   /** Semantic row emphasis; the skin picks the colours so they stay consistent per skin. */
@@ -187,6 +189,7 @@ function SpeelTableInner<T extends IEntity>(
     rowActions,
     getRowKey,
     emptyMessage,
+    virtualize,
     sortable = true,
     filterable = true,
     rowIntent,
@@ -592,6 +595,7 @@ function SpeelTableInner<T extends IEntity>(
         items={displayed}
         getRowKey={rowKey}
         {...(emptyMessage !== undefined ? { emptyMessage } : {})}
+        {...(virtualize !== undefined ? { virtualize } : {})}
         {...(sortable ? { onSortChange, ...(sort ? { sort } : {}) } : {})}
         {...(rowIntent
           ? { getRowIntent: (row: unknown) => rowIntent(row as T) }
