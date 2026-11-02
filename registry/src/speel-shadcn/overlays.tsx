@@ -32,9 +32,17 @@ import type {
   DialogProps,
   DrawerProps,
   PopoverProps,
+  MenuItem,
   MenuProps,
 } from "@speel/react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
+import { useStableId } from "./compat";
 import { iconFor } from "./icons";
 
 const DIALOG_WIDTH = { small: 480, medium: 640, large: 840 } as const;
@@ -75,40 +83,67 @@ export function ShadMenu(p: MenuProps): ReactElement {
             {section.title !== undefined ? (
               <DropdownMenuLabel>{section.title}</DropdownMenuLabel>
             ) : null}
-            {section.items.map((item) => {
-              const Icon =
-                item.iconName !== undefined
-                  ? iconFor(item.iconName)
-                  : undefined;
-              const body = (
-                <>
-                  {Icon ? <Icon className="size-4" /> : null}
-                  {item.text}
-                </>
-              );
-              return item.checked !== undefined ? (
-                <DropdownMenuCheckboxItem
-                  key={item.key}
-                  checked={item.checked}
-                  disabled={item.disabled}
-                  onSelect={() => item.onClick?.()}
-                >
-                  {body}
-                </DropdownMenuCheckboxItem>
-              ) : (
-                <DropdownMenuItem
-                  key={item.key}
-                  disabled={item.disabled}
-                  onSelect={() => item.onClick?.()}
-                >
-                  {body}
-                </DropdownMenuItem>
-              );
-            })}
+            {section.items.map((item) => (
+              <MenuEntry key={item.key} item={item} />
+            ))}
           </div>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/**
+ * One menu item. With a tooltip it follows Button.tooltip's contract: a Radix tooltip on
+ * hover and focus, a screen-reader copy as its description, and — when disabled — it
+ * stays in the roving focus (Radix skips `disabled` items) as `aria-disabled`, ignoring
+ * selection, so the reason can still be read.
+ */
+function MenuEntry({ item }: { item: MenuItem }): ReactElement {
+  const tipId = useStableId();
+  const Icon =
+    item.iconName !== undefined ? iconFor(item.iconName) : undefined;
+  const tipped = item.tooltip !== undefined;
+  const softDisabled = tipped && !!item.disabled;
+  const common = {
+    disabled: !!item.disabled && !tipped,
+    onSelect: (e: Event) => {
+      if (softDisabled) {
+        e.preventDefault();
+        return;
+      }
+      item.onClick?.();
+    },
+    ...(tipped ? { "aria-describedby": tipId } : {}),
+    ...(softDisabled
+      ? { "aria-disabled": true, className: "opacity-50" }
+      : {}),
+    children: (
+      <>
+        {Icon ? <Icon className="size-4" /> : null}
+        {item.text}
+      </>
+    ),
+  };
+  const entry =
+    item.checked !== undefined ? (
+      <DropdownMenuCheckboxItem checked={item.checked} {...common} />
+    ) : (
+      <DropdownMenuItem {...common} />
+    );
+  if (!tipped) return entry;
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>{entry}</TooltipTrigger>
+        <TooltipContent side="right" className="speel-shadcn">
+          {item.tooltip}
+        </TooltipContent>
+      </Tooltip>
+      <span id={tipId} className="sr-only">
+        {item.tooltip}
+      </span>
+    </TooltipProvider>
   );
 }
 
