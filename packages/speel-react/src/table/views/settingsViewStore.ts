@@ -18,7 +18,10 @@ let counter = 0;
 export function createSettingsViewStore(
   settings: UserSettingsStore,
 ): TableViewStore {
+  const canWrite = settings.canWrite;
   return {
+    // Saving a view is writing a setting, so the settings store answers.
+    ...(canWrite !== undefined ? { canSave: () => canWrite() } : {}),
     list: async (tableId) => {
       const all = await settings.getAll();
       const prefix = `${PREFIX}${tableId}.`;

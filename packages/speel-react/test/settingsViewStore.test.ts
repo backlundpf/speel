@@ -74,3 +74,20 @@ describe("settings-backed view store", () => {
     expect(back!.descriptor).toEqual(saved.descriptor);
   });
 });
+
+describe("createSettingsViewStore.canSave", () => {
+  it("forwards canWrite as canSave", async () => {
+    const settings = {
+      ...createLocalUserSettingsStore(),
+      canWrite: () => Promise.resolve(false),
+    };
+    const store = createSettingsViewStore(settings);
+    expect(await store.canSave!()).toBe(false);
+  });
+
+  it("no canWrite, no canSave", () => {
+    expect(
+      createSettingsViewStore(createLocalUserSettingsStore()).canSave,
+    ).toBeUndefined();
+  });
+});
