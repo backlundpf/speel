@@ -158,4 +158,32 @@ describe("SpeelTable CSV export", () => {
     ref.current!.exportCsv();
     expect(lines()).toHaveLength(13);
   });
+
+  it("CSV omits an export:false column (header and cells)", () => {
+    wrap(
+      <SpeelTable
+        of={Task}
+        items={many}
+        exportCsv
+        columns={[{ key: "Title" }, { key: "Status", export: false }]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    expect(lines()[0]).toBe("Title");
+    expect(lines()[1]!.split(",")).toHaveLength(1);
+  });
+
+  it("an export:false column still renders and sorts", () => {
+    wrap(
+      <SpeelTable
+        of={Task}
+        items={many}
+        exportCsv
+        columns={[{ key: "Title" }, { key: "Status", export: false }]}
+      />,
+    );
+    expect(
+      screen.getByRole("columnheader", { name: /Status/ }),
+    ).toBeInTheDocument();
+  });
 });

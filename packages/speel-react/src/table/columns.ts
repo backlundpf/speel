@@ -38,6 +38,12 @@ export interface ColumnOptions<T> {
   sortValue?: (row: T) => string | number | Date | boolean;
   tableFilter?: TableFilterConfig;
   filterValue?: (row: T) => unknown;
+  /**
+   * `false` leaves the column out of CSV export, Excel export and print — a column of
+   * controls has nothing to export. It still renders, sorts, filters, is searched and is
+   * offered in the column chooser.
+   */
+  export?: false;
   /** The text this column exports to CSV. Wins over everything the exporter can infer. */
   exportValue?: (row: T) => string | number | Date | boolean | null | undefined;
 }
@@ -84,6 +90,8 @@ export interface ResolvedColumn<T> {
   align?: ColumnAlign;
   /** `false` when the column opted out of the cut-off hover title. */
   cellTitle?: false;
+  /** `false`: left out of CSV, Excel and print — see ColumnOptions.export. */
+  export?: false;
   /** Shown in the header cell in place of `header`'s text. */
   headerContent?: ReactNode;
   sortable: boolean;
@@ -245,6 +253,7 @@ function descriptorColumn<T>(
     ...(d.wrap ? { wrap: true } : {}),
     ...(d.align !== undefined && d.align !== "start" ? { align: d.align } : {}),
     ...(d.cellTitle === false ? { cellTitle: false as const } : {}),
+    ...(d.export === false ? { export: false as const } : {}),
     ...(d.headerContent !== undefined
       ? { headerContent: d.headerContent }
       : {}),

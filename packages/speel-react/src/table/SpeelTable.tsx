@@ -115,7 +115,8 @@ export interface SpeelTableProps<T extends IEntity = IEntity> {
   /** Extra toolbar content, rendered before the Export button. */
   toolbar?: ReactNode;
   /** Adds a universal search box to the toolbar. It matches every visible column's text —
-   *  what export and print read — and every whitespace-separated term must appear in a row.
+   *  what export and print read, plus any `export: false` column — and every
+   *  whitespace-separated term must appear in a row.
    *  The text is part of `tableState`, so it rides the URL and views like a filter does. */
   search?: boolean | { placeholder?: string };
   /** The whole user-adjustable state — columns, sort, filters, paging — as one controlled
@@ -449,12 +450,14 @@ function SpeelTableInner<T extends IEntity>(
 
   // `visible` rather than `tableColumns`, so the actions column is excluded without filtering —
   // and export follows visibility, since export mirrors the screen.
+  // A column can opt out of all three (`export: false`) while staying on screen.
+  const exported = visible.filter((c) => c.export !== false);
   const runExport = (): void => {
     const prefix =
       (typeof exportCsv === "object" ? exportCsv.fileNamePrefix : undefined) ??
       (of as { name?: string }).name ??
       "export";
-    downloadCsv(csvFileName(prefix, new Date()), buildCsv(visible, matched));
+    downloadCsv(csvFileName(prefix, new Date()), buildCsv(exported, matched));
   };
 
   const runExportXlsx = (): void => {
@@ -464,7 +467,7 @@ function SpeelTableInner<T extends IEntity>(
     const sheetName = opts?.sheetName ?? entityName ?? "Sheet1";
     downloadXlsx(
       xlsxFileName(prefix, new Date()),
-      buildXlsx(visible, matched, sheetName),
+      buildXlsx(exported, matched, sheetName),
     );
   };
 
@@ -475,7 +478,7 @@ function SpeelTableInner<T extends IEntity>(
       "Print";
     const w = window.open("", "_blank");
     if (!w) return; // popup blocked — a silent no-op, no toast plumbing this cycle
-    w.document.write(buildPrintHtml(title, visible, matched, new Date()));
+    w.document.write(buildPrintHtml(title, exported, matched, new Date()));
     w.document.close();
     w.addEventListener("afterprint", () => w.close());
     w.focus();

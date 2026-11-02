@@ -154,4 +154,18 @@ describe("SpeelTable Excel export", () => {
     expect(screen.getByRole("button", { name: "Export Excel" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Print" })).toBeTruthy();
   });
+
+  it("xlsx omits an export:false column", () => {
+    wrap(
+      <SpeelTable
+        of={Task}
+        items={many}
+        exportXlsx
+        columns={[{ key: "Title" }, { key: "Status", export: false }]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Export Excel" }));
+    expect(sheet()).toContain("Title");
+    expect(sheet()).not.toContain("Status");
+  });
 });
