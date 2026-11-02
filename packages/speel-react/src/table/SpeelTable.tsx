@@ -66,10 +66,10 @@ function sameRows<T>(a: readonly T[], b: readonly T[]): boolean {
   return true;
 }
 
-/** A custom per-row action rendered in the actions column after the built-ins. */
 /** A row action's key: a built-in's name, or a custom action's `RowAction.key`. */
 export type RowActionKey = "view" | "edit" | "delete" | (string & {});
 
+/** A custom per-row action rendered in the actions column after the built-ins. */
 export interface RowAction<T> {
   key: string;
   /** Skin icon name (Fluent icon name in the v8 skin). */

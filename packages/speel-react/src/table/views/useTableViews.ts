@@ -104,7 +104,11 @@ export interface TableViews {
   loading: boolean;
   dirty: boolean;
   error: string | undefined;
-  /** Column edits made on the pristine default, which have nowhere to be saved yet. */
+  /**
+   * Column or page-size edits held in the session because the active view can't take them —
+   * the app default, a shared view the user can't publish, or a personal view the user can't
+   * save.
+   */
   pendingDefaultEdits: boolean;
   canUndo: boolean;
   save: () => Promise<void>;
