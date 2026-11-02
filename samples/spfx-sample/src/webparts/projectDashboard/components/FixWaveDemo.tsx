@@ -96,11 +96,18 @@ const BulkEntryTable: React.FC = () => {
   );
 };
 
+/** A read-only list long enough that the v8 skin virtualizes it (no cellNavigation). */
+const LongList: React.FC = () => {
+  const [rows] = React.useState(() => rowsOf(150));
+  return <SpeelTable of={Programs} items={rows} columns={[{ key: "Title" }]} />;
+};
+
 export const FixWaveDemo: React.FC = () => {
   const ui = useSpeelUI();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [panelOpen, setPanelOpen] = React.useState(false);
+  const [longOpen, setLongOpen] = React.useState(false);
   return (
     <section style={{ marginTop: 24 }} aria-label="Fix wave demo">
       <h3>Fix wave demo</h3>
@@ -130,6 +137,7 @@ export const FixWaveDemo: React.FC = () => {
         />
         <ui.Button text="Open bulk entry" onClick={() => setModalOpen(true)} />
         <ui.Button text="Open demo panel" onClick={() => setPanelOpen(true)} />
+        <ui.Button text="Open long list" onClick={() => setLongOpen(true)} />
       </div>
       <SpeelModal
         open={modalOpen}
@@ -137,6 +145,9 @@ export const FixWaveDemo: React.FC = () => {
         title="Bulk entry"
       >
         <BulkEntryTable />
+      </SpeelModal>
+      <SpeelModal open={longOpen} onOpenChange={setLongOpen} title="Long list">
+        <LongList />
       </SpeelModal>
       <SpeelPanel
         open={panelOpen}

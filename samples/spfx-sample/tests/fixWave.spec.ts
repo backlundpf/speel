@@ -60,13 +60,19 @@ test("a disabled menu item shows its tooltip on keyboard focus", async ({
   const demo = await openDemo(authPage);
   await demo.getByRole("button", { name: "More actions" }).click();
   const item = authPage.getByRole("menuitem", { name: "Resend notifications" });
-  await expect(item).toBeVisible();
-  // Arrow through the menu: the disabled item is in the roving order.
-  await authPage.keyboard.press("ArrowDown");
+  // ContextualMenu focuses its first item on open — the disabled one — and its tooltip
+  // shows on that focus.
   await expect(item).toBeFocused();
   await expect(authPage.getByRole("tooltip")).toContainText(
     "Nothing to resend until the stage starts",
   );
+  // Arrow away and back: the disabled item is in the roving order.
+  await authPage.keyboard.press("ArrowDown");
+  await expect(
+    authPage.getByRole("menuitem", { name: "Export" }),
+  ).toBeFocused();
+  await authPage.keyboard.press("ArrowUp");
+  await expect(item).toBeFocused();
   await authPage.keyboard.press("Enter");
   await expect(item).toBeVisible(); // nothing ran, the menu did not close on it
 });
@@ -121,4 +127,23 @@ test("bulk entry in a modal: every row reachable, Tab walks the cells", async ({
   await expect(modal.getByRole("button", { name: "delete row 1" })).toHaveCount(
     0,
   );
+});
+
+test("a virtualized table in a modal draws its rows to the end", async ({
+  authPage,
+}) => {
+  const demo = await openDemo(authPage);
+  await demo.getByRole("button", { name: "Open long list" }).click();
+  const modal = authPage.getByRole("dialog", { name: "Long list" });
+  await expect(modal.getByText("Program 1", { exact: true })).toBeVisible();
+  // Scroll the modal's own body (the scroll parent the virtualized list measures).
+  await modal
+    .locator('[data-is-scrollable="true"]')
+    .first()
+    .evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+  await expect(modal.getByText("Program 150", { exact: true })).toBeVisible({
+    timeout: 10_000,
+  });
 });
