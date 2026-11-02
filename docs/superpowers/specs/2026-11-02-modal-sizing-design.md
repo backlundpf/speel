@@ -36,14 +36,14 @@ consumer app in code, tests, docs, spec, plan or commits.
 Surfaces take a new `style` prop. It is **not** `React.CSSProperties`: it accepts exactly
 these keys, each a CSS length as a string (`"640px"`, `"40vw"`, `"80vh"`, `"calc(...)"`):
 
-| Key         | Modal | Panel | Meaning                                                       |
-| ----------- | ----- | ----- | ------------------------------------------------------------- |
-| `width`     | yes   | yes   | Overrides the width `size` would set.                         |
-| `maxWidth`  | yes   | yes   | Width cap. Default: the maximized width (modal 96vw).         |
-| `height`    | yes   | —     | Overrides the height `size` would set; `"auto"` = fit content.|
-| `maxHeight` | yes   | —     | Height cap. Default: the maximized height (92vh).             |
-| `top`       | yes   | —     | The modal's top edge, from the viewport top. Unset: centred.  |
-| `left`      | yes   | —     | The modal's left edge, from the viewport left. Unset: centred.|
+| Key         | Modal | Panel | Meaning                                                        |
+| ----------- | ----- | ----- | -------------------------------------------------------------- |
+| `width`     | yes   | yes   | Overrides the width `size` would set.                          |
+| `maxWidth`  | yes   | yes   | Width cap. Default: the maximized width (modal 96vw).          |
+| `height`    | yes   | —     | Overrides the height `size` would set; `"auto"` = fit content. |
+| `maxHeight` | yes   | —     | Height cap. Default: the maximized height (92vh).              |
+| `top`       | yes   | —     | The modal's top edge, from the viewport top. Unset: centred.   |
+| `left`      | yes   | —     | The modal's left edge, from the viewport left. Unset: centred. |
 
 The types say so: the panel's `style` type has only `width` and `maxWidth`; the modal's adds
 the other four. `DialogProps`/`DrawerProps` carry the matching type, and
@@ -101,10 +101,12 @@ Dragging moves the modal from wherever it starts, centred or placed, and the exi
 clamps still apply: a drag cannot carry it past a viewport edge, and a resize cannot grow it
 past the right or bottom edge.
 
-**The screen beats placement (builder's call, settled in review).** When `top`/`left` leave
-less room than the modal needs (`top: "85vh"`, a short window), the modal moves up/left
-just enough to fit on screen at its size, rather than letting the footer or handle go off
-screen or collapsing the body. Placement is a preference; staying on screen is the rule.
+**The screen beats placement (builder's call, settled in review).** Normally a placed
+modal keeps its `top`/`left` and the room-below cap above shortens it (the body scrolls).
+Only when that room is smaller than the built-in floor (`DIALOG_MIN`, 260px tall / 360px
+wide; `top: "85vh"`, a short window) does the modal move up/left, just far enough that the
+floor fits, rather than letting the footer or handle go off screen or collapsing the body.
+Placement is a preference; staying on screen is the rule.
 Caps, clamps and this fit are recomputed when the window resizes, not only at render
 (today's pixel bounds are read only at render; with pixel placement and auto height that
 gap would show).
