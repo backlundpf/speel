@@ -495,6 +495,9 @@ describe("shadcnAdapter smoke", () => {
       '[data-slot="dialog-content"]',
     )!;
     const before = parseFloat(content.style.width);
+    // The first resize measures the frame (jsdom has no layout): report the preset size.
+    content.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: before, height: 560 }) as DOMRect;
     fireEvent.keyDown(handle, { key: "ArrowRight" });
     expect(parseFloat(content.style.width)).toBe(before + 16);
   });

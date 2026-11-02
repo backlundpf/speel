@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
-  RefObject,
+  MutableRefObject,
 } from "react";
 import type { ModalStyle } from "../adapter/SpeelUIAdapter.js";
 import type { CornerResizeHandleProps } from "./useDragResize.js";
@@ -25,8 +25,9 @@ export interface ModalFrameOptions {
 }
 
 export interface ModalFrameState {
-  /** Attach to the element whose rect is the frame: measured once, when the user takes over. */
-  frameRef: RefObject<HTMLDivElement>;
+  /** Attach to the element whose rect is the frame: measured once, when the user takes over.
+   *  Mutable, so a skin whose frame component cannot take a ref can set it from a child. */
+  frameRef: MutableRefObject<HTMLDivElement | null>;
   /** The frame's CSS; apply all of it to an absolutely (or fixed) positioned frame. */
   css: ModalFrameCss;
   dragHandleProps: { onPointerDown: (e: ReactPointerEvent) => void };
@@ -82,7 +83,7 @@ function onScreen(b: FrameBox, style: ModalStyle | undefined): FrameBox {
  * title-bar drag has no keyboard equivalent, as in {@link useDragResize}.
  */
 export function useModalFrame(o: ModalFrameOptions): ModalFrameState {
-  const frameRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState<FrameBox | null>(null);
   const boxRef = useRef(box);
   boxRef.current = box;
