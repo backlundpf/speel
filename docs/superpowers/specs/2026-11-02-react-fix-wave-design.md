@@ -125,10 +125,12 @@ layout).
 
 User decision: opt-in. `TableProps.cellNavigation?: "tab"` (name is the builder's to
 refine; keep it a string union so arrow-mode or others can join later), passed through
-`SpeelTable` / `SpeelEntityTable`. In v8 it sets the row `FocusZone`'s and the list
-`FocusZone`'s `handleTabKey` to all tabbable elements, so Tab and Shift+Tab walk cell
-editors across the row and onto the next row, and Tab from the last editor leaves the
-table. Without the option, keyboard behaviour is unchanged. shadcn's table is a plain
+`SpeelTable` / `SpeelEntityTable`. In v8 the table handles Tab and Shift+Tab itself,
+moving to the next / previous enabled editor in its rows in reading order, so Tab walks
+cell editors across the row and onto the next row, and at either end the key is left to the
+browser (Tab from the last editor leaves the table). (As built: setting the FocusZones'
+`handleTabKey` was tried first; live, Tab at a row's end landed on the next row's container
+instead of its first editor.) Without the option, keyboard behaviour is unchanged. shadcn's table is a plain
 grid where Tab already works — accept and no-op.
 
 Virtualization (my call): `FocusZone` can only Tab through rendered rows, so
