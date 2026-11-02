@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { DbContext, ModelBuilder } from "@speel/core";
 import { SpeelProvider } from "../src/SpeelProvider.js";
 import { SpeelModal } from "../src/surface/SpeelModal.js";
 import { SpeelPanel } from "../src/surface/SpeelPanel.js";
+import { useSurfaces } from "../src/surface/useSurfaces.js";
 import { fakeAdapter } from "./fakeAdapter.js";
 import { makeFakeProvider } from "./fakeProvider.js";
 
@@ -161,5 +162,75 @@ describe("surfaces forward ariaLabel (fakeAdapter)", () => {
     expect(
       screen.getByRole("dialog", { name: "Named form" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("surface style reaches the skin (fakeAdapter)", () => {
+  const styleOf = () =>
+    JSON.parse(screen.getByRole("dialog").getAttribute("data-style")!);
+
+  it("content modal", () => {
+    wrap(
+      <SpeelModal
+        open
+        onOpenChange={() => {}}
+        title="M"
+        style={{ height: "auto", top: "10px" }}
+      >
+        body
+      </SpeelModal>,
+    );
+    expect(styleOf()).toEqual({ height: "auto", top: "10px" });
+  });
+
+  it("form modal", () => {
+    wrap(
+      <SpeelModal
+        open
+        onOpenChange={() => {}}
+        entity={entity()}
+        mode="edit"
+        style={{ height: "auto", top: "10px" }}
+      />,
+    );
+    expect(styleOf()).toEqual({ height: "auto", top: "10px" });
+  });
+
+  it("content panel", () => {
+    wrap(
+      <SpeelPanel
+        open
+        onOpenChange={() => {}}
+        title="P"
+        style={{ width: "30vw" }}
+      >
+        body
+      </SpeelPanel>,
+    );
+    expect(styleOf()).toEqual({ width: "30vw" });
+  });
+
+  it("showForm modal", async () => {
+    function Opener() {
+      const { showForm } = useSurfaces();
+      return (
+        <button
+          onClick={() => {
+            void showForm({
+              surface: "modal",
+              entity: entity(),
+              style: { width: "50vw" },
+            });
+          }}
+        >
+          open
+        </button>
+      );
+    }
+    wrap(<Opener />);
+    await act(async () => {
+      fireEvent.click(screen.getByText("open"));
+    });
+    expect(styleOf()).toEqual({ width: "50vw" });
   });
 });

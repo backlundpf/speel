@@ -3,7 +3,11 @@ import type { IEntity, FormMode } from "@speel/core";
 import type { SpeelActions } from "../actions.js";
 import type { FormSection } from "../form/EntityFormBody.js";
 import type { EntityFormOptions } from "../form/useEntityForm.js";
-import type { ReturnFocusTarget } from "../adapter/SpeelUIAdapter.js";
+import type {
+  ModalStyle,
+  PanelStyle,
+  ReturnFocusTarget,
+} from "../adapter/SpeelUIAdapter.js";
 
 /**
  * The one declaration of what a surface takes. `SpeelModal`, `SpeelPanel`,
@@ -29,6 +33,8 @@ export interface SurfaceChromeProps {
    * leaves focus alone. Never scrolls the page.
    */
   returnFocus?: ReturnFocusTarget;
+  /** Size in CSS lengths; a modal adds height and placement — see ModalStyle. */
+  style?: PanelStyle;
 }
 
 /** Chrome only a panel has. */
@@ -45,6 +51,8 @@ export interface ModalChromeProps extends SurfaceChromeProps {
   fullscreenToggle?: boolean;
   /** Open maximized. Seeds the initial state — the toggle still works. */
   defaultFullscreen?: boolean;
+  /** Size and placement in CSS lengths; `height: "auto"` fits the content — see ModalStyle. */
+  style?: ModalStyle;
 }
 
 /** The form variant: the surface hosts one entity form. */

@@ -169,6 +169,7 @@ export function SurfaceManager({
           ...(o.returnFocus !== undefined
             ? { returnFocus: o.returnFocus }
             : {}),
+          ...(o.style !== undefined ? { style: o.style } : {}),
         };
         return r.kind === "modal" ? (
           <SpeelModal key={r.id} {...common} />
