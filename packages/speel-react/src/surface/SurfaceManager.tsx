@@ -145,6 +145,7 @@ export function SurfaceManager({
           entity: o.entity,
           ...(o.mode ? { mode: o.mode } : {}),
           ...(o.title !== undefined ? { title: o.title } : {}),
+          ...(o.ariaLabel !== undefined ? { ariaLabel: o.ariaLabel } : {}),
           ...(o.sections ? { sections: o.sections } : {}),
           ...(o.fields ? { fields: o.fields } : {}),
           ...(o.exclude ? { exclude: o.exclude } : {}),

@@ -98,6 +98,7 @@ function Inner<T extends IEntity>(
       open={open}
       onOpenChange={onOpenChange}
       {...(title !== undefined ? { title } : {})}
+      {...(p.ariaLabel !== undefined ? { ariaLabel: p.ariaLabel } : {})}
       {...(blocking !== undefined ? { blocking } : {})}
       {...(size !== undefined ? { size } : {})}
       {...(position !== undefined ? { position } : {})}

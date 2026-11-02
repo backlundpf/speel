@@ -27,6 +27,7 @@ export function SpeelPanel<T extends IEntity>(
     open,
     onOpenChange,
     title,
+    ariaLabel,
     blocking,
     size,
     position,
@@ -40,6 +41,7 @@ export function SpeelPanel<T extends IEntity>(
       open={open}
       onOpenChange={onOpenChange}
       {...(title !== undefined ? { title } : {})}
+      {...(ariaLabel !== undefined ? { ariaLabel } : {})}
       {...(blocking !== undefined ? { blocking } : {})}
       {...(size !== undefined ? { size } : {})}
       {...(position !== undefined ? { position } : {})}

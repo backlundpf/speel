@@ -547,6 +547,34 @@ function viewportBounds(): {
 }
 
 /**
+ * Warns once per surface instance, in development, when it has neither a title nor an
+ * `ariaLabel` — an unnamed dialog is announced as just "dialog".
+ */
+function useWarnIfUnnamed(kind: string, p: DialogProps): void {
+  const warned = React.useRef(false);
+  if (
+    // Guarded: a browser bundle may not define `process` at all.
+    (typeof process === "undefined" ||
+      process.env.NODE_ENV !== "production") &&
+    p.open &&
+    p.title === undefined &&
+    p.ariaLabel === undefined &&
+    !warned.current
+  ) {
+    warned.current = true;
+    console.warn(
+      `speel: a ${kind} has neither a title nor an ariaLabel, so screen readers announce it unnamed. Pass ariaLabel.`,
+    );
+  }
+}
+
+/** Fluent's Popup takes the name a surface without a title gets. */
+const popupName = (p: DialogProps): { ariaLabel?: string } =>
+  p.title === undefined && p.ariaLabel !== undefined
+    ? { ariaLabel: p.ariaLabel }
+    : {};
+
+/**
  * Centered modal on Fluent `Modal` (not `Dialog`, which imposes its own header +
  * a second scroll container). The content is a flex column that fills the modal:
  * a sticky header (title + fullscreen + close — also the drag handle), a single
@@ -561,6 +589,8 @@ export function V8Dialog(p: DialogProps): JSX.Element {
   const [fullscreen, setFullscreen] = React.useState(
     p.defaultFullscreen ?? false,
   );
+  useWarnIfUnnamed("modal", p);
+  const titleId = useStableId();
   const presetW = DIALOG_WIDTH[p.size ?? "medium"];
   const presetH = DIALOG_HEIGHT[p.size ?? "medium"];
   const { size, transform, dragHandleProps, resizeHandleProps } = useDragResize(
@@ -613,7 +643,9 @@ export function V8Dialog(p: DialogProps): JSX.Element {
       focusTrapZoneProps={{ disableRestoreFocus: true }}
       popupProps={{
         onRestoreFocus: ({ containsFocus }) => restore(containsFocus),
+        ...popupName(p),
       }}
+      {...(p.title !== undefined ? { titleAriaId: titleId } : {})}
       styles={{
         // Own drag/resize: a translate keeps the top-left fixed while resizing (and applies
         // the drag offset). Not applied in fullscreen (centered, full size).
@@ -658,6 +690,7 @@ export function V8Dialog(p: DialogProps): JSX.Element {
           }}
         >
           <span
+            id={titleId}
             style={{
               fontWeight: 600,
               fontSize: 18,
@@ -1485,6 +1518,7 @@ export function V8Menu(p: MenuProps): JSX.Element {
 }
 
 export function V8Panel(p: DrawerProps): JSX.Element {
+  useWarnIfUnnamed("panel", p);
   const resizable = p.resizable ?? true;
   const preset = PANEL_WIDTH[p.size ?? "medium"];
   const presetNum = parseInt(preset, 10);
@@ -1519,12 +1553,14 @@ export function V8Panel(p: DrawerProps): JSX.Element {
       focusTrapZoneProps={{ disableRestoreFocus: true }}
       popupProps={{
         onRestoreFocus: ({ containsFocus }) => restore(containsFocus),
+        ...popupName(p),
       }}
       type={p.position === "start" ? PanelType.customNear : PanelType.custom}
       customWidth={width}
       isBlocking={p.blocking ?? false}
       isLightDismiss={!p.blocking}
       hasCloseButton={!p.blocking}
+      closeButtonAriaLabel="Close"
       isFooterAtBottom
       {...(p.title !== undefined ? { headerText: p.title } : {})}
       {...(p.footer ? { onRenderFooterContent: () => <>{p.footer}</> } : {})}

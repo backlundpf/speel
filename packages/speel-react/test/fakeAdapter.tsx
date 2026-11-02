@@ -669,6 +669,7 @@ export const fakeAdapter: SpeelUIAdapter = {
     open,
     onOpenChange,
     title,
+    ariaLabel,
     blocking,
     children,
     footer,
@@ -684,7 +685,7 @@ export const fakeAdapter: SpeelUIAdapter = {
     return (
       <div
         role="dialog"
-        aria-label={title ?? "dialog"}
+        aria-label={title ?? ariaLabel ?? "dialog"}
         data-fullscreen={String(fs)}
         data-draggable={String(draggable ?? true)}
       >
@@ -715,13 +716,14 @@ export const fakeAdapter: SpeelUIAdapter = {
     open,
     onOpenChange,
     title,
+    ariaLabel,
     blocking,
     children,
     footer,
     resizable,
   }) =>
     open ? (
-      <div role="dialog" aria-label={title ?? "panel"}>
+      <div role="dialog" aria-label={title ?? ariaLabel ?? "panel"}>
         {title ? <h2>{title}</h2> : null}
         {children}
         <div data-testid="surface-footer">{footer}</div>

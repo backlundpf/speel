@@ -267,6 +267,11 @@ export interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
+  /**
+   * The surface's accessible name when it has no `title` (a title names it, and wins).
+   * A surface with neither is unnamed; skins warn about that in development.
+   */
+  ariaLabel?: string;
   blocking?: boolean;
   size?: "small" | "medium" | "large";
   children: ReactNode;
