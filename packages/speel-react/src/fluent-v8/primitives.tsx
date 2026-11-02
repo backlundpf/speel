@@ -638,6 +638,9 @@ export function V8Dialog(p: DialogProps): JSX.Element {
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
+          // Fluent's own 176px floor would pad a short auto-height modal (a one-line
+          // confirm) past its content; user resizes have their own floor.
+          minHeight: 0,
         },
         scrollableContent: {
           overflow: "hidden",
