@@ -32,6 +32,6 @@ describe("V8Panel sizing", () => {
       </V8Panel>,
     );
     expect(main().width).toBe("40vw");
-    expect(main().maxWidth).toBe("700px");
+    expect(main().maxWidth).toBe("min(700px, 100vw)");
   });
 });

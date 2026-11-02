@@ -157,3 +157,48 @@ describe("useModalFrame", () => {
     expect(css().height).toBe("auto");
   });
 });
+
+describe("useModalFrame review fixes", () => {
+  it("a touch-sized jitter on the title bar is still a click", () => {
+    render(<Probe style={{ height: "auto" }} />);
+    drag({ x: 1, y: 2 });
+    expect(css().height).toBe("auto");
+  });
+
+  it("a click before takeover does not fix the floor", () => {
+    render(<Probe style={{ height: "auto" }} />);
+    const tall = { ...RECT, height: 500 };
+    const short = { ...RECT, height: 200 };
+    const stub = (r: typeof RECT) => {
+      HTMLElement.prototype.getBoundingClientRect = () =>
+        ({ ...r, x: r.left, y: r.top }) as DOMRect;
+    };
+    stub(tall);
+    fireEvent.pointerDown(screen.getByTestId("drag"), {
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerUp(window);
+    stub(short);
+    fireEvent.keyDown(screen.getByTestId("resize"), { key: "ArrowUp" });
+    expect(css().height).toBe("200px"); // floor min(260, 200), no jump to 260
+  });
+
+  it("closing an auto modal forgets the takeover, so it fits again on reopen", () => {
+    const { rerender } = render(<Probe style={{ height: "auto" }} open />);
+    drag({ x: 30, y: 40 });
+    expect(css().height).toBe("170px");
+    rerender(<Probe style={{ height: "auto" }} open={false} />);
+    rerender(<Probe style={{ height: "auto" }} open />);
+    expect(css().height).toBe("auto");
+    expect(css().top).toBe("50%");
+  });
+
+  it("closing a preset modal keeps its size and place, as today", () => {
+    const { rerender } = render(<Probe open />);
+    drag({ x: 30, y: 40 });
+    rerender(<Probe open={false} />);
+    rerender(<Probe open />);
+    expect(css().top).toBe("90px");
+  });
+});

@@ -138,3 +138,31 @@ for (const skin of ["v8", "shadcn"]) {
     });
   });
 }
+
+for (const skin of ["v8", "shadcn"]) {
+  test.describe(`${skin} modal, review fixes`, () => {
+    test("a caller width below Fluent's own floor is honoured", async ({
+      page,
+    }) => {
+      const b = await box(await show(page, skin, { width: "240px" }));
+      expect(b.w).toBeCloseTo(240, 0);
+    });
+
+    test.describe("on a phone-sized screen", () => {
+      test.use({ viewport: { width: 320, height: 240 } });
+      test("a placed modal stays wholly on screen", async ({ page }) => {
+        const frame = await show(page, skin, {
+          height: "auto",
+          top: "10px",
+          left: "10px",
+        });
+        await lines(page, 100);
+        const b = await box(frame);
+        expect(b.x).toBeGreaterThanOrEqual(0);
+        expect(b.y).toBeGreaterThanOrEqual(0);
+        expect(b.x + b.w).toBeLessThanOrEqual(320);
+        expect(b.y + b.h).toBeLessThanOrEqual(240);
+      });
+    });
+  });
+}

@@ -18,6 +18,9 @@ export interface ModalFrameOptions {
   size?: "small" | "medium" | "large";
   style?: ModalStyle;
   fullscreen: boolean;
+  /** Whether the surface is open. Closing an auto-height modal forgets the user's takeover,
+   *  so it fits its content again when reopened; other modals keep size and place, as today. */
+  open?: boolean;
   /** Pixels per arrow-key press on the resize handle. Default 16. */
   step?: number;
   /** Accessible name for the resize handle. Default 'Resize'. */
@@ -33,6 +36,10 @@ export interface ModalFrameState {
   dragHandleProps: { onPointerDown: (e: ReactPointerEvent) => void };
   resizeHandleProps: CornerResizeHandleProps;
 }
+
+/** Pointer travel (px) below which a title-bar press is a click, not a drag — a finger
+ *  tap jitters a few pixels. */
+const DRAG_SLOP = 3;
 
 interface Active {
   mode: "drag" | "resize";
@@ -92,21 +99,30 @@ export function useModalFrame(o: ModalFrameOptions): ModalFrameState {
   const floor = useRef<{ w: number; h: number } | null>(null);
   const active = useRef<Active | null>(null);
 
-  /** The current box, measuring the frame the first time; records the resize floor. */
+  /** The current box, measuring the frame until the takeover; the resize floor follows
+   *  the measured size until then (a click is no takeover, and content may change after). */
   const grab = useCallback((): FrameBox | null => {
-    let base = boxRef.current;
-    if (!base) {
-      const el = frameRef.current;
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      base = { x: r.left, y: r.top, w: r.width, h: r.height };
-    }
-    floor.current ??= {
+    if (boxRef.current) return boxRef.current;
+    const el = frameRef.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const base = { x: r.left, y: r.top, w: r.width, h: r.height };
+    floor.current = {
       w: Math.min(DIALOG_MIN.w, base.w),
       h: Math.min(DIALOG_MIN.h, base.h),
     };
     return base;
   }, []);
+
+  // Closing an auto-height modal forgets the takeover: it fits its content on reopen.
+  const auto = o.style?.height === "auto";
+  useEffect(() => {
+    if (o.open !== false || !auto) return;
+    active.current = null;
+    floor.current = null;
+    boxRef.current = null;
+    setBox(null);
+  }, [o.open, auto]);
 
   /** A resized box: the top-left holds; the size stays between the floor and the caps and
    *  inside the right/bottom edges. */
@@ -174,8 +190,8 @@ export function useModalFrame(o: ModalFrameOptions): ModalFrameState {
       const dx = e.clientX - a.px;
       const dy = e.clientY - a.py;
       if (a.mode === "drag") {
-        // A press without movement is a click on the title bar, not a takeover.
-        if (dx === 0 && dy === 0 && !boxRef.current) return;
+        // A press without real movement is a click on the title bar, not a takeover.
+        if (!boxRef.current && Math.hypot(dx, dy) < DRAG_SLOP) return;
         setBox(
           onScreen(
             { ...a.base, x: a.base.x + dx, y: a.base.y + dy },

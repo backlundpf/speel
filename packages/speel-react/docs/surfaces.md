@@ -172,7 +172,7 @@ only these keys: `width` and `maxWidth` (both surfaces), `height`, `maxHeight`, 
 shrinking with it — centred, or downward only when `top` is set — until the cap, then the
 body scrolls. A placed modal keeps its `top`/`left` and shortens to the room left; only
 below the built-in floor does it move back to stay on screen. Once the user drags or
-resizes a modal it keeps the size they gave it, and auto height ends for that modal.
+resizes a modal it keeps the size they gave it; an auto-height one fits again once reopened.
 
 **Every surface has a name.** A modal or panel is named by its `title`; an untitled one takes
 `ariaLabel` (every surface prop bag and `showForm` accept it), read by screen readers and not

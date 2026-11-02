@@ -578,6 +578,7 @@ export function V8Dialog(p: DialogProps): JSX.Element {
     ...(p.size !== undefined ? { size: p.size } : {}),
     ...(p.style !== undefined ? { style: p.style } : {}),
     fullscreen,
+    open: p.open,
     label: "Resize dialog",
   });
   const [gripLit, setGripLit] = React.useState(false);
@@ -638,8 +639,10 @@ export function V8Dialog(p: DialogProps): JSX.Element {
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          // Fluent's own 176px floor would pad a short auto-height modal (a one-line
-          // confirm) past its content; user resizes have their own floor.
+          // Fluent's own 288 × 176px floor would widen a narrow `style.width` and pad a
+          // short auto-height modal (a one-line confirm) past its content; user resizes
+          // have their own floor.
+          minWidth: 0,
           minHeight: 0,
         },
         scrollableContent: {
@@ -1623,7 +1626,7 @@ export function V8Panel(p: DrawerProps): JSX.Element {
       type={p.position === "start" ? PanelType.customNear : PanelType.custom}
       customWidth={width}
       {...(p.style?.maxWidth !== undefined
-        ? { styles: { main: { maxWidth: p.style.maxWidth } } }
+        ? { styles: { main: { maxWidth: `min(${p.style.maxWidth}, 100vw)` } } }
         : {})}
       isBlocking={p.blocking ?? false}
       isLightDismiss={!p.blocking}

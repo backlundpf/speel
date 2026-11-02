@@ -59,10 +59,13 @@ function axis(
       centred: true,
     };
   // Placed: the edge holds, the cap shrinks to the room left before the far margin — but
-  // never below the floor; past that the edge moves back so the floor still fits.
+  // never below the floor; past that the edge moves back so the floor still fits. On a
+  // screen smaller than the floor, the floor is the maximized size, and the edge never
+  // passes 0 (the title bar, the only drag handle, stays on screen).
+  const fits = `min(${floor}px, ${max})`;
   return {
-    edge: `min(${place}, calc(${far} - ${floor}px))`,
-    max: `min(${[...caps, `max(calc(${far} - ${place}), ${floor}px)`].join(", ")})`,
+    edge: `max(0px, min(${place}, calc(${far} - ${fits})))`,
+    max: `min(${[...caps, `max(calc(${far} - ${place}), ${fits})`].join(", ")})`,
     centred: false,
   };
 }

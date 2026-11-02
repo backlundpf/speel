@@ -78,7 +78,7 @@ body scrolls), and a manual resize stops at it.
   - **No `top`:** grows and shrinks equally up and down; the modal stays vertically centred.
   - **With `top`:** the top edge stays put; it grows and shrinks at the bottom only.
 - **The user takes over:** once the user drags the modal (an actual move, not a click on
-  the title bar) or resizes it (pointer or keyboard), auto ends for that modal's lifetime.
+  the title bar) or resizes it (pointer or keyboard), auto ends until the modal closes; reopening an auto-height modal fits its content again (other modals keep their size and place across opens, as today — settled in final review).
   The frame keeps the pixel height it had at that moment and no longer tracks content.
 - **Fullscreen:** while maximized, auto has no effect. Leaving fullscreen resumes auto if
   the user never moved or resized; otherwise the modal returns to its pre-fullscreen size

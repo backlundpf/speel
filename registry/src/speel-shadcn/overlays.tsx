@@ -165,6 +165,7 @@ export function ShadDialog(p: DialogProps): ReactElement {
     ...(p.size !== undefined ? { size: p.size } : {}),
     ...(p.style !== undefined ? { style: p.style } : {}),
     fullscreen,
+    open: p.open,
     label: "Resize dialog",
   });
   const { restore } = useFocusReturn({

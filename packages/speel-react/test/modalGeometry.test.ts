@@ -42,16 +42,20 @@ describe("modalFrameCss", () => {
 
   it("top pins the top edge, caps height to the room below, and moves up only below the floor", () => {
     const c = css({ style: { top: "85vh" } });
-    expect(c.top).toBe("min(85vh, calc(96vh - 260px))");
-    expect(c.maxHeight).toBe("min(92vh, max(calc(96vh - 85vh), 260px))");
+    expect(c.top).toBe("max(0px, min(85vh, calc(96vh - min(260px, 92vh))))");
+    expect(c.maxHeight).toBe(
+      "min(92vh, max(calc(96vh - 85vh), min(260px, 92vh)))",
+    );
     expect(c.left).toBe("50%");
     expect(c.transform).toBe("translate(-50%, 0)");
   });
 
   it("left pins the left edge the same way, keeping a caller maxWidth", () => {
     const c = css({ style: { left: "10px", maxWidth: "500px" } });
-    expect(c.left).toBe("min(10px, calc(98vw - 360px))");
-    expect(c.maxWidth).toBe("min(500px, 96vw, max(calc(98vw - 10px), 360px))");
+    expect(c.left).toBe("max(0px, min(10px, calc(98vw - min(360px, 96vw))))");
+    expect(c.maxWidth).toBe(
+      "min(500px, 96vw, max(calc(98vw - 10px), min(360px, 96vw)))",
+    );
     expect(c.transform).toBe("translate(0, -50%)");
   });
 
