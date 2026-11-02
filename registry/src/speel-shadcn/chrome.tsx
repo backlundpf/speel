@@ -1,5 +1,12 @@
 import type { ReactElement, ReactNode } from "react";
+import { Info } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import type { FieldChrome } from "@speel/react";
 
@@ -10,24 +17,62 @@ import type { FieldChrome } from "@speel/react";
  * The chrome owns all of this markup, so it can name the control directly: the
  * label points `htmlFor` at the field's id, and the help text carries ids derived
  * from the same one. Pair it with `fieldAria` on the control.
+ *
+ * `descriptionAs="icon"` (displays) moves the description behind an info button beside
+ * the label; a screen-reader-only copy keeps the `-description` id, so the control's
+ * `aria-describedby` still resolves. With no label there is no button, only that copy.
  */
 export function Chrome(
-  p: FieldChrome & { htmlFor?: string; children: ReactNode },
+  p: FieldChrome & {
+    htmlFor?: string;
+    descriptionAs?: "text" | "icon";
+    children: ReactNode;
+  },
 ): ReactElement {
+  const descriptionId = p.htmlFor ? `${p.htmlFor}-description` : undefined;
+  const asIcon = p.descriptionAs === "icon" && !!p.description;
+  const label = p.label ? (
+    <Label
+      id={p.htmlFor ? `${p.htmlFor}-label` : undefined}
+      htmlFor={p.htmlFor}
+      className={p.error ? "text-destructive" : undefined}
+    >
+      {p.label}
+      {p.required ? <span className="text-destructive"> *</span> : null}
+    </Label>
+  ) : null;
   return (
     <div className="grid w-full gap-1.5">
-      {p.label ? (
-        <Label
-          id={p.htmlFor ? `${p.htmlFor}-label` : undefined}
-          htmlFor={p.htmlFor}
-          className={p.error ? "text-destructive" : undefined}
-        >
-          {p.label}
-          {p.required ? <span className="text-destructive"> *</span> : null}
-        </Label>
-      ) : null}
+      {asIcon && label ? (
+        <div className="flex items-center gap-1">
+          {label}
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`More information about ${p.label}`}
+                  aria-describedby={descriptionId}
+                  className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex size-4 items-center justify-center rounded-sm outline-none focus-visible:ring-[3px]"
+                >
+                  <Info aria-hidden="true" className="size-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="speel-shadcn">
+                {p.description}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      ) : (
+        label
+      )}
       {p.children}
-      {p.description ? (
+      {asIcon ? (
+        <span id={descriptionId} className="sr-only">
+          {p.description}
+        </span>
+      ) : p.description ? (
         <p
           id={p.htmlFor ? `${p.htmlFor}-description` : undefined}
           className="text-muted-foreground text-sm"
