@@ -1,4 +1,4 @@
-import type { ModalStyle } from "../adapter/SpeelUIAdapter.js";
+import type { ModalStyle, PanelStyle } from "../adapter/SpeelUIAdapter.js";
 
 /** Size presets, in px. `size` sets both axes; a `style` width/height replaces one. */
 export const DIALOG_WIDTH = { small: 480, medium: 640, large: 840 } as const;
@@ -138,4 +138,21 @@ export function cssLengthPx(
   const px = axis === "w" ? probe.offsetWidth : probe.offsetHeight;
   probe.remove();
   return px > 0 ? px : undefined;
+}
+
+/**
+ * The px cap on a panel resize: a strip of page stays visible (a panel dragged past the
+ * viewport edge has no handle left to drag back), and a caller `maxWidth` lowers it.
+ * Undefined outside a browser.
+ */
+export function panelMaxWidth(
+  style: PanelStyle | undefined,
+): number | undefined {
+  if (typeof window === "undefined") return undefined;
+  const room = Math.max(320, window.innerWidth - 48);
+  const cap =
+    style?.maxWidth !== undefined
+      ? cssLengthPx(style.maxWidth, "w")
+      : undefined;
+  return cap === undefined ? room : Math.min(room, cap);
 }

@@ -249,6 +249,7 @@ export type {
 export {
   modalFrameCss,
   cssLengthPx,
+  panelMaxWidth,
   DIALOG_WIDTH,
   DIALOG_HEIGHT,
   DIALOG_MIN,

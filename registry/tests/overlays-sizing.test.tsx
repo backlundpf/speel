@@ -72,3 +72,33 @@ describe("shadcn Dialog sizing", () => {
     );
   });
 });
+
+describe("shadcn Drawer sizing", () => {
+  const Drawer = ui.Drawer;
+  it("no style keeps the medium preset at today's cap", () => {
+    render(
+      <Drawer open onOpenChange={noop} title="P">
+        body
+      </Drawer>,
+    );
+    const d = screen.getByRole("dialog");
+    expect(d.style.width).toBe("640px");
+    expect(d.style.maxWidth).toBe("96vw");
+  });
+
+  it("style width and maxWidth reach the panel; the screen still wins", () => {
+    render(
+      <Drawer
+        open
+        onOpenChange={noop}
+        title="P"
+        style={{ width: "40vw", maxWidth: "700px" }}
+      >
+        body
+      </Drawer>,
+    );
+    const d = screen.getByRole("dialog");
+    expect(d.style.width).toBe("40vw");
+    expect(d.style.maxWidth).toBe("min(700px, 96vw)");
+  });
+});

@@ -81,6 +81,7 @@ import { useContainerWidth } from "../table/layout/useContainerWidth.js";
 import { setOverflowTitle } from "../table/overflowTitle.js";
 import { useResizable } from "../surface/useResizable.js";
 import { useModalFrame } from "../surface/useModalFrame.js";
+import { panelMaxWidth } from "../surface/modalGeometry.js";
 import { FOCUSABLE, useFocusReturn } from "../surface/focusReturn.js";
 import { usePopoverFocus } from "../surface/popoverFocus.js";
 import { SpeelActionBar } from "../actions.js";
@@ -1577,22 +1578,29 @@ export function V8Panel(p: DrawerProps): JSX.Element {
   const preset = PANEL_WIDTH[p.size ?? "medium"];
   const presetNum = parseInt(preset, 10);
   const atEnd = p.position !== "start";
-  // Leave a strip of page visible: a panel dragged past the viewport edge has no
-  // handle left to drag back.
-  const maxW =
-    typeof window === "undefined"
-      ? undefined
-      : Math.max(320, window.innerWidth - 48);
+  const cssWidth = p.style?.width;
+  const maxW = panelMaxWidth(p.style);
+  const handleRef = React.useRef<HTMLDivElement>(null);
   const { size, handleProps } = useResizable({
     axis: "x",
     min: { w: 320 },
     ...(maxW !== undefined ? { max: { w: maxW } } : {}),
-    initial: { w: presetNum },
+    // A CSS `style.width` holds until the first resize, which starts from the measured panel.
+    ...(cssWidth === undefined ? { initial: { w: presetNum } } : {}),
+    measure: () => {
+      const w = handleRef.current
+        ?.closest(".ms-Panel-main")
+        ?.getBoundingClientRect().width;
+      return w ? { w } : undefined;
+    },
     invertX: atEnd,
     label: "Resize panel",
   });
   const [grabbed, setGrabbed] = React.useState(false);
-  const width = resizable ? `${size.w ?? presetNum}px` : preset;
+  const width =
+    resizable && size.w !== undefined
+      ? `${size.w}px`
+      : (cssWidth ?? (resizable ? `${presetNum}px` : preset));
   const { restore } = useFocusReturn({
     open: p.open,
     returnFocus: p.returnFocus,
@@ -1611,6 +1619,9 @@ export function V8Panel(p: DrawerProps): JSX.Element {
       }}
       type={p.position === "start" ? PanelType.customNear : PanelType.custom}
       customWidth={width}
+      {...(p.style?.maxWidth !== undefined
+        ? { styles: { main: { maxWidth: p.style.maxWidth } } }
+        : {})}
       isBlocking={p.blocking ?? false}
       isLightDismiss={!p.blocking}
       hasCloseButton={!p.blocking}
@@ -1622,6 +1633,7 @@ export function V8Panel(p: DrawerProps): JSX.Element {
       {resizable ? (
         <div
           {...handleProps}
+          ref={handleRef}
           data-testid="resize-handle"
           onPointerEnter={() => setGrabbed(true)}
           onPointerLeave={() => setGrabbed(false)}

@@ -10,6 +10,9 @@ export interface ResizableOptions {
   /** Upper bound. Without one a drag can take the surface past the viewport edge. */
   max?: { w?: number; h?: number };
   initial?: { w?: number; h?: number };
+  /** The surface's current size, read when a resize starts on an axis with no size yet —
+   *  for a surface sized in CSS (`style.width: "40vw"`) until the user resizes it. */
+  measure?: () => { w?: number; h?: number } | undefined;
   /** When the handle sits on the edge that shrinks as the pointer moves right (panel at 'end'). */
   invertX?: boolean;
   /** Pixels per arrow-key press. Default 16. */
@@ -36,7 +39,14 @@ export interface ResizeState {
 const clamp = (v: number, lo?: number, hi?: number): number =>
   Math.min(Math.max(v, lo ?? 0), hi ?? Number.POSITIVE_INFINITY);
 
-/** Tracks pointer-drag width/height from a handle. Deterministic (no DOM measurement):
+/** Where a resize on one axis starts: the size so far, else `initial`, else measured. */
+const startOf = (
+  s: { w?: number; h?: number },
+  o: ResizableOptions,
+  k: "w" | "h",
+): number => s[k] ?? o.initial?.[k] ?? o.measure?.()?.[k] ?? 0;
+
+/** Tracks pointer-drag width/height from a handle. Deterministic (no DOM measurement unless `measure` is given):
  *  resizes relative to `initial` and the drag-start point, clamped to `min` and `max`.
  *
  *  Pointer events rather than mouse events, so a touch or pen drag resizes too; and the
@@ -61,8 +71,8 @@ export function useResizable(opts: ResizableOptions = {}): ResizeState {
     start.current = {
       px: e.clientX,
       py: e.clientY,
-      w: sizeRef.current.w ?? cfg.current.initial?.w ?? 0,
-      h: sizeRef.current.h ?? cfg.current.initial?.h ?? 0,
+      w: startOf(sizeRef.current, cfg.current, "w"),
+      h: startOf(sizeRef.current, cfg.current, "h"),
     };
   }, []);
 
@@ -80,11 +90,11 @@ export function useResizable(opts: ResizableOptions = {}): ResizeState {
         // The same sign rule the drag uses: with the handle on the shrinking edge,
         // moving it right makes the surface narrower.
         const dx = (e.key === "ArrowRight" ? step : -step) * (invertX ? -1 : 1);
-        const base = s.w ?? cfg.current.initial?.w ?? 0;
+        const base = startOf(s, cfg.current, "w");
         next.w = clamp(base + dx, min?.w, max?.w);
       } else {
         const dy = e.key === "ArrowDown" ? step : -step;
-        const base = s.h ?? cfg.current.initial?.h ?? 0;
+        const base = startOf(s, cfg.current, "h");
         next.h = clamp(base + dy, min?.h, max?.h);
       }
       return next;

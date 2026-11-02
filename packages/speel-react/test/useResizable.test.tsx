@@ -118,3 +118,23 @@ describe("useResizable", () => {
     expect(screen.getByTestId("size").textContent).toBe("216xundefined");
   });
 });
+
+describe("useResizable measure", () => {
+  it("starts a key resize from the measured size when it has none", () => {
+    render(<Probe axis="x" measure={() => ({ w: 500 })} />);
+    expect(screen.getByTestId("size").textContent).toBe("undefinedxundefined");
+    fireEvent.keyDown(screen.getByTestId("handle"), { key: "ArrowRight" });
+    expect(screen.getByTestId("size").textContent).toBe("516xundefined");
+  });
+
+  it("starts a pointer resize from the measured size when it has none", () => {
+    render(<Probe axis="x" measure={() => ({ w: 500 })} />);
+    fireEvent.pointerDown(screen.getByTestId("handle"), {
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerMove(window, { clientX: 40, clientY: 0 });
+    fireEvent.pointerUp(window);
+    expect(screen.getByTestId("size").textContent).toBe("540xundefined");
+  });
+});

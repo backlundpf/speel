@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import {
+  panelMaxWidth,
   useModalFrame,
   useFocusReturn,
   usePopoverFocus,
@@ -304,19 +305,28 @@ export function ShadDrawer(p: DrawerProps): ReactElement {
   const resizable = p.resizable ?? true;
   const atEnd = p.position !== "start";
   const presetW = SHEET_WIDTH[p.size ?? "medium"];
-  const maxW =
-    typeof window === "undefined"
-      ? undefined
-      : Math.max(320, window.innerWidth - 48);
+  const cssWidth = p.style?.width;
+  const maxW = panelMaxWidth(p.style);
+  const handleRef = useRef<HTMLDivElement>(null);
   const { size, handleProps } = useResizable({
     axis: "x",
     min: { w: 320 },
     ...(maxW !== undefined ? { max: { w: maxW } } : {}),
-    initial: { w: presetW },
+    // A CSS `style.width` holds until the first resize, which starts from the measured sheet.
+    ...(cssWidth === undefined ? { initial: { w: presetW } } : {}),
+    measure: () => {
+      const w = handleRef.current?.parentElement?.getBoundingClientRect().width;
+      return w ? { w } : undefined;
+    },
     invertX: atEnd,
     label: "Resize panel",
   });
-  const width = resizable ? (size.w ?? presetW) : presetW;
+  const width =
+    resizable && size.w !== undefined
+      ? `${size.w}px`
+      : (cssWidth ?? `${presetW}px`);
+  const maxWidth =
+    p.style?.maxWidth !== undefined ? `min(${p.style.maxWidth}, 96vw)` : "96vw";
   const { restore } = useFocusReturn({
     open: p.open,
     returnFocus: p.returnFocus,
@@ -341,7 +351,7 @@ export function ShadDrawer(p: DrawerProps): ReactElement {
         showCloseButton={showCloseButton}
         aria-describedby={undefined}
         className="speel-shadcn flex flex-col gap-0 p-0 sm:max-w-none"
-        style={{ width: `${width}px`, maxWidth: "96vw" }}
+        style={{ width, maxWidth }}
         onInteractOutside={(e) => {
           if (p.blocking) e.preventDefault();
         }}
@@ -385,6 +395,7 @@ export function ShadDrawer(p: DrawerProps): ReactElement {
           // on hover or keyboard focus.
           <div
             {...handleProps}
+            ref={handleRef}
             data-testid="resize-handle"
             className={cn(
               "group absolute top-0 bottom-0 z-10 flex w-2.5 touch-none cursor-ew-resize justify-center outline-none",
