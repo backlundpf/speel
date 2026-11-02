@@ -2,7 +2,7 @@
 "@speel/react": minor
 ---
 
-Fields: a property's description now reaches its field (#99). An input shows it as help text under the control (and `aria-describedby`); a view-mode or read-only display shows it behind an info button beside the label, on hover and keyboard focus. `FieldHandle` and `useStandaloneField` carry `description`, and `FieldDisplayProps` gains `descriptionAs` (`"icon"` by default, `"text"` for a display standing in for an input). The fluent-v8 number input (Number and Currency fields) now renders the chrome's label, so a required one shows its asterisk and the label sits above a currency prefix; a label-less (inline) number input is now named too (#100).
+Fields: a property's description now reaches its field (#99). It shows as help text under the field in every mode, input or view-mode/read-only display, with `aria-describedby` pointing at it. `FieldHandle` and `useStandaloneField` carry `description`. The fluent-v8 number input (Number and Currency fields) now renders the chrome's label, so a required one shows its asterisk and the label sits above a currency prefix; a label-less (inline) number input is now named too (#100).
 
 Surfaces: every modal and panel is named by its title, or by the new `ariaLabel` (on `DialogProps` and every surface prop bag, `showForm` included) when it has none; one with neither warns once in development (#97). The fluent-v8 panel's close button is named "Close" (#96). `MenuItem.tooltip` follows `Button.tooltip`'s contract: shown on hover and keyboard focus, the item's accessible description, and present on a disabled item, which stays focusable (#87).
 

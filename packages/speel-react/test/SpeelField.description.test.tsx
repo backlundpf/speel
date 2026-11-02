@@ -145,22 +145,17 @@ describe("a property's description in edit mode", () => {
 });
 
 describe("a property's description on a display", () => {
-  it("view mode shows the icon, not the text", () => {
+  it("view mode shows the description as text", () => {
     renderGift("view");
+    expect(screen.getByText("Last name as printed on the check")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "More information about Donor Name" }),
-    ).toBeInTheDocument();
-    // Only the tooltip's hidden copy: no subtext line under the value.
-    expect(
-      screen.getAllByText("Last name as printed on the check"),
-    ).toHaveLength(1);
+      screen.queryByRole("button", { name: /More information/ }),
+    ).not.toBeInTheDocument();
   });
 
-  it("read-only field shows the icon", () => {
+  it("a read-only field shows the description as text", () => {
     renderGift("edit");
-    expect(
-      screen.getByRole("button", { name: "More information about Code" }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Assigned on receipt")).toBeVisible();
   });
 });
 

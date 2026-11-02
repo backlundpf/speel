@@ -465,13 +465,6 @@ export interface TableProps {
  * used for view-mode displays and render-override bodies. */
 export interface FieldDisplayProps extends FieldChrome {
   children: ReactNode;
-  /**
-   * How `description` shows. `"icon"` (the default — a display is read, not filled in):
-   * behind an info button beside the label, on hover and focus. `"text"`: as help text
-   * under the content, as an input shows it — for a display standing in for an input
-   * (an edit-mode render override).
-   */
-  descriptionAs?: "text" | "icon";
 }
 
 /**

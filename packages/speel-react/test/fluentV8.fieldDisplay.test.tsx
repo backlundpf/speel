@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { V8FieldDisplay } from "../src/fluent-v8/primitives.js";
 
 /**
- * A display (view mode, read-only) shows a field's description behind an info icon;
- * an input-like display (an edit-mode render override) keeps it as subtext (#99).
+ * A display (view mode, read-only) shows a field's description as help text under its
+ * content, as an input does (#99), and is described by it.
  */
 
 const describedText = (el: HTMLElement): string =>
@@ -15,64 +15,34 @@ const describedText = (el: HTMLElement): string =>
     .join(" ");
 
 describe("V8FieldDisplay description", () => {
-  it("icon variant: no subtext, focusable info button described by the text", () => {
+  it("shows the description as help text and is described by it", () => {
     render(
       <V8FieldDisplay label="Donor" description="Who gave it">
         x
       </V8FieldDisplay>,
     );
-    // Only the tooltip's always-present hidden copy — no visible subtext line.
-    expect(screen.getAllByText("Who gave it")).toHaveLength(1);
-    const info = screen.getByRole("button", {
-      name: "More information about Donor",
-    });
-    expect(info.tabIndex).toBe(0);
+    expect(screen.getByText("Who gave it")).toBeVisible();
     expect(describedText(screen.getByRole("group", { name: "Donor" }))).toBe(
       "Who gave it",
     );
   });
 
-  it("icon variant: tooltip shows on focus", async () => {
+  it("renders no info button", () => {
     render(
       <V8FieldDisplay label="Donor" description="Who gave it">
         x
       </V8FieldDisplay>,
     );
-    const info = screen.getByRole("button", {
-      name: "More information about Donor",
-    });
-    fireEvent.focus(info);
-    await waitFor(
-      () => expect(screen.getAllByText("Who gave it")).toHaveLength(2),
-      { timeout: 2000 },
-    );
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("text variant: subtext as before", () => {
-    render(
-      <V8FieldDisplay
-        label="Donor"
-        description="Who gave it"
-        descriptionAs="text"
-      >
-        x
-      </V8FieldDisplay>,
-    );
-    expect(screen.getByText("Who gave it")).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: /More information/ }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("inline-named display: no icon, still described", () => {
+  it("an inline-named display shows and is described by it too", () => {
     render(
       <V8FieldDisplay ariaLabel="Donor" description="Who gave it">
         x
       </V8FieldDisplay>,
     );
-    expect(
-      screen.queryByRole("button", { name: /More information/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText("Who gave it")).toBeVisible();
     expect(describedText(screen.getByRole("group", { name: "Donor" }))).toBe(
       "Who gave it",
     );

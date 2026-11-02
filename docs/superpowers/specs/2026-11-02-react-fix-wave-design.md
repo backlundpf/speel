@@ -38,26 +38,15 @@ spec, plan or commits (public repo — describe shapes generically).
 - `SpeelField`'s `chromeOf()` passes `description` to every input body, `JsonFieldBody`
   included.
 
-**Edit mode** (user decision): the text renders under the field, as the v8 `Field`
-chrome already draws it (subtext + `aria-describedby`).
-
-**View mode and read-only** (user decision): no subtext; an **info icon** beside the
-label shows the same text on hover and focus. The icon is keyboard-focusable and the
-text is the display's accessible description (`aria-describedby` on the display group),
-so it is reachable without a mouse.
-
-Mechanics (builder's call within this): `FieldDisplay` is also used for edit-mode
-render-override bodies, which should keep inline subtext. My call: `FieldDisplayProps`
-gains a skin hint — e.g. `descriptionAs?: "text" | "icon"`, default `"icon"` — and
-`SpeelField`'s render-override edit path passes `"text"`. Both skins implement the icon
-(v8: Fluent `TooltipHost` + `Info` icon in the label row; shadcn: its tooltip primitive).
+**Every mode** (user decision, revised after the first build): the text renders under the
+field as help text — under an input, and under a view-mode or read-only display alike — as
+the v8 `Field` chrome already draws it (subtext + `aria-describedby`). A first build put
+the description behind an info icon on displays (`FieldDisplayProps.descriptionAs`); that
+was dropped as doing too much.
 
 Tests: edit-mode field renders the text and the input's `aria-describedby` includes its
-id; view-mode / read-only renders no subtext, renders a focusable info control whose
-tooltip/description is the text; `EntityFields` passes descriptions through.
-
-Other edit-mode `FieldDisplay` users (`JsonFieldBody`'s edit mode, `renderInput`'s
-default branch) also pass `"text"`; `ShapeFieldRow` passes `property.description`.
+id; view-mode / read-only displays render the text too and are described by it;
+`EntityFields` passes descriptions through; `ShapeFieldRow` passes `property.description`.
 
 ### #100 Number/Currency required marker and label placement (v8)
 

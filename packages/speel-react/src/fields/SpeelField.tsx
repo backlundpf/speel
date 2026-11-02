@@ -43,11 +43,7 @@ function RenderField({ field }: { field: FieldHandle }): JSX.Element | null {
   // 1) render override wins (undefined = fall back to the default body)
   if (field.render !== undefined) {
     return (
-      <ui.FieldDisplay
-        {...displayOf(field, isDisplay(field) ? "icon" : "text")}
-      >
-        {field.render}
-      </ui.FieldDisplay>
+      <ui.FieldDisplay {...displayOf(field)}>{field.render}</ui.FieldDisplay>
     );
   }
   // 2) Json is dispatched here, ahead of the view/read-only branch below: a shape
@@ -63,7 +59,7 @@ function RenderField({ field }: { field: FieldHandle }): JSX.Element | null {
   // 3) view mode or read-only → formatted display (not a disabled input)
   if (isDisplay(field)) {
     return (
-      <ui.FieldDisplay {...displayOf(field, "icon")}>
+      <ui.FieldDisplay {...displayOf(field)}>
         {formatFieldValue(field.config as FieldConfig, field.value)}
       </ui.FieldDisplay>
     );
@@ -84,18 +80,14 @@ function isDisplay(field: FieldHandle): boolean {
   return field.mode === "view" || field.readOnly;
 }
 
-/** A FieldDisplay's name plus its description, shown as an info icon or as help text. */
+/** A FieldDisplay's name plus its description — help text, in every mode. */
 function displayOf(
   field: FieldHandle,
-  descriptionAs: "text" | "icon",
-): Pick<
-  FieldDisplayProps,
-  "label" | "ariaLabel" | "description" | "descriptionAs"
-> {
+): Pick<FieldDisplayProps, "label" | "ariaLabel" | "description"> {
   return {
     ...nameOf(field),
     ...(field.description !== undefined
-      ? { description: field.description, descriptionAs }
+      ? { description: field.description }
       : {}),
   };
 }
@@ -229,7 +221,7 @@ function renderInput(ui: SpeelUIAdapter, field: FieldHandle): JSX.Element {
       return <LookupDispatchBody field={field} chrome={chrome} />;
     default:
       return (
-        <ui.FieldDisplay {...displayOf(field, "text")}>
+        <ui.FieldDisplay {...displayOf(field)}>
           {formatFieldValue(config, field.value)}
         </ui.FieldDisplay>
       );

@@ -90,13 +90,6 @@ export function JsonFieldBody({
   const display: Omit<FieldDisplayProps, "children"> = {
     ...chrome,
     ...(errorMessage !== undefined ? { error: errorMessage } : {}),
-    // A shape in view mode is read; in edit mode its fieldset stands in for an input.
-    ...(chrome.description !== undefined
-      ? {
-          descriptionAs:
-            field.mode === "view" || field.readOnly ? "icon" : "text",
-        }
-      : {}),
   };
 
   if (!config.multi) {

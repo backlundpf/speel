@@ -25,20 +25,20 @@ async function openDemo(page: Page) {
   return demo;
 }
 
-test("help text under the edit field, an info icon on the view field", async ({
+test("help text shows under the field in edit and view mode alike", async ({
   authPage,
 }) => {
   const demo = await openDemo(authPage);
-  await expect(
-    demo.getByText("Last name as printed on the check").first(),
-  ).toBeVisible();
-  const info = demo.getByRole("button", {
-    name: "More information about Donor name (view)",
+  const hints = demo.getByText("Last name as printed on the check", {
+    exact: true,
   });
-  await info.focus();
+  // The edit field and the view-mode field each show it as visible help text.
+  await expect(hints).toHaveCount(2);
+  await expect(hints.nth(0)).toBeVisible();
+  await expect(hints.nth(1)).toBeVisible();
   await expect(
-    v8Tooltip(authPage, "Last name as printed on the check"),
-  ).toBeVisible();
+    demo.getByRole("button", { name: /More information/ }),
+  ).toHaveCount(0);
 });
 
 test("required currency field: asterisk, label above the USD prefix", async ({

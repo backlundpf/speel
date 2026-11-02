@@ -556,7 +556,7 @@ export function ShadMessageBar(p: MessageBarProps): ReactElement {
 export function ShadFieldDisplay(p: FieldDisplayProps): ReactElement {
   const id = useStableId();
   return (
-    <Chrome {...p} descriptionAs={p.descriptionAs ?? "icon"} htmlFor={id}>
+    <Chrome {...p} htmlFor={id}>
       <div
         {...fieldAria(id, p, { labelledBy: true })}
         role="group"

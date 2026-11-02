@@ -918,25 +918,14 @@ export const fakeAdapter: SpeelUIAdapter = {
     </span>
   ),
 
-  FieldDisplay: ({
-    label,
-    required,
-    error,
-    description,
-    descriptionAs,
-    children,
-  }) =>
+  FieldDisplay: ({ label, required, error, description, children }) =>
     chrome(
       label,
       required,
       error,
       <>
         <span data-testid="display">{children}</span>
-        {description !== undefined ? (
-          <span data-description-as={descriptionAs ?? "icon"}>
-            {description}
-          </span>
-        ) : null}
+        {description !== undefined ? <span>{description}</span> : null}
       </>,
     ),
 };
