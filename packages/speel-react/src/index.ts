@@ -98,6 +98,7 @@ export type { Disclosure } from "./surface/useDisclosure.js";
 export { useSurfaces, useOverlays } from "./surface/useSurfaces.js";
 export type {
   SurfaceApi,
+  ConfirmRequest,
   SurfaceResult,
   FormRequest,
   DocumentFormRequest,
