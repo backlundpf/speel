@@ -41,6 +41,9 @@ export function ShapeFieldRow({
     // rule shapeCodec's `elementErrors` applies when it validates a shape's own value.
     required: property.required === true,
     customValidations: property.customValidations,
+    ...(property.description !== undefined
+      ? { description: property.description }
+      : {}),
     mode,
     enabled,
     touched,

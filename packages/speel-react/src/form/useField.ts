@@ -80,6 +80,9 @@ export function useField<TValue = unknown>(name: string): FieldHandle<TValue> {
       : undefined,
     setValue: (v) => form.setFieldValue(name, v),
     markTouched: () => markTouched(name),
+    ...(field.description !== undefined
+      ? { description: field.description }
+      : {}),
     ...(nav ? { storage: nav.storage } : {}),
     ...(options !== undefined ? { options } : {}),
     ...(create !== undefined ? { create } : {}),

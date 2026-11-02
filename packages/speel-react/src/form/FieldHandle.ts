@@ -42,6 +42,8 @@ export interface FieldHandle<TValue = unknown> {
   readonly touched: boolean;
   /** Result of the property's render override (opaque to core), or undefined. */
   readonly render: ReactNode | undefined;
+  /** Help text: under the input in edit mode, behind an info icon on a display. */
+  readonly description?: string;
   /** Names the control inline instead of with the label chrome (a table cell). Standalone only. */
   readonly ariaLabel?: string;
   /** Shown while the control is empty. Standalone only. */

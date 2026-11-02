@@ -78,6 +78,7 @@ function chromeOf(field: FieldHandle): FieldChrome {
   };
   const err = field.touched ? field.errors[0] : undefined;
   if (err !== undefined) c.error = err;
+  if (field.description !== undefined) c.description = field.description;
   return c;
 }
 
