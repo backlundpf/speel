@@ -22,7 +22,9 @@ class ICtx extends DbContext {
     mb.entity(Item, (b) => {
       b.toList("Items");
       b.property((e) => e.Id).isNumber();
-      b.property((e) => e.Title).isText().hasDisplayName("Title");
+      b.property((e) => e.Title)
+        .isText()
+        .hasDisplayName("Title");
       b.property((e) => e.CanDelete).isBoolean();
     });
   }
@@ -88,7 +90,9 @@ describe("SpeelTable rowActions per row", () => {
         items={items}
         columns={[{ key: "Title" }]}
         rowActions={{
-          custom: [{ key: "archive", iconName: "Archive", title: "Archive", onClick }],
+          custom: [
+            { key: "archive", iconName: "Archive", title: "Archive", onClick },
+          ],
           available: (a, r) => a !== "archive" || r.Id === 8,
         }}
       />,
@@ -96,7 +100,9 @@ describe("SpeelTable rowActions per row", () => {
     expect(
       within(row("Seven")).queryByRole("button", { name: "Archive" }),
     ).toBeNull();
-    fireEvent.click(within(row("Eight")).getByRole("button", { name: "Archive" }));
+    fireEvent.click(
+      within(row("Eight")).getByRole("button", { name: "Archive" }),
+    );
     expect(onClick).toHaveBeenCalledWith(items[1]);
   });
 
@@ -109,15 +115,21 @@ describe("SpeelTable rowActions per row", () => {
         rowActions={{
           onEdit: vi.fn(),
           custom: [
-            { key: "archive", iconName: "Archive", title: "Archive", onClick: vi.fn() },
+            {
+              key: "archive",
+              iconName: "Archive",
+              title: "Archive",
+              onClick: vi.fn(),
+            },
           ],
           ariaLabel: (a, r) => `${a} item ${r.Id}`,
         }}
       />,
     );
-    expect(
-      screen.getByRole("button", { name: "edit item 7" }),
-    ).toHaveAttribute("title", "Edit");
+    expect(screen.getByRole("button", { name: "edit item 7" })).toHaveAttribute(
+      "title",
+      "Edit",
+    );
     expect(
       screen.getByRole("button", { name: "archive item 8" }),
     ).toBeInTheDocument();

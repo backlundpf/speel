@@ -43,7 +43,9 @@ function RenderField({ field }: { field: FieldHandle }): JSX.Element | null {
   // 1) render override wins (undefined = fall back to the default body)
   if (field.render !== undefined) {
     return (
-      <ui.FieldDisplay {...displayOf(field, isDisplay(field) ? "icon" : "text")}>
+      <ui.FieldDisplay
+        {...displayOf(field, isDisplay(field) ? "icon" : "text")}
+      >
         {field.render}
       </ui.FieldDisplay>
     );
@@ -86,7 +88,10 @@ function isDisplay(field: FieldHandle): boolean {
 function displayOf(
   field: FieldHandle,
   descriptionAs: "text" | "icon",
-): Pick<FieldDisplayProps, "label" | "ariaLabel" | "description" | "descriptionAs"> {
+): Pick<
+  FieldDisplayProps,
+  "label" | "ariaLabel" | "description" | "descriptionAs"
+> {
   return {
     ...nameOf(field),
     ...(field.description !== undefined

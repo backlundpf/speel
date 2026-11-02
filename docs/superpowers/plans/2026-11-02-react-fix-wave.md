@@ -36,11 +36,13 @@
 ### Task 1: Field help text reaches every edit-mode input (#99)
 
 **Files:**
+
 - Modify: `packages/speel-react/src/form/FieldHandle.ts`, `src/form/useField.ts`, `src/form/useStandaloneField.ts`, `src/fields/SpeelField.tsx` (`chromeOf`), `src/fields/ShapeFieldRow.tsx`
 - Modify: `packages/speel-react/test/fakeAdapter.tsx` (fake inputs render `description` with an id and wire `aria-describedby`, if they don't already)
 - Test: `packages/speel-react/test/SpeelField.description.test.tsx` (new)
 
 **Interfaces:**
+
 - Produces: `FieldHandle.description?: string` (readonly); `StandaloneFieldOptions.description?: string`; `chromeOf(field)` sets `description` when defined.
 - Source: `et.findProperty(name)?.description` / `INavigation.description` (both exist in core).
 
@@ -58,6 +60,7 @@
 ### Task 2: Description as an info icon in displays, v8 (#99)
 
 **Files:**
+
 - Modify: `packages/speel-react/src/adapter/SpeelUIAdapter.ts` (`FieldDisplayProps`)
 - Modify: `packages/speel-react/src/fields/SpeelField.tsx` (branches 1, 3 and `renderInput`'s `default`), `src/fields/JsonFieldBody.tsx`
 - Modify: `packages/speel-react/src/fluent-v8/Field.tsx` (`V8Field` gains the icon variant), `src/fluent-v8/primitives.tsx` (`V8FieldDisplay`)
@@ -65,6 +68,7 @@
 - Test: `packages/speel-react/test/fluentV8.fieldDisplay.test.tsx` (new); extend `test/SpeelField.description.test.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 1's `chromeOf` description.
 - Produces: `FieldDisplayProps.descriptionAs?: "text" | "icon"` — default `"icon"`. SpeelField passes `"text"` for the render-override branch when `field.mode !== "view" && !field.readOnly`, for `renderInput`'s `default` branch, and JsonFieldBody passes `"text"` in edit mode / `"icon"` in view or read-only. Branch 3 (view/read-only display) passes the description with the default.
 
@@ -82,11 +86,13 @@
 ### Task 3: Info icon in the shadcn skin (#99)
 
 **Files:**
+
 - Modify: `registry/src/speel-shadcn/chrome.tsx` (the shared `Chrome` / FieldDisplay path) — and `fields.tsx` if FieldDisplay lives there
 - Test: `registry/tests/field-description.test.tsx` (new)
 - Sync: `samples/spfx-sample/src/**` via `npm run sync:skin`; `registry/public/r` via `registry:build`
 
 **Interfaces:**
+
 - Consumes: `FieldDisplayProps.descriptionAs` (Task 2).
 
 - [ ] **Step 1: Write the failing tests** mirroring Task 2's four v8 tests against the shadcn adapter (Radix `Tooltip` content appears on focus of the info trigger; inputs still show text).
@@ -98,6 +104,7 @@
 ### Task 4: v8 NumberInput owns its label (#100)
 
 **Files:**
+
 - Modify: `packages/speel-react/src/fluent-v8/primitives.tsx` (`V8NumberInput`, ~:191-231)
 - Test: `packages/speel-react/test/fluentV8.numberInput.test.tsx` (new)
 
@@ -115,12 +122,14 @@
 ### Task 5: Surfaces are named; panel close button is named (v8 + contract) (#96, #97)
 
 **Files:**
+
 - Modify: `packages/speel-react/src/adapter/SpeelUIAdapter.ts` (`DialogProps`), `src/surface/surfaceProps.ts` (`SurfaceChromeProps`), every place surface chrome is forwarded to `ui.Dialog` / `ui.Drawer` (`SpeelModal`, `SpeelPanel`, `SurfaceForm`, `useSurfaces` — grep `fullscreenToggle` to find the forwarding sites)
 - Modify: `packages/speel-react/src/fluent-v8/primitives.tsx` (`V8Dialog` ~:547, `V8Panel` ~:1481)
 - Modify: `packages/speel-react/test/fakeAdapter.tsx` (Dialog/Drawer: `role="dialog"` named by title, else `ariaLabel`)
 - Test: `packages/speel-react/test/fluentV8.surfaceNames.test.tsx` (new); extend `test/surfaceChrome.test.tsx` for forwarding
 
 **Interfaces:**
+
 - Produces: `DialogProps.ariaLabel?: string` (DrawerProps inherits); `SurfaceChromeProps.ariaLabel?: string`.
 
 - [ ] **Step 1: Write the failing tests:**
@@ -140,6 +149,7 @@
 ### Task 6: Surface naming in the shadcn skin (#97)
 
 **Files:**
+
 - Modify: `registry/src/speel-shadcn/overlays.tsx` (`ShadDialog` ~:115, `ShadDrawer` ~:250)
 - Test: `registry/tests/overlays-names.test.tsx` (new)
 
@@ -152,12 +162,14 @@
 ### Task 7: `MenuItem.tooltip` — contract, v8, fake (#87)
 
 **Files:**
+
 - Modify: `packages/speel-react/src/adapter/SpeelUIAdapter.ts` (`MenuItem` ~:290)
 - Modify: `packages/speel-react/src/fluent-v8/primitives.tsx` (`V8Menu` ~:1435)
 - Modify: `packages/speel-react/test/fakeAdapter.tsx` (`Menu` renders `title` + `aria-description` for the tooltip)
 - Test: `packages/speel-react/test/fluentV8.menuTooltip.test.tsx` (new)
 
 **Interfaces:**
+
 - Produces: `MenuItem.tooltip?: string` — doc comment states the `Button.tooltip` contract: shown on hover **and** keyboard focus, Escape dismisses, the item's accessible description, present while `disabled`; a disabled item with a tooltip stays focusable.
 
 - [ ] **Step 1: Write the failing tests** (open the menu, items with/without tooltip):
@@ -174,6 +186,7 @@
 ### Task 8: `MenuItem.tooltip` in the shadcn skin (#87)
 
 **Files:**
+
 - Modify: `registry/src/speel-shadcn/overlays.tsx` (`ShadMenu` ~:65)
 - Test: `registry/tests/menu-tooltip.test.tsx` (new)
 
@@ -188,11 +201,13 @@
 ### Task 9: Column `export: false` (#92)
 
 **Files:**
+
 - Modify: `packages/speel-react/src/table/columns.ts` (`ColumnOptions` ~:15, `ResolvedColumn` ~:66, `resolveColumns` ~:385)
 - Modify: `packages/speel-react/src/table/SpeelTable.tsx` (the CSV/xlsx/print call sites ~:457-478)
 - Test: extend `test/SpeelTable.export.test.tsx`, `test/SpeelTable.xlsx.test.tsx`, `test/SpeelTable.print.test.tsx`, `test/SpeelTable.search.test.tsx`
 
 **Interfaces:**
+
 - Produces: `ColumnOptions.export?: false`; `ResolvedColumn.export?: false`; `const exported = visible.filter((c) => c.export !== false)` used by all three builders.
 
 - [ ] **Step 1: Write the failing tests:** `CSV omits an export:false column (header and cells)`; `xlsx omits it`; `print omits it`; `it still renders, sorts and appears in the column chooser`; `search still matches its text`.
@@ -204,16 +219,18 @@
 ### Task 10: Row actions that vary by row (#79)
 
 **Files:**
+
 - Modify: `packages/speel-react/src/table/SpeelTable.tsx` (`rowActions` type ~:90, actions column ~:393-440); export `RowActionKey` from `src/index.ts` alongside `RowAction`
 - Test: `packages/speel-react/test/SpeelTable.rowActions.test.tsx` (new)
 
 **Interfaces:**
+
 - Produces: `type RowActionKey = "view" | "edit" | "delete" | (string & {})`; `rowActions.available?: (action: RowActionKey, row: T) => boolean`; `rowActions.ariaLabel?: (action: RowActionKey, row: T) => string` (one function for built-ins and customs, keyed by `RowAction.key`; returned string becomes `IconButton.ariaLabel`, `title` stays the tooltip).
 
 - [ ] **Step 1: Write the failing tests:**
   - `available hides an action on rows where it returns false` — `available: (a, r) => a !== "delete" || r.canDelete` → Delete button on row 1 only.
   - `custom actions are keyed by RowAction.key`.
-  - `ariaLabel names each row's button` — `ariaLabel: (a, r) => \`${a} item ${r.id}\`` → `getByRole("button", { name: "edit item 7" })`.
+  - `ariaLabel names each row's button` — `ariaLabel: (a, r) => \`${a} item ${r.id}\``→`getByRole("button", { name: "edit item 7" })`.
   - `all actions hidden on a row keeps column width` — every action hidden on one row: cell renders no buttons; the `__actions` column `defaultWidth` equals the all-actions width; remaining icons keep their slot positions on other rows (each action renders in a fixed-width slot, hidden = empty slot).
   - `actions column is still excluded from export` — CSV has no actions column.
 - [ ] **Step 2:** in packages/speel-react: `npx vitest run test/SpeelTable.rowActions.test.tsx` → FAIL.
@@ -224,11 +241,13 @@
 ### Task 11: Tables inside surfaces; `virtualize` (#81)
 
 **Files:**
+
 - Modify: `packages/speel-react/src/adapter/SpeelUIAdapter.ts` (`TableProps`), `src/table/SpeelTable.tsx` (`SpeelTableProps` + forwarding at `<ui.Table` ~:568)
 - Modify: `packages/speel-react/src/fluent-v8/primitives.tsx` (`V8Table` `DetailsList` ~:1256 and the grouped path ~:1395; `V8Dialog` body div; `V8Panel` only if Fluent's Panel content lacks `data-is-scrollable` — check its rendered DOM first)
 - Test: `packages/speel-react/test/fluentV8.tableVirtualize.test.tsx` (new)
 
 **Interfaces:**
+
 - Produces: `TableProps.virtualize?: boolean` and `SpeelTableProps.virtualize?: boolean` (default unset = skin default, on in v8). `SpeelEntityTable` inherits via `Omit<SpeelTableProps, "items">` — confirm it forwards the prop. shadcn: accepted, ignored (no code).
 
 - [ ] **Step 1: Write the failing tests:**
@@ -244,10 +263,12 @@
 ### Task 12: Opt-in Tab between cell editors (#82)
 
 **Files:**
+
 - Modify: `packages/speel-react/src/adapter/SpeelUIAdapter.ts` (`TableProps`), `src/table/SpeelTable.tsx` (prop + forwarding), `src/fluent-v8/primitives.tsx` (`V8Table`)
 - Test: `packages/speel-react/test/fluentV8.cellNavigation.test.tsx` (new)
 
 **Interfaces:**
+
 - Consumes: Task 11's `virtualize`.
 - Produces: `TableProps.cellNavigation?: "tab"` and `SpeelTableProps.cellNavigation?: "tab"`. In v8, `cellNavigation === "tab"` → list `FocusZone` and row `FocusZone` get `handleTabKey: FocusZoneTabbableElements.all`, and virtualization is off unless `virtualize === true`. shadcn: accepted, ignored.
 
@@ -264,6 +285,7 @@
 Needs the user's serve: `npm --prefix samples/spfx-sample run dev` (outside the sandbox) and the sample's Playwright auth. Confirm the :4321 serve comes from this checkout. Do not edit `.ts` files while the specs run.
 
 **Files:**
+
 - Modify: sample web parts only as needed to exhibit the behaviour (a description on a demo field; a required Currency field; a menu item with a disabled+tooltip; an editable table with `cellNavigation="tab"` inside a `SpeelModal` with 60 rows)
 - Test: `samples/spfx-sample/tests/fixWave.spec.ts` (new)
 
@@ -274,6 +296,7 @@ Needs the user's serve: `npm --prefix samples/spfx-sample run dev` (outside the 
 ### Task 14: Docs, changeset, follow-ups, verify
 
 **Files:**
+
 - Modify: `packages/speel-react/docs/fields.md` (help text: edit vs. view), `docs/surfaces.md` (naming, `ariaLabel`, close buttons, menu tooltip if menus live there — else `skins.md`), `docs/tables.md` (`virtualize`, `cellNavigation`, row actions), `docs/table-columns.md` (`export: false` — at the 250-line cap: move text, don't grow), `docs/table-export.md` (export exclusion; fix the search "what export and print read" wording wherever it appears)
 - Create: `.changeset/<name>.md` — `"@speel/react": minor`, one paragraph per issue, generic wording
 - Re-verify each touched page's canonical example against `packages/speel-react/src/index.ts` exports (read the file)

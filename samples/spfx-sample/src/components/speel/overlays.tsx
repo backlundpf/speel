@@ -101,8 +101,7 @@ export function ShadMenu(p: MenuProps): ReactElement {
  */
 function MenuEntry({ item }: { item: MenuItem }): ReactElement {
   const tipId = useStableId();
-  const Icon =
-    item.iconName !== undefined ? iconFor(item.iconName) : undefined;
+  const Icon = item.iconName !== undefined ? iconFor(item.iconName) : undefined;
   const tipped = item.tooltip !== undefined;
   const softDisabled = tipped && !!item.disabled;
   const common = {
@@ -115,9 +114,7 @@ function MenuEntry({ item }: { item: MenuItem }): ReactElement {
       item.onClick?.();
     },
     ...(tipped ? { "aria-describedby": tipId } : {}),
-    ...(softDisabled
-      ? { "aria-disabled": true, className: "opacity-50" }
-      : {}),
+    ...(softDisabled ? { "aria-disabled": true, className: "opacity-50" } : {}),
     children: (
       <>
         {Icon ? <Icon className="size-4" /> : null}
@@ -155,8 +152,7 @@ function useWarnIfUnnamed(kind: string, p: DialogProps): void {
   const warned = useRef(false);
   if (
     // Guarded: a browser bundle may not define `process` at all.
-    (typeof process === "undefined" ||
-      process.env.NODE_ENV !== "production") &&
+    (typeof process === "undefined" || process.env.NODE_ENV !== "production") &&
     p.open &&
     p.title === undefined &&
     p.ariaLabel === undefined &&

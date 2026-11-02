@@ -442,7 +442,8 @@ function SpeelTableInner<T extends IEntity>(
           {actionList.map((a) => {
             const r = row as T;
             const shown = ra.available ? ra.available(a.key, r) : true;
-            const name = shown && ra.ariaLabel ? ra.ariaLabel(a.key, r) : undefined;
+            const name =
+              shown && ra.ariaLabel ? ra.ariaLabel(a.key, r) : undefined;
             return (
               // A fixed 32px slot per action: a hidden one leaves a gap, not a shift.
               <span

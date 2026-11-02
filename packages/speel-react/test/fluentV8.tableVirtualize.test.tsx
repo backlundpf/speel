@@ -17,7 +17,10 @@ import { makeFakeProvider } from "./fakeProvider.js";
  */
 
 const noop = (): void => {};
-const rows = Array.from({ length: 60 }, (_, i) => ({ id: i + 1, name: `Row ${i + 1}` }));
+const rows = Array.from({ length: 60 }, (_, i) => ({
+  id: i + 1,
+  name: `Row ${i + 1}`,
+}));
 const columns: TableProps["columns"] = [
   { key: "name", header: "Name", render: (r) => (r as { name: string }).name },
 ];
@@ -84,7 +87,11 @@ describe("TableProps.virtualize", () => {
     };
     render(
       <SpeelProvider
-        db={new Ctx({ provider: makeFakeProvider({ Things: [] }) } as never) as never}
+        db={
+          new Ctx({
+            provider: makeFakeProvider({ Things: [] }),
+          } as never) as never
+        }
         ui={ui}
       >
         <SpeelTable of={Thing} items={[]} virtualize={false} />

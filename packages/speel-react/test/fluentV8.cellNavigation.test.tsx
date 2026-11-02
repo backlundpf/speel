@@ -24,9 +24,8 @@ vi.mock("@fluentui/react", async (orig) => {
 });
 
 const { V8Table } = await import("../src/fluent-v8/primitives.js");
-const { FocusZoneDirection, FocusZoneTabbableElements } = await import(
-  "@fluentui/react"
-);
+const { FocusZoneDirection, FocusZoneTabbableElements } =
+  await import("@fluentui/react");
 
 const rows = [{ id: 1 }, { id: 2 }];
 const columns = [
@@ -55,7 +54,12 @@ beforeEach(() => {
 describe("V8Table cellNavigation", () => {
   it("tab: list and row zones handle Tab across all tabbables", () => {
     render(
-      <V8Table columns={columns} items={rows} cellNavigation="tab" containerWidth={400} />,
+      <V8Table
+        columns={columns}
+        items={rows}
+        cellNavigation="tab"
+        containerWidth={400}
+      />,
     );
     expect(seen.props!.focusZoneProps?.handleTabKey).toBe(
       FocusZoneTabbableElements.all,
@@ -72,7 +76,12 @@ describe("V8Table cellNavigation", () => {
 
   it("tab: virtualization is off by default", () => {
     render(
-      <V8Table columns={columns} items={rows} cellNavigation="tab" containerWidth={400} />,
+      <V8Table
+        columns={columns}
+        items={rows}
+        cellNavigation="tab"
+        containerWidth={400}
+      />,
     );
     expect(seen.props!.onShouldVirtualize?.({})).toBe(false);
   });
@@ -126,7 +135,11 @@ describe("SpeelTable forwards cellNavigation", () => {
     };
     render(
       <SpeelProvider
-        db={new Ctx({ provider: makeFakeProvider({ Things: [] }) } as never) as never}
+        db={
+          new Ctx({
+            provider: makeFakeProvider({ Things: [] }),
+          } as never) as never
+        }
         ui={ui}
       >
         <SpeelTable of={Thing} items={[]} cellNavigation="tab" />

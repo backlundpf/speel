@@ -157,6 +157,20 @@ rowActions={{ onEdit, custom: [
 ] }}
 ```
 
+When what a user may do varies by row — item permissions, the row's status — `available(action,
+row)` hides an action on rows where it returns `false`; built-ins are keyed `"view"`, `"edit"`,
+`"delete"` and custom actions by their `key`. A hidden action leaves its slot empty, so the rest
+line up down the column. `ariaLabel(action, row)` names each row's button ("Edit item 7").
+
+### Editable tables
+
+Cells can hold editors through a column's `render`. `cellNavigation="tab"` lets Tab and
+Shift+Tab walk those editors across a row and on to the next, for keyboard data entry. A table
+virtualizes its rows in the v8 skin, drawing only those in view; `virtualize={false}` draws
+them all — for a small table of live inputs — and `cellNavigation="tab"` implies it unless
+`virtualize` is `true`, since Tab can only reach rows that are drawn. A table inside a modal
+or panel virtualizes against the surface's scrolling body.
+
 ## Boundaries & gotchas
 
 - **`items` is required on `SpeelTable`** — it is a pure renderer with no internal

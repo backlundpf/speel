@@ -75,10 +75,12 @@ class Ctx extends DbContext {
   }
 }
 
-function renderGift(
-  mode: "edit" | "view" = "edit",
-): { markTouched: (name: string) => void } {
-  const ctx = new Ctx({ provider: makeFakeProvider({ Programs: [] }) } as never);
+function renderGift(mode: "edit" | "view" = "edit"): {
+  markTouched: (name: string) => void;
+} {
+  const ctx = new Ctx({
+    provider: makeFakeProvider({ Programs: [] }),
+  } as never);
   const gift = Object.assign(new Gift(), { Id: 1 });
   let touch: (name: string) => void = () => {};
   function Inner() {
@@ -86,11 +88,16 @@ function renderGift(
     touch = (n) => form.markTouched(n);
     return (
       <EntityFormProvider value={form as never}>
-        {["DonorName", "Amount", "DonorType", "Refunded", "Program", "Code"].map(
-          (n) => (
-            <SpeelField key={n} name={n} />
-          ),
-        )}
+        {[
+          "DonorName",
+          "Amount",
+          "DonorType",
+          "Refunded",
+          "Program",
+          "Code",
+        ].map((n) => (
+          <SpeelField key={n} name={n} />
+        ))}
       </EntityFormProvider>
     );
   }

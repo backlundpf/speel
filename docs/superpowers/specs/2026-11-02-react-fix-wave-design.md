@@ -149,7 +149,7 @@ docs' "what export and print read" wording.
 ### #79 Row actions that vary by row
 
 - `rowActions.available?: (action: "view" | "edit" | "delete" | string, row: T) =>
-  boolean`; custom actions are keyed by `RowAction.key`. An action is not rendered on a
+boolean`; custom actions are keyed by `RowAction.key`. An action is not rendered on a
   row where it returns false.
 - `RowAction.ariaLabel?: (row: T) => string` for custom actions, and a matching
   `rowActions.ariaLabel?: (action, row) => string` covering the built-ins (builder may

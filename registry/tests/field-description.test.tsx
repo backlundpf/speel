@@ -44,14 +44,16 @@ describe("shadcn FieldDisplay description", () => {
       name: "More information about Donor",
     });
     act(() => info.focus());
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(
-      "Who gave it",
-    );
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Who gave it");
   });
 
   it("text variant: subtext as before", () => {
     render(
-      <ui.FieldDisplay label="Donor" description="Who gave it" descriptionAs="text">
+      <ui.FieldDisplay
+        label="Donor"
+        description="Who gave it"
+        descriptionAs="text"
+      >
         x
       </ui.FieldDisplay>,
     );

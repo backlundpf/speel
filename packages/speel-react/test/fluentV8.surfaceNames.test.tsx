@@ -53,7 +53,9 @@ describe("V8Dialog name", () => {
         body again
       </V8Dialog>,
     );
-    const ours = warn.mock.calls.filter((c) => String(c[0]).includes("ariaLabel"));
+    const ours = warn.mock.calls.filter((c) =>
+      String(c[0]).includes("ariaLabel"),
+    );
     expect(ours).toHaveLength(1);
   });
 });

@@ -50,7 +50,11 @@ describe("V8FieldDisplay description", () => {
 
   it("text variant: subtext as before", () => {
     render(
-      <V8FieldDisplay label="Donor" description="Who gave it" descriptionAs="text">
+      <V8FieldDisplay
+        label="Donor"
+        description="Who gave it"
+        descriptionAs="text"
+      >
         x
       </V8FieldDisplay>,
     );

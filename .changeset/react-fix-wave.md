@@ -1,0 +1,9 @@
+---
+"@speel/react": minor
+---
+
+Fields: a property's description now reaches its field (#99). An input shows it as help text under the control (and `aria-describedby`); a view-mode or read-only display shows it behind an info button beside the label, on hover and keyboard focus. `FieldHandle` and `useStandaloneField` carry `description`, and `FieldDisplayProps` gains `descriptionAs` (`"icon"` by default, `"text"` for a display standing in for an input). The fluent-v8 number input (Number and Currency fields) now renders the chrome's label, so a required one shows its asterisk and the label sits above a currency prefix; a label-less (inline) number input is now named too (#100).
+
+Surfaces: every modal and panel is named by its title, or by the new `ariaLabel` (on `DialogProps` and every surface prop bag, `showForm` included) when it has none; one with neither warns once in development (#97). The fluent-v8 panel's close button is named "Close" (#96). `MenuItem.tooltip` follows `Button.tooltip`'s contract: shown on hover and keyboard focus, the item's accessible description, and present on a disabled item, which stays focusable (#87).
+
+Tables: `rowActions.available(action, row)` hides an action per row and `rowActions.ariaLabel(action, row)` names each row's button; actions keep fixed slots so the column stays aligned (`RowActionKey` is exported) (#79). A column with `export: false` is left out of CSV, Excel and print while still rendering, sorting, filtering and being searched (#92). `TableProps.virtualize: false` renders every row, and the fluent-v8 modal's body is now a scroll parent, so a table inside a modal draws every row it scrolls to (#81). `cellNavigation: "tab"` lets Tab and Shift+Tab move between editors in cells, and turns virtualization off unless `virtualize` is `true` (#82).

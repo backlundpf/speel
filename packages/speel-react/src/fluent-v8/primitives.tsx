@@ -556,8 +556,7 @@ function useWarnIfUnnamed(kind: string, p: DialogProps): void {
   const warned = React.useRef(false);
   if (
     // Guarded: a browser bundle may not define `process` at all.
-    (typeof process === "undefined" ||
-      process.env.NODE_ENV !== "production") &&
+    (typeof process === "undefined" || process.env.NODE_ENV !== "production") &&
     p.open &&
     p.title === undefined &&
     p.ariaLabel === undefined &&
@@ -1320,8 +1319,7 @@ export function V8Table(
           // `min-width: 100%`, so they overflow it together. Passed explicitly (it is also the
           // default) because the width behaviour above depends on it.
           constrainMode={ConstrainMode.horizontalConstrained}
-          {...(p.virtualize === false ||
-          (tabCells && p.virtualize !== true)
+          {...(p.virtualize === false || (tabCells && p.virtualize !== true)
             ? { onShouldVirtualize: () => false }
             : {})}
           {...(tabCells

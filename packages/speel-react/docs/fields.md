@@ -62,6 +62,12 @@ the field's `FieldConfig.kind`. In view mode (or for `isReadOnly` fields) it ren
 formatted display instead of an input. A render override declared in the model
 (`b.property(…).hasRender(…)`) takes priority over both paths.
 
+A property's description (`hasDescription(…)`, or `description` on a field decorator) is
+its help text. An input shows it under the control and points `aria-describedby` at it; a
+view-mode or read-only display shows it behind an info button beside the label, on hover and
+keyboard focus. A display named inline (`ariaLabel`, no label) keeps it as the accessible
+description only. `useStandaloneField` takes a `description` too.
+
 A `isNote().asRichText()` field dispatches to the skin's rich text editor
 (bold / italic / underline / strike, bullet and numbered lists, links, undo/redo)
 whose value is the HTML string the SP Note field stores; in view mode — and in table

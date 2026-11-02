@@ -165,6 +165,11 @@ resizable from the edge. Pass `resizable={false}`, `draggable={false}`, or
 `fullscreenToggle={false}` to opt out. A `blocking` surface suppresses the close button
 and backdrop dismiss — use it when saving must complete before the user can proceed.
 
+**Every surface has a name.** A modal or panel is named by its `title`; an untitled one takes
+`ariaLabel` (every surface prop bag and `showForm` accept it), read by screen readers and not
+painted. One with neither is announced as just "dialog", and the skins warn about it once in
+development. Close buttons are named "Close".
+
 A panel's resize edge is a hairline rule that thickens on hover or keyboard focus, over a
 grab target wide enough to hit. It is a focusable `separator`: the arrow keys move it a
 step at a time, in whichever direction widens the panel from the edge it is docked to. The

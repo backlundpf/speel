@@ -74,6 +74,10 @@ column its formatted amount. `exportValue` on a column replaces that text with a
 choosing: a string, number, `Date`, boolean, or empty. In the CSV every value becomes text; in
 the workbook the type survives. Print reads cells exactly as the CSV does.
 
+A column of controls has nothing to export: `export: false` leaves it out of all three
+outputs while it still renders, sorts, filters, is searched, and is offered in the column
+chooser. The `rowActions` column is always left out.
+
 What is exported follows the screen's question, not its layout: the column filters and the
 search narrow all three outputs, the pager does not, and a column the user has hidden through
 the column chooser is left out of the file and off the paper.
