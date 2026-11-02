@@ -13,6 +13,18 @@ export interface UserSettingsStore {
   getAll(): Promise<Record<string, unknown>>;
   set(key: string, value: unknown): Promise<void>;
   remove(key: string): Promise<void>;
+  /**
+   * May the current user create and change their settings? Asked before offering an action
+   * that writes them (saving a table view), because a 403 after the click is a worse failure
+   * than not offering it. Omitted means yes.
+   */
+  canWrite?: () => Promise<boolean>;
+}
+
+/** Options for {@link createEntityUserSettingsStore}. */
+export interface EntityUserSettingsStoreOptions {
+  /** Answers {@link UserSettingsStore.canWrite}; omitted, the store does not ask. */
+  canWrite?: () => Promise<boolean>;
 }
 
 const KEY = "speel.userSettings";
@@ -66,6 +78,7 @@ export function createLocalUserSettingsStore(): UserSettingsStore {
  */
 export function createEntityUserSettingsStore(
   db: DbContext,
+  options: EntityUserSettingsStoreOptions = {},
 ): UserSettingsStore {
   /**
    * The entity reaches the model by being declared on the context, so a context that did not
@@ -90,6 +103,7 @@ export function createEntityUserSettingsStore(
   };
 
   return {
+    ...(options.canWrite !== undefined ? { canWrite: options.canWrite } : {}),
     getAll: async () => {
       assertRegistered();
       const rows = await db.set(UserSetting).toArrayAsync();
