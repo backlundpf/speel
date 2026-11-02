@@ -11,6 +11,11 @@ test.use({ viewport: { width: 1600, height: 1000 } });
  * "Fix wave demo" section (FixWaveDemo.tsx); creates no list data.
  */
 
+/** A visible Fluent v8 tooltip. v8 sets no `role="tooltip"`; its text reaches screen readers
+ *  through the trigger's `aria-describedby` (unit-tested), so match the callout itself. */
+const v8Tooltip = (page: Page, text: string) =>
+  page.locator(".ms-Tooltip").filter({ hasText: text });
+
 async function openDemo(page: Page) {
   const dash = new ProjectDashboardPage(page);
   await dash.open();
@@ -31,9 +36,9 @@ test("help text under the edit field, an info icon on the view field", async ({
     name: "More information about Donor name (view)",
   });
   await info.focus();
-  await expect(authPage.getByRole("tooltip")).toContainText(
-    "Last name as printed on the check",
-  );
+  await expect(
+    v8Tooltip(authPage, "Last name as printed on the check"),
+  ).toBeVisible();
 });
 
 test("required currency field: asterisk, label above the USD prefix", async ({
@@ -58,14 +63,19 @@ test("a disabled menu item shows its tooltip on keyboard focus", async ({
   authPage,
 }) => {
   const demo = await openDemo(authPage);
-  await demo.getByRole("button", { name: "More actions" }).click();
   const item = authPage.getByRole("menuitem", { name: "Resend notifications" });
-  // ContextualMenu focuses its first item on open — the disabled one — and its tooltip
-  // shows on that focus.
-  await expect(item).toBeFocused();
-  await expect(authPage.getByRole("tooltip")).toContainText(
-    "Nothing to resend until the stage starts",
-  );
+  // On this page a v8 ContextualMenu sometimes closes right after it opens, with or without
+  // tooltips (measured: 5/6 stay open either way; a pre-existing V8Menu behaviour) — so
+  // open it until it stays. ContextualMenu focuses its first item on open — the disabled
+  // one — and its tooltip shows on that focus.
+  await expect(async () => {
+    if (await item.isVisible()) await authPage.keyboard.press("Escape");
+    await demo.getByRole("button", { name: "More actions" }).click();
+    await expect(item).toBeFocused({ timeout: 1_000 });
+    await expect(
+      v8Tooltip(authPage, "Nothing to resend until the stage starts"),
+    ).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
   // Arrow away and back: the disabled item is in the roving order.
   await authPage.keyboard.press("ArrowDown");
   await expect(
@@ -81,19 +91,24 @@ test("modal and panel are named; the panel's Close button is named", async ({
   authPage,
 }) => {
   const demo = await openDemo(authPage);
+  // Fluent's role="dialog" element is a zero-size wrapper (its content is positioned), so
+  // assert the named dialog exists rather than that the wrapper box is visible.
   await demo.getByRole("button", { name: "Open bulk entry" }).click();
   await expect(
     authPage.getByRole("dialog", { name: "Bulk entry" }),
-  ).toBeVisible();
+  ).toBeAttached();
   await authPage.keyboard.press("Escape");
+  await expect(
+    authPage.getByRole("dialog", { name: "Bulk entry" }),
+  ).not.toBeAttached();
   await demo.getByRole("button", { name: "Open demo panel" }).click();
   await expect(
     authPage.getByRole("dialog", { name: "Demo panel" }),
-  ).toBeVisible();
-  await authPage.getByRole("button", { name: "Close" }).click();
+  ).toBeAttached();
+  await authPage.getByRole("button", { name: "Close", exact: true }).click();
   await expect(
     authPage.getByRole("dialog", { name: "Demo panel" }),
-  ).toBeHidden();
+  ).not.toBeAttached();
 });
 
 test("bulk entry in a modal: every row reachable, Tab walks the cells", async ({
@@ -103,30 +118,39 @@ test("bulk entry in a modal: every row reachable, Tab walks the cells", async ({
   await demo.getByRole("button", { name: "Open bulk entry" }).click();
   const modal = authPage.getByRole("dialog", { name: "Bulk entry" });
   // Row 60 exists and scrolls into view inside the modal body.
-  const last = modal.getByRole("textbox", { name: "Title for row 60" });
+  const last = modal.getByRole("textbox", {
+    name: "Title for row 60",
+    exact: true,
+  });
   await last.scrollIntoViewIfNeeded();
   await expect(last).toBeVisible();
   // Tab: Title 1 → Note 1 → row 1's actions → Title 2.
-  await modal.getByRole("textbox", { name: "Title for row 1" }).focus();
+  await modal
+    .getByRole("textbox", { name: "Title for row 1", exact: true })
+    .focus();
   await authPage.keyboard.press("Tab");
   await expect(
-    modal.getByRole("textbox", { name: "Note for row 1" }),
+    modal.getByRole("textbox", { name: "Note for row 1", exact: true }),
   ).toBeFocused();
   await authPage.keyboard.press("Tab");
-  await expect(modal.getByRole("button", { name: "edit row 1" })).toBeFocused();
+  await expect(
+    modal.getByRole("button", { name: "edit row 1", exact: true }),
+  ).toBeFocused();
   await authPage.keyboard.press("Tab");
   await expect(
-    modal.getByRole("textbox", { name: "Title for row 2" }),
+    modal.getByRole("textbox", { name: "Title for row 2", exact: true }),
   ).toBeFocused();
   await authPage.keyboard.press("Shift+Tab");
-  await expect(modal.getByRole("button", { name: "edit row 1" })).toBeFocused();
+  await expect(
+    modal.getByRole("button", { name: "edit row 1", exact: true }),
+  ).toBeFocused();
   // Delete is offered only on even rows.
   await expect(
-    modal.getByRole("button", { name: "delete row 2" }),
+    modal.getByRole("button", { name: "delete row 2", exact: true }),
   ).toBeVisible();
-  await expect(modal.getByRole("button", { name: "delete row 1" })).toHaveCount(
-    0,
-  );
+  await expect(
+    modal.getByRole("button", { name: "delete row 1", exact: true }),
+  ).toHaveCount(0);
 });
 
 test("a virtualized table in a modal draws its rows to the end", async ({
@@ -136,14 +160,18 @@ test("a virtualized table in a modal draws its rows to the end", async ({
   await demo.getByRole("button", { name: "Open long list" }).click();
   const modal = authPage.getByRole("dialog", { name: "Long list" });
   await expect(modal.getByText("Program 1", { exact: true })).toBeVisible();
-  // Scroll the modal's own body (the scroll parent the virtualized list measures).
-  await modal
-    .locator('[data-is-scrollable="true"]')
-    .first()
-    .evaluate((el) => {
+  // Scroll the modal's own body (the scroll parent the virtualized list measures) to the
+  // end, as a user would, until the list has measured and drawn the last row.
+  // Scoped to speel's frame: Fluent's own outer content box also carries the attribute.
+  const body = authPage
+    .locator('.speel-modal [data-is-scrollable="true"]')
+    .first();
+  await expect(async () => {
+    await body.evaluate((el) => {
       el.scrollTop = el.scrollHeight;
     });
-  await expect(modal.getByText("Program 150", { exact: true })).toBeVisible({
-    timeout: 10_000,
-  });
+    await expect(modal.getByText("Program 150", { exact: true })).toBeVisible({
+      timeout: 1_000,
+    });
+  }).toPass({ timeout: 15_000 });
 });
