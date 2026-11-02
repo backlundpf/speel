@@ -547,14 +547,26 @@ function viewportBounds(): {
 }
 
 /**
+ * Development, unless the bundle says production. Read as `process.env.NODE_ENV` so a
+ * bundler's define (webpack production mode, SPFx's ship build) inlines the literal; a bundle
+ * with neither a define nor a `process` throws on the read, which counts as development.
+ */
+function isDevelopment(): boolean {
+  try {
+    return process.env.NODE_ENV !== "production";
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Warns once per surface instance, in development, when it has neither a title nor an
  * `ariaLabel` — an unnamed dialog is announced as just "dialog".
  */
 function useWarnIfUnnamed(kind: string, p: DialogProps): void {
   const warned = React.useRef(false);
   if (
-    // Guarded: a browser bundle may not define `process` at all.
-    (typeof process === "undefined" || process.env.NODE_ENV !== "production") &&
+    isDevelopment() &&
     p.open &&
     p.title === undefined &&
     p.ariaLabel === undefined &&

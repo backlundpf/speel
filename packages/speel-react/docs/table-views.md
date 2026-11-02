@@ -145,7 +145,7 @@ created, so one name never appears twice under two headings, drifting apart with
 menu to tell them apart. Unpublish is the same move backwards.
 
 A shared view you cannot edit behaves **exactly like the app-authored default**: read-only, with
-"Save as new view" as the way to make it yours, and column tweaks held for the session. One you
+"Save as new view" (if you can save views) as the way to make it yours, and tweaks held. One you
 can edit shows **Save for everyone** rather than Save — the same operation with a different
 blast radius.
 
