@@ -89,6 +89,9 @@ const minOf = (a?: number, b?: number): number | undefined =>
  * press). The corner handle is a focusable control the arrow keys resize. The title-bar
  * drag deliberately has no keyboard equivalent: moving a centered modal is cosmetic, and
  * the keyboard user already has resize and the fullscreen toggle.
+ *
+ * @deprecated Use {@link useModalFrame}: it also handles `style` sizes, placement and auto
+ * height. Kept, unchanged, for custom skins built on it.
  */
 export function useDragResize(opts: DragResizeOptions): DragResizeState {
   const [size, setSize] = useState(opts.initial);

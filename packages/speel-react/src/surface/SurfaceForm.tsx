@@ -1,7 +1,7 @@
 import { useState, type ComponentType } from "react";
 import { useStore } from "@tanstack/react-form";
 import type { IEntity, FormMode, SpeelDocument } from "@speel/core";
-import type { DrawerProps } from "../adapter/SpeelUIAdapter.js";
+import type { DrawerProps, ModalStyle } from "../adapter/SpeelUIAdapter.js";
 import { useEntityForm } from "../form/useEntityForm.js";
 import { EntityFormBody } from "../form/EntityFormBody.js";
 import type {
@@ -17,8 +17,9 @@ import {
 } from "../form/documentFormParts.js";
 
 export type SurfaceFormProps<T extends IEntity> = {
-  /** The adapter surface chrome (Dialog or Drawer); Dialog ignores `position`. */
-  Surface: ComponentType<DrawerProps>;
+  /** The adapter surface chrome (Dialog or Drawer); Dialog ignores `position`, Drawer
+   *  ignores the modal-only `style` keys. */
+  Surface: ComponentType<Omit<DrawerProps, "style"> & { style?: ModalStyle }>;
 } & PanelChromeProps &
   ModalChromeProps &
   SurfaceFormVariantProps<T>;
@@ -104,6 +105,10 @@ function Inner<T extends IEntity>(
       {...(position !== undefined ? { position } : {})}
       {...(p.resizable !== undefined ? { resizable: p.resizable } : {})}
       {...(p.draggable !== undefined ? { draggable: p.draggable } : {})}
+      {...(p.style !== undefined ? { style: p.style } : {})}
+      {...(p.ariaDescribedBy !== undefined
+        ? { ariaDescribedBy: p.ariaDescribedBy }
+        : {})}
       {...(p.fullscreenToggle !== undefined
         ? { fullscreenToggle: p.fullscreenToggle }
         : {})}

@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import {
-  useDragResize,
+  panelMaxWidth,
+  useModalFrame,
   useFocusReturn,
   usePopoverFocus,
   useResizable,
@@ -45,24 +46,6 @@ import {
 import { useStableId } from "./compat";
 import { iconFor } from "./icons";
 
-const DIALOG_WIDTH = { small: 480, medium: 640, large: 840 } as const;
-const DIALOG_HEIGHT = { small: 440, medium: 560, large: 640 } as const;
-const DIALOG_MIN = { w: 360, h: 260 };
-
-/** The dialog's size caps (its CSS 96vw x 92vh) and the viewport it must stay inside.
- *  Read at render; empty outside a browser. */
-function viewportBounds(): {
-  max?: { w: number; h: number };
-  bounds?: { w: number; h: number };
-} {
-  if (typeof window === "undefined") return {};
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  return {
-    max: { w: Math.floor(w * 0.96), h: Math.floor(h * 0.92) },
-    bounds: { w, h },
-  };
-}
 const SHEET_WIDTH = { small: 420, medium: 640, large: 880 } as const;
 
 /**
@@ -189,24 +172,18 @@ export function ShadDialog(p: DialogProps): ReactElement {
   const resizable = p.resizable ?? true;
   const draggable = p.draggable ?? true;
   const showFs = p.fullscreenToggle ?? true;
-  const [fullscreen, setFullscreen] = useState(false);
-  const presetW = DIALOG_WIDTH[p.size ?? "medium"];
-  const presetH = DIALOG_HEIGHT[p.size ?? "medium"];
-  const { size, transform, dragHandleProps, resizeHandleProps } = useDragResize(
-    {
-      min: DIALOG_MIN,
-      initial: { w: presetW, h: presetH },
-      ...viewportBounds(),
-      label: "Resize dialog",
-    },
-  );
-
-  const width = fullscreen ? "96vw" : `${resizable ? size.w : presetW}px`;
+  const [fullscreen, setFullscreen] = useState(p.defaultFullscreen ?? false);
+  const { frameRef, css, dragHandleProps, resizeHandleProps } = useModalFrame({
+    ...(p.size !== undefined ? { size: p.size } : {}),
+    ...(p.style !== undefined ? { style: p.style } : {}),
+    fullscreen,
+    open: p.open,
+    label: "Resize dialog",
+  });
   const { restore } = useFocusReturn({
     open: p.open,
     returnFocus: p.returnFocus,
   });
-  const height = fullscreen ? "92vh" : `${resizable ? size.h : presetH}px`;
 
   return (
     <Dialog
@@ -220,7 +197,7 @@ export function ShadDialog(p: DialogProps): ReactElement {
           re-applies the class that scopes the skin's base-layer CSS rules. */}
       <DialogContent
         showCloseButton={false}
-        aria-describedby={undefined}
+        aria-describedby={p.ariaDescribedBy}
         // animate-none: the stock zoom/fade keyframes write `transform` and would
         // clobber the inline centering+drag transform mid-animation.
         // transition-none: the stock `duration-200` sets transition-duration with
@@ -229,17 +206,21 @@ export function ShadDialog(p: DialogProps): ReactElement {
         // drag/resize rubber-bands instead of tracking the pointer.
         className="speel-shadcn flex flex-col gap-0 overflow-hidden p-0 transition-none data-[state=open]:animate-none data-[state=closed]:animate-none"
         style={{
-          width,
-          height,
-          maxWidth: "96vw",
-          maxHeight: "92vh",
+          // Size and placement (useModalFrame): top/left place the fixed frame and a
+          // centred axis translates -50%; `height: auto` sizes to the content.
+          ...css,
           // Neutralizes the stock translate-x/y-[-50%] utilities (CSS `translate`
-          // property, Safari 15.4+/Chrome 104+); centering lives in `transform`
-          // below so the drag offset composes with it.
+          // property, Safari 15.4+/Chrome 104+); centring lives in `transform`.
           translate: "none",
-          transform: fullscreen
-            ? "translate(-50%, -50%)"
-            : `translate(-50%, -50%) ${transform}`,
+        }}
+        onOpenAutoFocus={(e) => {
+          // The caller's initialFocus (a confirm's safe choice) beats Radix's first
+          // tabbable, which would be a header button.
+          const target = p.initialFocus?.();
+          if (target) {
+            e.preventDefault();
+            target.focus();
+          }
         }}
         onInteractOutside={(e) => {
           if (p.blocking) e.preventDefault();
@@ -255,8 +236,14 @@ export function ShadDialog(p: DialogProps): ReactElement {
           restore(true);
         }}
       >
-        {/* Sticky header — doubles as the drag handle (buttons excluded by useDragResize). */}
+        {/* Sticky header — doubles as the drag handle (buttons excluded by useModalFrame).
+            Its parent is the frame useModalFrame measures: the stock DialogContent is a
+            plain function component, which under React 17/18 cannot take a ref. */}
         <div
+          ref={(el) => {
+            frameRef.current =
+              (el?.parentElement as HTMLDivElement | null) ?? null;
+          }}
           {...(draggable && !fullscreen ? dragHandleProps : {})}
           className={cn(
             "flex flex-none items-center gap-2 border-b px-5 py-3",
@@ -301,8 +288,9 @@ export function ShadDialog(p: DialogProps): ReactElement {
             </Button>
           )}
         </div>
-        {/* Scrolling body — the only scroll container. */}
-        <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
+        {/* Scrolling body — the only scroll container. Basis auto, so `height: auto`
+            sizes to the content. */}
+        <div className="min-h-0 flex-auto overflow-auto px-5 py-4">
           {p.children as ReactNode}
         </div>
         {p.footer ? (
@@ -330,19 +318,28 @@ export function ShadDrawer(p: DrawerProps): ReactElement {
   const resizable = p.resizable ?? true;
   const atEnd = p.position !== "start";
   const presetW = SHEET_WIDTH[p.size ?? "medium"];
-  const maxW =
-    typeof window === "undefined"
-      ? undefined
-      : Math.max(320, window.innerWidth - 48);
+  const cssWidth = p.style?.width;
+  const maxW = panelMaxWidth(p.style);
+  const handleRef = useRef<HTMLDivElement>(null);
   const { size, handleProps } = useResizable({
     axis: "x",
     min: { w: 320 },
     ...(maxW !== undefined ? { max: { w: maxW } } : {}),
-    initial: { w: presetW },
+    // A CSS `style.width` holds until the first resize, which starts from the measured sheet.
+    ...(cssWidth === undefined ? { initial: { w: presetW } } : {}),
+    measure: () => {
+      const w = handleRef.current?.parentElement?.getBoundingClientRect().width;
+      return w ? { w } : undefined;
+    },
     invertX: atEnd,
     label: "Resize panel",
   });
-  const width = resizable ? (size.w ?? presetW) : presetW;
+  const width =
+    resizable && size.w !== undefined
+      ? `${size.w}px`
+      : (cssWidth ?? `${presetW}px`);
+  const maxWidth =
+    p.style?.maxWidth !== undefined ? `min(${p.style.maxWidth}, 96vw)` : "96vw";
   const { restore } = useFocusReturn({
     open: p.open,
     returnFocus: p.returnFocus,
@@ -367,7 +364,7 @@ export function ShadDrawer(p: DrawerProps): ReactElement {
         showCloseButton={showCloseButton}
         aria-describedby={undefined}
         className="speel-shadcn flex flex-col gap-0 p-0 sm:max-w-none"
-        style={{ width: `${width}px`, maxWidth: "96vw" }}
+        style={{ width, maxWidth }}
         onInteractOutside={(e) => {
           if (p.blocking) e.preventDefault();
         }}
@@ -411,6 +408,7 @@ export function ShadDrawer(p: DrawerProps): ReactElement {
           // on hover or keyboard focus.
           <div
             {...handleProps}
+            ref={handleRef}
             data-testid="resize-handle"
             className={cn(
               "group absolute top-0 bottom-0 z-10 flex w-2.5 touch-none cursor-ew-resize justify-center outline-none",

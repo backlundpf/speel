@@ -180,6 +180,8 @@ export interface FileInputProps extends FieldChrome {
 
 export interface ButtonProps {
   text: string;
+  /** The `<button>` element's id — how a surface finds the button to focus. */
+  id?: string;
   onClick?: () => void;
   /** `danger` marks a destructive action (the skin renders it in its error color). */
   appearance?: "primary" | "secondary" | "subtle" | "danger";
@@ -263,6 +265,29 @@ export interface MessageBarProps {
 export type ReturnFocusTarget =
   HTMLElement | (() => HTMLElement | null | undefined) | false;
 
+/**
+ * A panel's size, as CSS lengths in strings (`"640px"`, `"40vw"`). Deliberately not
+ * `CSSProperties`: only sizing keys, so nothing here can fight the skin's own layout.
+ */
+export interface PanelStyle {
+  /** Replaces the width `size` would set. */
+  width?: string;
+  /** Width cap; the screen still wins (a modal never exceeds 96vw). */
+  maxWidth?: string;
+}
+
+/** A modal's size and placement, as CSS lengths in strings — see {@link PanelStyle}. */
+export interface ModalStyle extends PanelStyle {
+  /** Replaces the height `size` would set. `"auto"`: fit the content, up to the cap. */
+  height?: string;
+  /** Height cap; the screen still wins (a modal never exceeds 92vh). */
+  maxHeight?: string;
+  /** The top edge, from the viewport top. Unset: centred. Auto height then grows down. */
+  top?: string;
+  /** The left edge, from the viewport left. Unset: centred. */
+  left?: string;
+}
+
 export interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -286,10 +311,19 @@ export interface DialogProps {
   defaultFullscreen?: boolean;
   /** Where focus goes when the surface closes — see {@link ReturnFocusTarget}. */
   returnFocus?: ReturnFocusTarget;
+  /** Size and placement in CSS lengths — see {@link ModalStyle}. */
+  style?: ModalStyle;
+  /** Id of the element that describes the dialog (`aria-describedby`). */
+  ariaDescribedBy?: string;
+  /** What takes focus when the surface opens, instead of the skin's default (the first
+   *  body field, else the frame). Called after the content mounts. */
+  initialFocus?: () => HTMLElement | null | undefined;
 }
 
-export interface DrawerProps extends DialogProps {
+export interface DrawerProps extends Omit<DialogProps, "style"> {
   position?: "start" | "end";
+  /** Width in CSS lengths — see {@link PanelStyle}. A panel is always full height. */
+  style?: PanelStyle;
 }
 
 export interface MenuItem {

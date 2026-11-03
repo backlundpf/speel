@@ -80,7 +80,8 @@ import { resolveColumnWidths } from "../table/layout/resolveColumnWidths.js";
 import { useContainerWidth } from "../table/layout/useContainerWidth.js";
 import { setOverflowTitle } from "../table/overflowTitle.js";
 import { useResizable } from "../surface/useResizable.js";
-import { useDragResize } from "../surface/useDragResize.js";
+import { useModalFrame } from "../surface/useModalFrame.js";
+import { panelMaxWidth } from "../surface/modalGeometry.js";
 import { FOCUSABLE, useFocusReturn } from "../surface/focusReturn.js";
 import { usePopoverFocus } from "../surface/popoverFocus.js";
 import { SpeelActionBar } from "../actions.js";
@@ -406,6 +407,7 @@ function V8FluentButton(p: ButtonProps & { tooltipId: string }): JSX.Element {
   return (
     <Btn
       text={p.text}
+      {...(p.id !== undefined ? { id: p.id } : {})}
       data-appearance={p.appearance ?? "secondary"}
       {...(styles ? { styles } : {})}
       type={p.type ?? "button"}
@@ -521,30 +523,11 @@ export function V8MessageBar(p: MessageBarProps): JSX.Element {
   );
 }
 
-const DIALOG_WIDTH = { small: 480, medium: 640, large: 840 } as const;
 const PANEL_WIDTH = {
   small: "420px",
   medium: "640px",
   large: "880px",
 } as const;
-
-const DIALOG_HEIGHT = { small: 440, medium: 560, large: 640 } as const;
-const DIALOG_MIN = { w: 360, h: 260 };
-
-/** The modal's size caps (its CSS 96vw x 92vh) and the viewport it must stay inside.
- *  Read at render, like the panel's max; empty outside a browser. */
-function viewportBounds(): {
-  max?: { w: number; h: number };
-  bounds?: { w: number; h: number };
-} {
-  if (typeof window === "undefined") return {};
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  return {
-    max: { w: Math.floor(w * 0.96), h: Math.floor(h * 0.92) },
-    bounds: { w, h },
-  };
-}
 
 /**
  * Development, unless the bundle says production. Read as `process.env.NODE_ENV` so a
@@ -589,9 +572,11 @@ const popupName = (p: DialogProps): { ariaLabel?: string } =>
  * Centered modal on Fluent `Modal` (not `Dialog`, which imposes its own header +
  * a second scroll container). The content is a flex column that fills the modal:
  * a sticky header (title + fullscreen + close — also the drag handle), a single
- * scrolling body, and a sticky footer. The wrapper is `position:absolute; inset:0`
- * so it fills `main` directly, sidestepping the FocusTrapZone/scrollableContent
- * height chain. Resizable via a corner handle; draggable by the header.
+ * scrolling body, and a sticky footer. `main` (the FocusTrapZone), its
+ * scrollableContent and the wrapper are one flex-column chain, so a fixed height
+ * fills down to the body and `height: auto` grows from the content up. Size and
+ * placement come from `useModalFrame`. Resizable via a corner handle; draggable
+ * by the header.
  */
 export function V8Dialog(p: DialogProps): JSX.Element {
   const resizable = p.resizable ?? true;
@@ -602,36 +587,38 @@ export function V8Dialog(p: DialogProps): JSX.Element {
   );
   useWarnIfUnnamed("modal", p);
   const titleId = useStableId();
-  const presetW = DIALOG_WIDTH[p.size ?? "medium"];
-  const presetH = DIALOG_HEIGHT[p.size ?? "medium"];
-  const { size, transform, dragHandleProps, resizeHandleProps } = useDragResize(
-    {
-      min: DIALOG_MIN,
-      initial: { w: presetW, h: presetH },
-      // The same caps the frame's CSS applies (96vw x 92vh), and the viewport as the box
-      // a drag or resize cannot carry the modal out of.
-      ...viewportBounds(),
-      label: "Resize dialog",
-    },
-  );
+  const { frameRef, css, dragHandleProps, resizeHandleProps } = useModalFrame({
+    ...(p.size !== undefined ? { size: p.size } : {}),
+    ...(p.style !== undefined ? { style: p.style } : {}),
+    fullscreen,
+    open: p.open,
+    label: "Resize dialog",
+  });
   const [gripLit, setGripLit] = React.useState(false);
   const grip = gripLit ? "3px solid #0078d4" : "2px solid #c8c6c4";
 
-  const width = fullscreen ? "96vw" : resizable ? size.w : presetW;
-  const height = fullscreen ? "92vh" : resizable ? size.h : presetH;
-
   // Focus starts inside the modal. Fluent's focus trap only keeps focus in once it is
   // there, and whatever opened the modal (a combobox's Add row, a button) may still hold
-  // it. The body's first focusable element takes it — a form's first field; a modal with
-  // nothing to fill in focuses its own frame instead, never a footer button, so Enter
-  // cannot confirm a dialog nobody has read yet.
-  const frameRef = React.useRef<HTMLDivElement>(null);
+  // it. The caller's `initialFocus` takes it if given (a confirm's safe choice); else the
+  // body's first focusable element — a form's first field; a modal with nothing to fill
+  // in focuses its own frame instead, never a footer button, so Enter cannot confirm a
+  // dialog nobody has read yet.
   const bodyRef = React.useRef<HTMLDivElement>(null);
+  const initialFocus = React.useRef(p.initialFocus);
+  initialFocus.current = p.initialFocus;
   React.useEffect(() => {
     if (!p.open) return;
     const t = setTimeout(() => {
       const frame = frameRef.current;
-      if (!frame || frame.contains(document.activeElement)) return;
+      if (!frame) return;
+      // The caller's choice wins even over Fluent's focus trap, which on a real page has
+      // already focused the first focusable (a confirm's own confirm button) by now.
+      const chosen = initialFocus.current?.();
+      if (chosen) {
+        chosen.focus();
+        return;
+      }
+      if (frame.contains(document.activeElement)) return;
       const first = bodyRef.current?.querySelector<HTMLElement>(FOCUSABLE);
       (first ?? frame).focus();
     }, 0);
@@ -657,19 +644,34 @@ export function V8Dialog(p: DialogProps): JSX.Element {
         ...popupName(p),
       }}
       {...(p.title !== undefined ? { titleAriaId: titleId } : {})}
+      {...(p.ariaDescribedBy !== undefined
+        ? { subtitleAriaId: p.ariaDescribedBy }
+        : {})}
       styles={{
-        // Own drag/resize: a translate keeps the top-left fixed while resizing (and applies
-        // the drag offset). Not applied in fullscreen (centered, full size).
+        // Own size and placement (useModalFrame): positioned absolutely in the fixed,
+        // full-viewport root, so `top`/`left` place it and a centred axis translates -50%.
+        // A flex column all the way down, so `height: auto` sizes to the content and a cap
+        // shrinks only the body.
         main: {
-          width,
-          maxWidth: "96vw",
-          height,
-          maxHeight: "92vh",
+          ...css,
+          position: "absolute",
+          display: "flex",
+          flexDirection: "column",
           overflow: "hidden",
-          position: "relative",
-          ...(fullscreen ? {} : { transform }),
+          // Fluent's own 288 × 176px floor would widen a narrow `style.width` and pad a
+          // short auto-height modal (a one-line confirm) past its content; user resizes
+          // have their own floor.
+          minWidth: 0,
+          minHeight: 0,
         },
-        scrollableContent: { overflow: "hidden", height: "100%" },
+        scrollableContent: {
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          flex: "1 1 auto",
+          minHeight: 0,
+          maxHeight: "none",
+        },
       }}
     >
       <div
@@ -678,10 +680,10 @@ export function V8Dialog(p: DialogProps): JSX.Element {
         tabIndex={-1}
         style={{
           outline: "none",
-          position: "absolute",
-          inset: 0,
           display: "flex",
           flexDirection: "column",
+          flex: "1 1 auto",
+          minHeight: 0,
         }}
       >
         {/* Sticky header — doubles as the drag handle. */}
@@ -1601,22 +1603,29 @@ export function V8Panel(p: DrawerProps): JSX.Element {
   const preset = PANEL_WIDTH[p.size ?? "medium"];
   const presetNum = parseInt(preset, 10);
   const atEnd = p.position !== "start";
-  // Leave a strip of page visible: a panel dragged past the viewport edge has no
-  // handle left to drag back.
-  const maxW =
-    typeof window === "undefined"
-      ? undefined
-      : Math.max(320, window.innerWidth - 48);
+  const cssWidth = p.style?.width;
+  const maxW = panelMaxWidth(p.style);
+  const handleRef = React.useRef<HTMLDivElement>(null);
   const { size, handleProps } = useResizable({
     axis: "x",
     min: { w: 320 },
     ...(maxW !== undefined ? { max: { w: maxW } } : {}),
-    initial: { w: presetNum },
+    // A CSS `style.width` holds until the first resize, which starts from the measured panel.
+    ...(cssWidth === undefined ? { initial: { w: presetNum } } : {}),
+    measure: () => {
+      const w = handleRef.current
+        ?.closest(".ms-Panel-main")
+        ?.getBoundingClientRect().width;
+      return w ? { w } : undefined;
+    },
     invertX: atEnd,
     label: "Resize panel",
   });
   const [grabbed, setGrabbed] = React.useState(false);
-  const width = resizable ? `${size.w ?? presetNum}px` : preset;
+  const width =
+    resizable && size.w !== undefined
+      ? `${size.w}px`
+      : (cssWidth ?? (resizable ? `${presetNum}px` : preset));
   const { restore } = useFocusReturn({
     open: p.open,
     returnFocus: p.returnFocus,
@@ -1635,6 +1644,9 @@ export function V8Panel(p: DrawerProps): JSX.Element {
       }}
       type={p.position === "start" ? PanelType.customNear : PanelType.custom}
       customWidth={width}
+      {...(p.style?.maxWidth !== undefined
+        ? { styles: { main: { maxWidth: `min(${p.style.maxWidth}, 100vw)` } } }
+        : {})}
       isBlocking={p.blocking ?? false}
       isLightDismiss={!p.blocking}
       hasCloseButton={!p.blocking}
@@ -1646,6 +1658,7 @@ export function V8Panel(p: DrawerProps): JSX.Element {
       {resizable ? (
         <div
           {...handleProps}
+          ref={handleRef}
           data-testid="resize-handle"
           onPointerEnter={() => setGrabbed(true)}
           onPointerLeave={() => setGrabbed(false)}

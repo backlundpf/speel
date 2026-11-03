@@ -44,3 +44,22 @@ describe("shadcn Button icon", () => {
     ).not.toBeNull();
   });
 });
+
+describe("shadcn Button id", () => {
+  it("reaches the button element, with or without a tooltip", () => {
+    render(
+      <>
+        <shadcnAdapter.Button text="Plain" id="b1" />
+        <shadcnAdapter.Button text="Tipped" id="b2" tooltip="Hint" />
+      </>,
+    );
+    expect(screen.getByRole("button", { name: "Plain" })).toHaveAttribute(
+      "id",
+      "b1",
+    );
+    expect(screen.getByRole("button", { name: "Tipped" })).toHaveAttribute(
+      "id",
+      "b2",
+    );
+  });
+});

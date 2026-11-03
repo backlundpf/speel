@@ -33,6 +33,7 @@ export function SpeelPanel<T extends IEntity>(
     position,
     resizable,
     returnFocus,
+    style,
     children,
     actions,
   } = props;
@@ -47,6 +48,7 @@ export function SpeelPanel<T extends IEntity>(
       {...(position !== undefined ? { position } : {})}
       {...(resizable !== undefined ? { resizable } : {})}
       {...(returnFocus !== undefined ? { returnFocus } : {})}
+      {...(style !== undefined ? { style } : {})}
       footer={<ContentFooter {...(actions ? { actions } : {})} />}
     >
       {children}

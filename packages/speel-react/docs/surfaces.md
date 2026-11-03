@@ -52,18 +52,17 @@ function ProjectsView() {
 
 ### Imperative API — `useSurfaces` / `useOverlays`
 
-**`useSurfaces()`** returns a `SurfaceApi` with two methods:
+**`useSurfaces()`** returns a `SurfaceApi` with three methods:
 
 ```ts
 showForm<T>(opts: FormRequest<T>): Promise<SurfaceResult<T>>
 showDocumentForm<T extends SpeelDocument>(opts: DocumentFormRequest<T>): Promise<SurfaceResult<T>>
+confirm(opts: ConfirmRequest): Promise<boolean>
 ```
 
-`FormRequest` accepts: `surface` (`'modal'` | `'panel'`, default `'panel'`), `title`,
-`entity`, `mode` (`'create' | 'edit' | 'view'`), `sections`, `fields`, `exclude`,
-`beforeSubmit`, `onSubmit` (caller-owned persistence — see the forms page), `blocking`,
-`size`, `position` (panel only), `resizable`, `draggable` (modal only),
-`fullscreenToggle` (modal only).
+`FormRequest` accepts `surface` (`'modal'` | `'panel'`, default `'panel'`), the form inputs
+(`title`, `entity`, `mode`, `sections`, `fields`, `exclude`, `beforeSubmit`, `onSubmit` —
+see the forms page) and every chrome prop below, `style` included.
 
 **`showDocumentForm`** hosts the document form for `SpeelDocument` entities: a
 required file input with upload progress in create mode (plus an `accept` filter),
@@ -87,6 +86,21 @@ The surface is automatically removed from the DOM after settling.
 
 Multiple concurrent `showForm` calls stack — each renders its own surface and settles
 independently. The `SurfaceManager` (mounted inside `SpeelProvider`) owns the stack.
+
+**`confirm`** is the app-wide yes/no, a convenience over a regular `SpeelModal`: small,
+`height: "auto"`, no resize, drag or fullscreen, and two actions. It resolves `true` on the
+confirm button and `false` on Cancel, Escape, the close button or a click outside. A
+`destructive` confirm opens on Cancel, so Enter alone never destroys; any other opens on the
+confirm button. It is named by its `title` and described by its `message`.
+
+```ts
+const ok = await confirm({
+  title: "Delete item?",
+  message: "This cannot be undone.",
+  confirmText: "Delete",
+  destructive: true,
+}); // danger-styled confirm button
+```
 
 **`useOverlays()`** combines `SurfaceApi`, `ToastApi`, and `ActiveTasksApi` in one import:
 `const { showForm, toast, tasks } = useOverlays()`. This is the idiomatic single import
@@ -128,28 +142,15 @@ toggles the surface and you do not need an awaited result.
 Both `SpeelModal` and `SpeelPanel` accept either a **form variant** (`entity` / `mode`
 props — see below) or a **content variant** (`children` / optional `actions`). Common
 props across both variants: `open`, `onOpenChange`, `title`, `blocking`, `size`
-(`'small' | 'medium' | 'large'`), `resizable`.
+(`'small' | 'medium' | 'large'`), `resizable`, `style`.
 
 The content variant's `actions` is the library's one actions shape: an array of
 `SpeelAction`s rendered as the skin's buttons, or any node rendered as-is in the footer
-slot — status text, a spinner, a "don't ask again" checkbox. A destructive confirm takes
-`appearance: "danger"`; `align: "start"` moves an action to the far end of a split footer.
+slot — status text, a spinner, a "don't ask again" checkbox. A destructive action takes
+`appearance: "danger"`; `align: "start"` moves an action to the far end of a split footer;
+`autoFocus` gives an action's button focus when the modal opens.
 
-```tsx
-<SpeelModal
-  open={open}
-  onOpenChange={setOpen}
-  title="Overwrite role?"
-  actions={[
-    { key: "ok", text: "Overwrite", appearance: "danger", onClick: overwrite },
-    { key: "cancel", text: "Cancel", onClick: () => setOpen(false) },
-  ]}
->
-  This replaces the permission mask on every site.
-</SpeelModal>
-```
-
-`SpeelModal` additionally accepts `draggable`, `fullscreenToggle` and `defaultFullscreen`.
+`SpeelModal` also accepts `draggable`, `fullscreenToggle`, `defaultFullscreen`, `ariaDescribedBy`.
 `SpeelPanel` additionally accepts `position` (`'start' | 'end'`).
 
 All of it is declared once, in `surfaceProps.ts`: `SurfaceChromeProps` and its panel and
@@ -164,6 +165,15 @@ Modals default to resizable, draggable, and showing a fullscreen toggle;
 resizable from the edge. Pass `resizable={false}`, `draggable={false}`, or
 `fullscreenToggle={false}` to opt out. A `blocking` surface suppresses the close button
 and backdrop dismiss — use it when saving must complete before the user can proceed.
+
+**Size and placement: `style`.** Every surface takes `style` — CSS lengths in strings, and
+only these keys: `width` and `maxWidth` (both surfaces), `height`, `maxHeight`, `top` and
+`left` (modal only). `width`/`height` replace what `size` sets; caps yield to the screen
+(a modal never passes 96vw × 92vh). `height: "auto"` fits the content, growing and
+shrinking with it — centred, or downward only when `top` is set — until the cap, then the
+body scrolls. A placed modal keeps its `top`/`left` and shortens to the room left; only
+below the built-in floor does it move back to stay on screen. Once the user drags or
+resizes a modal it keeps the size they gave it; an auto-height one fits again once reopened.
 
 **Every surface has a name.** A modal or panel is named by its `title`; an untitled one takes
 `ariaLabel` (every surface prop bag and `showForm` accept it), read by screen readers and not
@@ -193,10 +203,9 @@ position alone. `returnFocus` names another target — an element, or a function
 (the list, after a panel deleted its own row) — or `false` to leave focus to you; `showForm`
 takes it too.
 
-`useResizable` (panel edge) and `useDragResize` (modal corner + title bar) are exported if
-you are building your own skin's chrome — `min`, `max`, `step` and `label` shape both, and
-the handle props they return carry the role, the tab stop, and the pointer and key
-handlers.
+`useResizable` (panel edge) and `useModalFrame` (a modal's size, placement, corner and title
+bar; it supersedes the deprecated `useDragResize`) are exported for your own skin's chrome.
+Their handle props carry the role, the tab stop, and the pointer and key handlers.
 
 > Stability: still settling. Chrome defaults (which features are on by default) are
 > implemented in the `fluentV8Adapter` skin and may be adjusted before 1.0.

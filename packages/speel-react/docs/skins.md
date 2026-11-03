@@ -100,9 +100,9 @@ and degrades to a plain multiline field if the chunk fails; the shadcn registry 
 TipTap packages for the CLI to install beside the copied `rich-text.tsx`.
 
 **Surfaces** — `DialogProps` (modal) and `DrawerProps` (panel) cover the chrome: open state,
-title, body and footer slots, `resizable`, `draggable` and `fullscreenToggle` (dialog),
-`position` (drawer), and `returnFocus` (where focus goes on close, never scrolling). Both
-skins implement every flag.
+title, body and footer slots, `resizable`, `style` (sizes; a dialog adds placement and auto
+height), `returnFocus`; `draggable`, `fullscreenToggle`, `ariaDescribedBy` and `initialFocus`
+(dialog); `position` (drawer). Both skins implement every flag.
 
 **Table** — `TableProps` carries `TableColumn` specs, `TableSort`, and the table's `minWidth` /
 `width` / `maxWidth`; the skin owns header, cell, and sort rendering. Optional column hints:
@@ -146,8 +146,8 @@ button fill it, shadcn gives the button `w-full` inside its `inline-flex` trigge
 
 Four hooks in `@speel/react` spare a skin the overlay logic; both built-in skins use them:
 
-- **`useDragResize`** — title-bar drag + corner resize for a dialog; the corner handle is a
-  tab stop the arrow keys resize, and `max`/`bounds` keep the dialog on screen.
+- **`useModalFrame`** — a dialog's size, placement, title-bar drag and corner resize, kept on
+  screen; the corner is a tab stop the arrow keys resize (supersedes `useDragResize`).
 - **`useResizable`** — single-edge resize (a drawer's leading edge): width state plus handle
   props — pointer and keyboard handlers, the `separator` role, and a tab stop.
 - **`useFocusReturn`** — a dialog's or drawer's focus return: it remembers the opener, and its

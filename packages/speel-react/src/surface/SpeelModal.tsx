@@ -1,4 +1,6 @@
 import type { IEntity } from "@speel/core";
+import { actionButtonId, autoFocusKey } from "../actions.js";
+import { useStableId } from "../fluent-v8/useStableId.js";
 import { useSpeelUI } from "../context.js";
 import { SurfaceForm } from "./SurfaceForm.js";
 import { ContentFooter } from "./ContentFooter.js";
@@ -16,6 +18,7 @@ export function SpeelModal<T extends IEntity>(
   props: SpeelModalProps<T>,
 ): JSX.Element {
   const ui = useSpeelUI();
+  const footerId = useStableId();
   if (!ui.Dialog)
     throw new Error(
       "SpeelModal requires a skin with a Dialog primitive (use @speel/react/fluent-v8).",
@@ -35,9 +38,13 @@ export function SpeelModal<T extends IEntity>(
     fullscreenToggle,
     defaultFullscreen,
     returnFocus,
+    style,
+    ariaDescribedBy,
     children,
     actions,
   } = props;
+  // An `autoFocus` action's button takes focus on open, found by the id the footer gives it.
+  const focusKey = autoFocusKey(actions);
   return (
     <ui.Dialog
       open={open}
@@ -51,7 +58,20 @@ export function SpeelModal<T extends IEntity>(
       {...(fullscreenToggle !== undefined ? { fullscreenToggle } : {})}
       {...(defaultFullscreen !== undefined ? { defaultFullscreen } : {})}
       {...(returnFocus !== undefined ? { returnFocus } : {})}
-      footer={<ContentFooter {...(actions ? { actions } : {})} />}
+      {...(style !== undefined ? { style } : {})}
+      {...(ariaDescribedBy !== undefined ? { ariaDescribedBy } : {})}
+      {...(focusKey !== undefined
+        ? {
+            initialFocus: () =>
+              document.getElementById(actionButtonId(footerId, focusKey)),
+          }
+        : {})}
+      footer={
+        <ContentFooter
+          {...(actions ? { actions } : {})}
+          {...(focusKey !== undefined ? { idPrefix: footerId } : {})}
+        />
+      }
     >
       {children}
     </ui.Dialog>

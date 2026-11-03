@@ -49,11 +49,83 @@ export interface SurfaceResult<T extends IEntity = IEntity> {
   action: "submit" | "cancel";
   entity: T;
 }
+/** What `confirm` takes: a yes/no question, named by its title, described by its message. */
+export interface ConfirmRequest {
+  title: string;
+  message: ReactNode;
+  /** The confirm button's text. Default 'OK'. */
+  confirmText?: string;
+  /** The cancel button's text. Default 'Cancel'. */
+  cancelText?: string;
+  /** Renders the confirm button as destructive (the skin's `danger` appearance), and opens
+   *  on Cancel instead of the confirm button. */
+  destructive?: boolean;
+}
+
 export interface SurfaceApi {
   showForm<T extends IEntity>(opts: FormRequest<T>): Promise<SurfaceResult<T>>;
   showDocumentForm<T extends SpeelDocument>(
     opts: DocumentFormRequest<T>,
   ): Promise<SurfaceResult<T>>;
+  /**
+   * A yes/no question as a regular `SpeelModal` (small, auto height, two actions): `true`
+   * when the user confirms, `false` on Cancel, Escape, the close button or a click
+   * outside. Opens on Cancel when `destructive`, else on the confirm button.
+   */
+  confirm(opts: ConfirmRequest): Promise<boolean>;
+}
+
+interface LiveConfirm {
+  id: string;
+  opts: ConfirmRequest;
+  resolve: (confirmed: boolean) => void;
+}
+
+/**
+ * One open confirm, as a regular modal: small, auto height, no resize, drag or fullscreen
+ * chrome, and two actions. Focus opens on Cancel when the confirm is destructive, else on
+ * the confirm button; the message describes the modal.
+ */
+function confirmModal(
+  c: LiveConfirm,
+  settle: (id: string, confirmed: boolean) => void,
+): JSX.Element {
+  const { opts } = c;
+  const destructive = opts.destructive === true;
+  const messageId = `${c.id}-message`;
+  return (
+    <SpeelModal
+      key={c.id}
+      open
+      onOpenChange={(open) => {
+        if (!open) settle(c.id, false);
+      }}
+      title={opts.title}
+      size="small"
+      style={{ height: "auto" }}
+      resizable={false}
+      draggable={false}
+      fullscreenToggle={false}
+      ariaDescribedBy={messageId}
+      actions={[
+        {
+          key: "confirm",
+          text: opts.confirmText ?? "OK",
+          appearance: destructive ? "danger" : "primary",
+          autoFocus: !destructive,
+          onClick: () => settle(c.id, true),
+        },
+        {
+          key: "cancel",
+          text: opts.cancelText ?? "Cancel",
+          autoFocus: destructive,
+          onClick: () => settle(c.id, false),
+        },
+      ]}
+    >
+      <div id={messageId}>{opts.message}</div>
+    </SpeelModal>
+  );
 }
 
 interface LiveRequest {
@@ -76,6 +148,7 @@ export function SurfaceManager({
   children: ReactNode;
 }): JSX.Element {
   const [requests, setRequests] = useState<LiveRequest[]>([]);
+  const [confirms, setConfirms] = useState<LiveConfirm[]>([]);
   const savedEntities = useRef(new Map<string, IEntity>());
 
   const settle = useCallback((id: string) => {
@@ -124,9 +197,26 @@ export function SurfaceManager({
     [open],
   );
 
+  const confirm = useCallback(
+    (opts: ConfirmRequest): Promise<boolean> =>
+      new Promise<boolean>((resolve) => {
+        const id = `confirm-${++counter}`;
+        setConfirms((cs) => [...cs, { id, opts, resolve }]);
+      }),
+    [],
+  );
+  const settleConfirm = useCallback((id: string, confirmed: boolean) => {
+    setConfirms((cs) => {
+      const c = cs.find((x) => x.id === id);
+      if (!c) return cs; // already settled — idempotent
+      c.resolve(confirmed);
+      return cs.filter((x) => x.id !== id);
+    });
+  }, []);
+
   const api = useMemo<SurfaceApi>(
-    () => ({ showForm, showDocumentForm }),
-    [showForm, showDocumentForm],
+    () => ({ showForm, showDocumentForm, confirm }),
+    [showForm, showDocumentForm, confirm],
   );
 
   return (
@@ -169,6 +259,10 @@ export function SurfaceManager({
           ...(o.returnFocus !== undefined
             ? { returnFocus: o.returnFocus }
             : {}),
+          ...(o.style !== undefined ? { style: o.style } : {}),
+          ...(o.ariaDescribedBy !== undefined
+            ? { ariaDescribedBy: o.ariaDescribedBy }
+            : {}),
         };
         return r.kind === "modal" ? (
           <SpeelModal key={r.id} {...common} />
@@ -180,6 +274,7 @@ export function SurfaceManager({
           />
         );
       })}
+      {confirms.map((c) => confirmModal(c, settleConfirm))}
     </SurfaceCtx.Provider>
   );
 }

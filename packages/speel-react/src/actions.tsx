@@ -23,6 +23,8 @@ export interface SpeelAction<Ctx = void> {
   align?: "start" | "end";
   type?: "button" | "submit";
   disabled?: boolean;
+  /** Takes focus when its surface opens (a modal's footer). The first one wins. */
+  autoFocus?: boolean;
   onClick?: (ctx: Ctx) => void;
 }
 
@@ -49,6 +51,16 @@ export function isActionArray<Ctx = void>(
   );
 }
 
+/** The key of the first `autoFocus` action, when `actions` is an array that has one. */
+export function autoFocusKey(actions: unknown): string | undefined {
+  if (!isActionArray(actions)) return undefined;
+  return actions.find((a) => a.autoFocus === true)?.key;
+}
+
+/** The id `SpeelActionBar` gives an action's button under `idPrefix`. */
+export const actionButtonId = (idPrefix: string, key: string): string =>
+  `${idPrefix}-${key}`;
+
 export function resolveAppearance<Ctx>(
   a: SpeelAction<Ctx>,
 ): SpeelActionAppearance {
@@ -65,6 +77,8 @@ export function SpeelActionBar<Ctx = void>(props: {
   actions: SpeelActions<Ctx>;
   /** Passed to each action's `onClick`. */
   ctx?: Ctx;
+  /** Gives each action's button the id `actionButtonId(idPrefix, key)`. */
+  idPrefix?: string;
 }): JSX.Element | null {
   const ui = useSpeelUI();
   const { actions } = props;
@@ -77,6 +91,9 @@ export function SpeelActionBar<Ctx = void>(props: {
     <ui.Button
       key={a.key}
       text={a.text}
+      {...(props.idPrefix !== undefined
+        ? { id: actionButtonId(props.idPrefix, a.key) }
+        : {})}
       appearance={resolveAppearance(a)}
       type={a.type ?? "button"}
       disabled={a.disabled ?? false}

@@ -1,9 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { DbContext, ModelBuilder } from "@speel/core";
 import { SpeelProvider } from "../src/SpeelProvider.js";
 import { SpeelModal } from "../src/surface/SpeelModal.js";
 import { SpeelPanel } from "../src/surface/SpeelPanel.js";
+import { useSurfaces } from "../src/surface/useSurfaces.js";
+import type { ButtonProps } from "../src/adapter/SpeelUIAdapter.js";
 import { fakeAdapter } from "./fakeAdapter.js";
 import { makeFakeProvider } from "./fakeProvider.js";
 
@@ -161,5 +163,141 @@ describe("surfaces forward ariaLabel (fakeAdapter)", () => {
     expect(
       screen.getByRole("dialog", { name: "Named form" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("surface style reaches the skin (fakeAdapter)", () => {
+  const styleOf = () =>
+    JSON.parse(screen.getByRole("dialog").getAttribute("data-style")!);
+
+  it("content modal", () => {
+    wrap(
+      <SpeelModal
+        open
+        onOpenChange={() => {}}
+        title="M"
+        style={{ height: "auto", top: "10px" }}
+      >
+        body
+      </SpeelModal>,
+    );
+    expect(styleOf()).toEqual({ height: "auto", top: "10px" });
+  });
+
+  it("form modal", () => {
+    wrap(
+      <SpeelModal
+        open
+        onOpenChange={() => {}}
+        entity={entity()}
+        mode="edit"
+        style={{ height: "auto", top: "10px" }}
+      />,
+    );
+    expect(styleOf()).toEqual({ height: "auto", top: "10px" });
+  });
+
+  it("content panel", () => {
+    wrap(
+      <SpeelPanel
+        open
+        onOpenChange={() => {}}
+        title="P"
+        style={{ width: "30vw" }}
+      >
+        body
+      </SpeelPanel>,
+    );
+    expect(styleOf()).toEqual({ width: "30vw" });
+  });
+
+  it("showForm modal", async () => {
+    function Opener() {
+      const { showForm } = useSurfaces();
+      return (
+        <button
+          onClick={() => {
+            void showForm({
+              surface: "modal",
+              entity: entity(),
+              style: { width: "50vw" },
+            });
+          }}
+        >
+          open
+        </button>
+      );
+    }
+    wrap(<Opener />);
+    await act(async () => {
+      fireEvent.click(screen.getByText("open"));
+    });
+    expect(styleOf()).toEqual({ width: "50vw" });
+  });
+});
+
+describe("modal actions and description (fakeAdapter)", () => {
+  it("an autoFocus action takes focus when the modal opens", () => {
+    wrap(
+      <SpeelModal
+        open
+        onOpenChange={() => {}}
+        title="M"
+        actions={[
+          { key: "a", text: "First", align: "start" },
+          { key: "b", text: "Second" },
+          { key: "c", text: "Third", autoFocus: true },
+        ]}
+      >
+        body
+      </SpeelModal>,
+    );
+    expect(document.activeElement).toBe(screen.getByText("Third"));
+  });
+
+  it("ariaDescribedBy reaches the dialog", () => {
+    wrap(
+      <SpeelModal open onOpenChange={() => {}} title="M" ariaDescribedBy="d">
+        <p id="d">Described</p>
+      </SpeelModal>,
+    );
+    expect(
+      screen.getByRole("dialog", { description: "Described" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("autoFocus finds its button by id, whatever the skin's Button renders", () => {
+  it("a Button with an extra inner button still focuses the right action", () => {
+    // A skin whose Button renders a second <button> (an info toggle) before its own.
+    const ui = {
+      ...fakeAdapter,
+      Button: (p: ButtonProps) => (
+        <span>
+          <button tabIndex={-1} aria-label={`About ${p.text}`}>
+            i
+          </button>
+          <button id={p.id} onClick={p.onClick}>
+            {p.text}
+          </button>
+        </span>
+      ),
+    };
+    render(
+      <SpeelProvider db={ctx() as never} ui={ui}>
+        <SpeelModal
+          open
+          onOpenChange={() => {}}
+          title="M"
+          actions={[
+            { key: "delete", text: "Delete" },
+            { key: "cancel", text: "Cancel", autoFocus: true },
+          ]}
+        >
+          body
+        </SpeelModal>
+      </SpeelProvider>,
+    );
+    expect(document.activeElement).toBe(screen.getByText("Cancel"));
   });
 });

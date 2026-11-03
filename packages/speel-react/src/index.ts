@@ -38,6 +38,8 @@ export type {
   MessageBarProps,
   DialogProps,
   DrawerProps,
+  ModalStyle,
+  PanelStyle,
   ReturnFocusTarget,
   PopoverProps,
   PopoverTriggerProps,
@@ -96,6 +98,7 @@ export type { Disclosure } from "./surface/useDisclosure.js";
 export { useSurfaces, useOverlays } from "./surface/useSurfaces.js";
 export type {
   SurfaceApi,
+  ConfirmRequest,
   SurfaceResult,
   FormRequest,
   DocumentFormRequest,
@@ -239,6 +242,20 @@ export type {
   DragResizeOptions,
   DragResizeState,
 } from "./surface/useDragResize.js";
+export { useModalFrame } from "./surface/useModalFrame.js";
+export type {
+  ModalFrameOptions,
+  ModalFrameState,
+} from "./surface/useModalFrame.js";
+export {
+  modalFrameCss,
+  cssLengthPx,
+  panelMaxWidth,
+  DIALOG_WIDTH,
+  DIALOG_HEIGHT,
+  DIALOG_MIN,
+} from "./surface/modalGeometry.js";
+export type { FrameBox, ModalFrameCss } from "./surface/modalGeometry.js";
 export { useResizable } from "./surface/useResizable.js";
 export type {
   ResizableOptions,

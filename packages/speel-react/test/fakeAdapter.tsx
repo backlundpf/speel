@@ -1,4 +1,4 @@
-import { useState, type ReactElement, type ReactNode } from "react";
+import { useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type {
   ComboboxCreate,
   OptionItem,
@@ -554,6 +554,7 @@ export const fakeAdapter: SpeelUIAdapter = {
 
   Button: ({
     text,
+    id,
     onClick,
     type,
     disabled,
@@ -566,6 +567,7 @@ export const fakeAdapter: SpeelUIAdapter = {
     ariaControls,
   }) => (
     <button
+      id={id}
       type={type ?? "button"}
       disabled={disabled}
       aria-label={ariaLabel}
@@ -677,8 +679,14 @@ export const fakeAdapter: SpeelUIAdapter = {
     fullscreenToggle,
     draggable,
     defaultFullscreen,
+    style,
+    ariaDescribedBy,
+    initialFocus,
   }) => {
     const [fs, setFs] = useState(defaultFullscreen ?? false);
+    useEffect(() => {
+      if (open) initialFocus?.()?.focus();
+    }, [open]);
     if (!open) return null;
     const showFs = fullscreenToggle ?? true;
     const showResize = (resizable ?? true) && !fs;
@@ -686,6 +694,12 @@ export const fakeAdapter: SpeelUIAdapter = {
       <div
         role="dialog"
         aria-label={title ?? ariaLabel ?? "dialog"}
+        {...(ariaDescribedBy !== undefined
+          ? { "aria-describedby": ariaDescribedBy }
+          : {})}
+        {...(style !== undefined
+          ? { "data-style": JSON.stringify(style) }
+          : {})}
         data-fullscreen={String(fs)}
         data-draggable={String(draggable ?? true)}
       >
@@ -721,9 +735,16 @@ export const fakeAdapter: SpeelUIAdapter = {
     children,
     footer,
     resizable,
+    style,
   }) =>
     open ? (
-      <div role="dialog" aria-label={title ?? ariaLabel ?? "panel"}>
+      <div
+        role="dialog"
+        aria-label={title ?? ariaLabel ?? "panel"}
+        {...(style !== undefined
+          ? { "data-style": JSON.stringify(style) }
+          : {})}
+      >
         {title ? <h2>{title}</h2> : null}
         {children}
         <div data-testid="surface-footer">{footer}</div>
