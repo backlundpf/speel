@@ -597,11 +597,17 @@ export function V8Dialog(p: DialogProps): JSX.Element {
     if (!p.open) return;
     const t = setTimeout(() => {
       const frame = frameRef.current;
-      if (!frame || frame.contains(document.activeElement)) return;
-      const target =
-        initialFocus.current?.() ??
-        bodyRef.current?.querySelector<HTMLElement>(FOCUSABLE);
-      (target ?? frame).focus();
+      if (!frame) return;
+      // The caller's choice wins even over Fluent's focus trap, which on a real page has
+      // already focused the first focusable (a confirm's own confirm button) by now.
+      const chosen = initialFocus.current?.();
+      if (chosen) {
+        chosen.focus();
+        return;
+      }
+      if (frame.contains(document.activeElement)) return;
+      const first = bodyRef.current?.querySelector<HTMLElement>(FOCUSABLE);
+      (first ?? frame).focus();
     }, 0);
     return () => clearTimeout(t);
   }, [p.open]);

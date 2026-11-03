@@ -25,6 +25,7 @@ import { Project } from "../../../entities/Project";
 import { Programs } from "../../../entities/Programs";
 import { ArtifactsPanel } from "./ArtifactsPanel";
 import { FixWaveDemo } from "./FixWaveDemo";
+import { ModalSizingDemo } from "./ModalSizingDemo";
 import { GroupedProjectsPanel } from "./GroupedProjectsPanel";
 import { ProjectArtifact } from "../../../entities/ProjectArtifact";
 
@@ -351,6 +352,7 @@ const DashboardBody: React.FC<{
       <ProgramsSection ctx={ctx} />
       <ArtifactsPanel tableRef={artifactsTableRef} />
       <FixWaveDemo />
+      <ModalSizingDemo />
     </>
   );
 };

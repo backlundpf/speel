@@ -52,7 +52,7 @@ export default defineConfig({
       // MFA flow to the default "HeadlessChrome" UA.
       name: "e2e",
       testMatch:
-        /(smoke|fieldDemo|surfaces|folderPlacement|providerConformance|fixWave)\.spec\.ts$/,
+        /(smoke|fieldDemo|surfaces|folderPlacement|providerConformance|fixWave|modalSizing)\.spec\.ts$/,
       use: { ...devices["Desktop Chrome"] },
     },
   ],

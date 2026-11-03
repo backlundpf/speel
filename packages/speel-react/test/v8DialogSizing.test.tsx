@@ -61,6 +61,18 @@ describe("V8Dialog sizing", () => {
     expect(document.activeElement).toBe(document.getElementById("safe"));
   });
 
+  it("initialFocus wins even when something inside took focus first", async () => {
+    // On a real page Fluent's focus trap focuses the first focusable before speel's
+    // deferred focus runs; the caller's initialFocus must still win.
+    open({
+      footer: <button id="safe">Cancel</button>,
+      initialFocus: () => document.getElementById("safe"),
+      children: <input aria-label="field" autoFocus />,
+    });
+    await tick();
+    expect(document.activeElement).toBe(document.getElementById("safe"));
+  });
+
   it("leaving fullscreen returns an untouched auto modal to auto", async () => {
     open({ style: { height: "auto" } });
     await tick();
