@@ -51,6 +51,8 @@ export interface ModalChromeProps extends SurfaceChromeProps {
   fullscreenToggle?: boolean;
   /** Open maximized. Seeds the initial state — the toggle still works. */
   defaultFullscreen?: boolean;
+  /** Id of the element that describes the modal (`aria-describedby`) — a confirm's message. */
+  ariaDescribedBy?: string;
   /** Size and placement in CSS lengths; `height: "auto"` fits the content — see ModalStyle. */
   style?: ModalStyle;
 }

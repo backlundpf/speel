@@ -87,9 +87,14 @@ describe("useSurfaces().confirm", () => {
     ).toBeInTheDocument();
   });
 
-  it("opens on the safe choice", async () => {
-    await openConfirm(base);
+  it("a destructive confirm opens on Cancel", async () => {
+    await openConfirm({ ...base, destructive: true });
     expect(document.activeElement).toBe(screen.getByText("Cancel"));
+  });
+
+  it("any other confirm opens on the confirm button", async () => {
+    await openConfirm(base);
+    expect(document.activeElement).toBe(screen.getByText("Delete"));
   });
 
   it("is content-sized, with no resize, drag or fullscreen", async () => {

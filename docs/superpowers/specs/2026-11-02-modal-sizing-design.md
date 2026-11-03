@@ -126,7 +126,9 @@ same behaviour; both build on `useDragResize`. Panels likewise in both skins. Th
 ## Part 2 — `useSurfaces().confirm()` (#102)
 
 `useSurfaces()` gains `confirm(options) => Promise<boolean>`, beside `showForm` and
-`showDocumentForm`, rendered through the same surface manager.
+`showDocumentForm`. It is a convenience, not a new surface (user decision, after the first
+live check): the surface manager renders a regular `SpeelModal` content variant with the
+sizing and two actions below.
 
 - **Options:** `title` (required — it names the dialog), `message` (the body; it describes
   the dialog), `confirmText`, `cancelText`, `destructive`.
@@ -135,18 +137,20 @@ same behaviour; both build on `useDragResize`. Panels likewise in both skins. Th
 - **Shape:** a modal with `height: "auto"` and `size: "small"`; no resize handle, no drag,
   no fullscreen toggle. The footer holds Cancel and the confirm button; `destructive`
   renders the confirm button with the `danger` appearance, otherwise `primary`.
-- **Focus:** opens on the safe choice, Cancel, so Enter alone never confirms. This is the
-  one place a footer button takes initial focus (today's modals focus the first body field
-  or the frame).
+- **Focus (user decision):** a `destructive` confirm opens on Cancel, so Enter alone never
+  destroys; any other opens on the confirm button. Expressed as `SpeelAction.autoFocus`, a
+  general action flag: any modal's footer action can take initial focus (otherwise modals
+  focus the first body field or the frame).
 - **Accessibility:** the dialog is named by its title and described by its message
   (`aria-describedby`).
-- **Contract growth (builder's call, settled in review):** two optional `DialogProps`
-  members, implemented in both skins and accepted by `fakeAdapter`: a "described by" id,
-  and an initial-focus target (the v8 dialog otherwise focuses the first body field or the
-  frame, and Radix its first tabbable, a header button). Both stay on the skin contract
-  only; `SpeelModal`, `SurfaceChromeProps` and `FormRequest` do not expose them until an
-  app asks. A custom skin that ignores them still works: the confirm is then undescribed
-  and focuses wherever that skin puts it.
+- **Contract growth:** two optional `DialogProps` members, implemented in both skins and
+  accepted by `fakeAdapter`: a "described by" id, and an initial-focus target (the v8
+  dialog otherwise focuses the first body field or the frame, and Radix its first
+  tabbable, a header button). `SpeelModal` exposes the first as `ariaDescribedBy` (modal
+  chrome, so `FormRequest` too) and derives the second from an `autoFocus` action. A
+  custom skin that ignores them still works: the modal is then undescribed and focuses
+  wherever that skin puts it. The caller's initial focus wins even over Fluent's focus
+  trap, which on a real page has already focused the first button.
 
 ## Also on this branch
 

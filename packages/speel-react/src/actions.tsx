@@ -23,6 +23,8 @@ export interface SpeelAction<Ctx = void> {
   align?: "start" | "end";
   type?: "button" | "submit";
   disabled?: boolean;
+  /** Takes focus when its surface opens (a modal's footer). The first one wins. */
+  autoFocus?: boolean;
   onClick?: (ctx: Ctx) => void;
 }
 
@@ -47,6 +49,23 @@ export function isActionArray<Ctx = void>(
         "text" in a,
     )
   );
+}
+
+/** Start-aligned actions first, then the rest — the order `SpeelActionBar` renders them in. */
+const inRenderOrder = <Ctx,>(
+  actions: readonly SpeelAction<Ctx>[],
+): SpeelAction<Ctx>[] => [
+  ...actions.filter((a) => a.align === "start"),
+  ...actions.filter((a) => a.align !== "start"),
+];
+
+/**
+ * Where the `autoFocus` action's button sits among the buttons `SpeelActionBar` renders
+ * for `actions` (each action is one skin button), or -1 when none asks for focus.
+ */
+export function autoFocusIndex(actions: unknown): number {
+  if (!isActionArray(actions)) return -1;
+  return inRenderOrder(actions).findIndex((a) => a.autoFocus === true);
 }
 
 export function resolveAppearance<Ctx>(

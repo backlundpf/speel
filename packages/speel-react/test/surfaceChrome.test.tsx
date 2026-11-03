@@ -234,3 +234,34 @@ describe("surface style reaches the skin (fakeAdapter)", () => {
     expect(styleOf()).toEqual({ width: "50vw" });
   });
 });
+
+describe("modal actions and description (fakeAdapter)", () => {
+  it("an autoFocus action takes focus when the modal opens", () => {
+    wrap(
+      <SpeelModal
+        open
+        onOpenChange={() => {}}
+        title="M"
+        actions={[
+          { key: "a", text: "First", align: "start" },
+          { key: "b", text: "Second" },
+          { key: "c", text: "Third", autoFocus: true },
+        ]}
+      >
+        body
+      </SpeelModal>,
+    );
+    expect(document.activeElement).toBe(screen.getByText("Third"));
+  });
+
+  it("ariaDescribedBy reaches the dialog", () => {
+    wrap(
+      <SpeelModal open onOpenChange={() => {}} title="M" ariaDescribedBy="d">
+        <p id="d">Described</p>
+      </SpeelModal>,
+    );
+    expect(
+      screen.getByRole("dialog", { description: "Described" }),
+    ).toBeInTheDocument();
+  });
+});

@@ -132,20 +132,21 @@ for (const skin of ["fluent", "shadcn"] as const) {
       expect((await box(frame)).h).toBeCloseTo(before.h, 0);
     });
 
-    test("confirm(): content-sized, opens on Cancel, resolves both ways", async ({
+    test("a destructive confirm(): content-sized, opens on Cancel, resolves both ways", async ({
       authPage,
     }) => {
       const demo = await openDemo(authPage, skin);
       const answer = demo.getByTestId("confirm-answer");
 
-      await demo.getByRole("button", { name: "Ask to confirm" }).click();
-      const dialog = authPage.getByRole("dialog", {
-        name: "Delete item?",
-        description: "This cannot be undone.",
-      });
+      await demo.getByRole("button", { name: "Ask to delete" }).click();
       // Fluent's role="dialog" Popup is a 0×0 wrapper around its fixed root (see
       // fixWave.spec.ts): assert the named, described dialog exists, then measure the frame.
-      await expect(dialog).toBeAttached();
+      await expect(
+        authPage.getByRole("dialog", {
+          name: "Delete item?",
+          description: "This cannot be undone.",
+        }),
+      ).toBeAttached();
       const frame = authPage
         .locator(FRAME[skin])
         .filter({ hasText: "Delete item?" });
@@ -159,9 +160,27 @@ for (const skin of ["fluent", "shadcn"] as const) {
       await authPage.keyboard.press("Enter"); // Enter on the focused Cancel
       await expect(answer).toHaveText("Answer: no");
 
-      await demo.getByRole("button", { name: "Ask to confirm" }).click();
+      await demo.getByRole("button", { name: "Ask to delete" }).click();
       await authPage.getByRole("button", { name: "Delete" }).click();
       await expect(answer).toHaveText("Answer: yes");
+    });
+
+    test("any other confirm() opens on the confirm button", async ({
+      authPage,
+    }) => {
+      const demo = await openDemo(authPage, skin);
+      await demo.getByRole("button", { name: "Ask to publish" }).click();
+      await expect(
+        authPage.getByRole("dialog", {
+          name: "Publish now?",
+          description: "Readers see it at once.",
+        }),
+      ).toBeAttached();
+      await expect(authPage.getByRole("button", { name: "OK" })).toBeFocused();
+      await authPage.keyboard.press("Enter");
+      await expect(demo.getByTestId("confirm-answer")).toHaveText(
+        "Answer: yes",
+      );
     });
   });
 }

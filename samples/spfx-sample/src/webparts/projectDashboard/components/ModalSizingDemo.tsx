@@ -29,13 +29,17 @@ export const ModalSizingDemo: React.FC = () => {
     setLines(1);
     setOpen(style);
   };
-  const ask = async (): Promise<void> => {
-    const ok = await confirm({
-      title: "Delete item?",
-      message: "This cannot be undone.",
-      confirmText: "Delete",
-      destructive: true,
-    });
+  const ask = async (destructive: boolean): Promise<void> => {
+    const ok = await confirm(
+      destructive
+        ? {
+            title: "Delete item?",
+            message: "This cannot be undone.",
+            confirmText: "Delete",
+            destructive: true,
+          }
+        : { title: "Publish now?", message: "Readers see it at once." },
+    );
     setAnswer(ok ? "yes" : "no");
   };
 
@@ -50,7 +54,8 @@ export const ModalSizingDemo: React.FC = () => {
           text="Open placed modal"
           onClick={() => show({ height: "auto", top: "40px" })}
         />
-        <ui.Button text="Ask to confirm" onClick={() => void ask()} />
+        <ui.Button text="Ask to delete" onClick={() => void ask(true)} />
+        <ui.Button text="Ask to publish" onClick={() => void ask(false)} />
         <span data-testid="confirm-answer">Answer: {answer}</span>
       </div>
       <SpeelModal

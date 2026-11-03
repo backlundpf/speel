@@ -87,10 +87,11 @@ The surface is automatically removed from the DOM after settling.
 Multiple concurrent `showForm` calls stack — each renders its own surface and settles
 independently. The `SurfaceManager` (mounted inside `SpeelProvider`) owns the stack.
 
-**`confirm`** is the app-wide yes/no: a small modal that fits its message, with no resize,
-drag or fullscreen chrome. It resolves `true` on the confirm button and `false` on Cancel,
-Escape, the close button or a click outside. It opens on Cancel, so Enter alone never
-confirms; it is named by its `title` and described by its `message`.
+**`confirm`** is the app-wide yes/no, a convenience over a regular `SpeelModal`: small,
+`height: "auto"`, no resize, drag or fullscreen, and two actions. It resolves `true` on the
+confirm button and `false` on Cancel, Escape, the close button or a click outside. A
+`destructive` confirm opens on Cancel, so Enter alone never destroys; any other opens on the
+confirm button. It is named by its `title` and described by its `message`.
 
 ```ts
 const ok = await confirm({
@@ -146,10 +147,10 @@ props across both variants: `open`, `onOpenChange`, `title`, `blocking`, `size`
 The content variant's `actions` is the library's one actions shape: an array of
 `SpeelAction`s rendered as the skin's buttons, or any node rendered as-is in the footer
 slot — status text, a spinner, a "don't ask again" checkbox. A destructive action takes
-`appearance: "danger"`; `align: "start"` moves an action to the far end of a split footer.
-For a plain yes/no, `confirm()` above already does all of this.
+`appearance: "danger"`; `align: "start"` moves an action to the far end of a split footer;
+`autoFocus` gives an action's button focus when the modal opens.
 
-`SpeelModal` additionally accepts `draggable`, `fullscreenToggle` and `defaultFullscreen`.
+`SpeelModal` also accepts `draggable`, `fullscreenToggle`, `defaultFullscreen`, `ariaDescribedBy`.
 `SpeelPanel` additionally accepts `position` (`'start' | 'end'`).
 
 All of it is declared once, in `surfaceProps.ts`: `SurfaceChromeProps` and its panel and

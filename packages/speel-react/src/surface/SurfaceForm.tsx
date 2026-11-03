@@ -106,6 +106,9 @@ function Inner<T extends IEntity>(
       {...(p.resizable !== undefined ? { resizable: p.resizable } : {})}
       {...(p.draggable !== undefined ? { draggable: p.draggable } : {})}
       {...(p.style !== undefined ? { style: p.style } : {})}
+      {...(p.ariaDescribedBy !== undefined
+        ? { ariaDescribedBy: p.ariaDescribedBy }
+        : {})}
       {...(p.fullscreenToggle !== undefined
         ? { fullscreenToggle: p.fullscreenToggle }
         : {})}
