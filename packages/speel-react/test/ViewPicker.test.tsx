@@ -45,6 +45,8 @@ function views(over: Partial<TableViews> = {}): TableViews {
     activeView: undefined,
     activeIsShared: false,
     canPublish: false,
+    canSaveViews: true,
+    canSetStartingView: true,
     canEditActive: false,
     activeIsStartingView: false,
     loading: false,
@@ -472,5 +474,82 @@ describe("ViewPicker trigger", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
     openMenu();
     expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+describe("ViewPicker save permissions (#105)", () => {
+  const item = (name: string) => screen.queryByRole("menuitem", { name });
+
+  it("hides Save as new view when views can't be saved", () => {
+    renderPicker({ canSaveViews: false });
+    openMenu();
+    expect(item("Save as new view")).toBeNull();
+  });
+
+  it("offers Save as new view when they can", () => {
+    renderPicker({ canSaveViews: true });
+    openMenu();
+    expect(item("Save as new view")).not.toBeNull();
+  });
+
+  it("offers Start on this view on any saved view the setting can be written for", () => {
+    renderPicker({
+      activeView: sharedView,
+      activeIsShared: true,
+      sharedViews: [sharedView],
+      canPublish: false,
+      canEditActive: false,
+      canSetStartingView: true,
+    });
+    openMenu();
+    expect(item("Start on this view")).not.toBeNull();
+    expect(item("Rename")).toBeNull();
+    expect(item("Delete")).toBeNull();
+  });
+
+  it("hides Start on this view when the setting can't be written", () => {
+    renderPicker({
+      activeView: stored,
+      canEditActive: true,
+      canSetStartingView: false,
+    });
+    openMenu();
+    expect(item("Start on this view")).toBeNull();
+    expect(item("Rename")).not.toBeNull();
+    expect(item("Delete")).not.toBeNull();
+  });
+
+  it("publish needs both answers", () => {
+    const { unmount } = renderPicker({
+      activeView: stored,
+      canEditActive: false,
+      canPublish: true,
+      canSaveViews: false,
+    });
+    openMenu();
+    expect(item("Publish to everyone")).toBeNull();
+    unmount();
+    renderPicker({
+      activeView: sharedView,
+      activeIsShared: true,
+      sharedViews: [sharedView],
+      canEditActive: true,
+      canPublish: true,
+      canSaveViews: false,
+    });
+    openMenu();
+    expect(item("Unpublish")).toBeNull();
+  });
+});
+
+describe("ViewPicker for a user who can't save (#105)", () => {
+  it("shows no empty This view heading", () => {
+    renderPicker({ canSaveViews: false, canSetStartingView: false });
+    openMenu();
+    expect(screen.queryByRole("group", { name: "This view" })).toBeNull();
+    // The rest of the menu is still there.
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: "Needs action" }),
+    ).toBeInTheDocument();
   });
 });

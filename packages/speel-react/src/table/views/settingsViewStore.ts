@@ -19,6 +19,11 @@ export function createSettingsViewStore(
   settings: UserSettingsStore,
 ): TableViewStore {
   return {
+    // Saving a view is writing a setting, so the settings store answers — called on it, so a
+    // class-based settings store keeps its `this`.
+    ...(settings.canWrite !== undefined
+      ? { canSave: () => settings.canWrite!() }
+      : {}),
     list: async (tableId) => {
       const all = await settings.getAll();
       const prefix = `${PREFIX}${tableId}.`;

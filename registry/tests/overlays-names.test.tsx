@@ -66,6 +66,25 @@ describe.each([
   });
 });
 
+describe("shadcn unnamed warning in production", () => {
+  it("stays silent when NODE_ENV is production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      render(
+        <ui.Dialog open onOpenChange={noop}>
+          body
+        </ui.Dialog>,
+      );
+      expect(
+        warn.mock.calls.filter((c) => String(c[0]).includes("ariaLabel")),
+      ).toHaveLength(0);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe("shadcn close buttons are named", () => {
   it("dialog Close", () => {
     render(

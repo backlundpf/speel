@@ -121,16 +121,17 @@ and sort included. Change something back to match the view and the param clears 
 
 ### The store seam
 
-`TableViewStore` is `list` / `save` / `remove` and nothing else. **Per-user scoping is the
-store's business** — a SharePoint list filtered to the current author, a personal-site list, or
-`createLocalViewStore()` for the one-line case. `@speel/react` never learns where views live.
+`TableViewStore` is `list` / `save` / `remove`, plus an optional `canSave()`. **Per-user
+scoping is the store's business** — a list filtered to the current author, a personal-site
+list, or `createLocalViewStore()`. `@speel/react` never learns where views live.
 
-**`viewStore` is optional**, and the default is usually the one you want: with identity wired,
-views are kept in the user's settings, so an arrangement follows the person to another machine;
-without it they fall back to `createLocalViewStore()` and stay in this browser. Pass a store
-explicitly to override either. The cost of that fallback is worth knowing: the two are different stores and **nothing migrates
-between them**, so views saved before an app wires identity appear to vanish once it does.
-Re-saving is the fix. See [user settings](user-settings.md).
+**`viewStore` is optional**: with identity wired, views live in the user's settings and follow
+the person; without it they stay in this browser. **Nothing migrates between the two** — views
+saved before identity is wired seem to vanish; re-saving is the fix. See [user settings](user-settings.md).
+
+**The picker offers only what the user can save.** `canSave()` (omitted: yes) gates saving,
+renaming, deleting and publishing personal views — otherwise tweaks stay in the session; Start
+on this view follows the settings store's `canWrite()`. Identity's store answers both itself.
 
 ### Shared views
 
@@ -144,7 +145,7 @@ created, so one name never appears twice under two headings, drifting apart with
 menu to tell them apart. Unpublish is the same move backwards.
 
 A shared view you cannot edit behaves **exactly like the app-authored default**: read-only, with
-"Save as new view" as the way to make it yours, and column tweaks held for the session. One you
+"Save as new view" (if you can save views) as the way to make it yours, and tweaks held. One you
 can edit shows **Save for everyone** rather than Save — the same operation with a different
 blast radius.
 

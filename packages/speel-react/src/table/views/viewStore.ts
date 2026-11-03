@@ -31,6 +31,13 @@ export interface AppDefaultView {
  * default below. `@speel/react` never learns which.
  */
 export interface TableViewStore {
+  /**
+   * May the current user save views here — create, change, or delete them? The picker asks
+   * before offering those actions, since a 403 after the click is a worse failure than not
+   * offering them. Omitted means yes. (The shared store's `canPublish` defaults the other
+   * way: anyone can have personal views; publishing is a privilege.)
+   */
+  canSave?: () => Promise<boolean>;
   list(tableId: string): Promise<StoredView[]>;
   /** Returns the saved record; an id is assigned when creating. */
   save(view: StoredView): Promise<StoredView>;

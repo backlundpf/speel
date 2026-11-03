@@ -60,6 +60,25 @@ describe("V8Dialog name", () => {
   });
 });
 
+describe("V8Dialog unnamed warning in production", () => {
+  it("stays silent when NODE_ENV is production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      render(
+        <V8Dialog open onOpenChange={noop}>
+          body
+        </V8Dialog>,
+      );
+      expect(
+        warn.mock.calls.filter((c) => String(c[0]).includes("ariaLabel")),
+      ).toHaveLength(0);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe("V8Panel name and close button", () => {
   it("panel is named by its title", () => {
     render(

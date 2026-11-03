@@ -80,5 +80,8 @@ export {
   createLocalUserSettingsStore,
   createEntityUserSettingsStore,
 } from "./userSettingsStore.js";
-export type { UserSettingsStore } from "./userSettingsStore.js";
+export type {
+  UserSettingsStore,
+  EntityUserSettingsStoreOptions,
+} from "./userSettingsStore.js";
 export { IdentityDbContext } from "./IdentityDbContext.js";

@@ -22,10 +22,11 @@ import {
 import { PermissionManager } from "./PermissionManager.js";
 import { PrincipalResolver } from "./PrincipalResolver.js";
 import { ResourceResolver } from "./ResourceResolver.js";
-import { resourceKey } from "./resources.js";
+import { list, resourceKey } from "./resources.js";
 import { RoleDefinitionSet } from "./RoleDefinitionSet.js";
 import { RoleManager } from "./RoleManager.js";
 import { UserManager } from "./UserManager.js";
+import { USER_SETTINGS_LIST } from "./UserSetting.js";
 import {
   createEntityUserSettingsStore,
   type UserSettingsStore,
@@ -120,6 +121,26 @@ class SaveResolutions {
 }
 
 /**
+ * One answer per identity: the first call starts the read and every later call shares it.
+ * Identity's own permission cache is dropped after a save, so this is what keeps "may I save
+ * my settings?" to a single round trip for the session. A rejected read is not an answer — it
+ * is dropped, so the next call retries.
+ */
+function memoizeUntilRejected<T>(read: () => Promise<T>): () => Promise<T> {
+  let pending: Promise<T> | undefined;
+  return () => {
+    if (pending === undefined) {
+      const p = read();
+      pending = p;
+      p.catch(() => {
+        if (pending === p) pending = undefined;
+      });
+    }
+    return pending;
+  };
+}
+
+/**
  * The identity surface: who the user is, and — through the services hung off it — what they
  * belong to and what roles exist. A sibling of the `IdentityDbContext`, sharing its web and its
  * provider's site, but with its own lifetime.
@@ -174,7 +195,16 @@ export class SpeelIdentity {
       this.groups,
       options.policies,
     );
-    this.settings = options.settings ?? createEntityUserSettingsStore(db);
+    this.settings =
+      options.settings ??
+      createEntityUserSettingsStore(db, {
+        canWrite: memoizeUntilRejected(() =>
+          this.authorization.hasPermission(
+            "addListItems",
+            list(USER_SETTINGS_LIST),
+          ),
+        ),
+      });
   }
 
   get hasChanges(): boolean {
