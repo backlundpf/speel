@@ -554,6 +554,7 @@ export const fakeAdapter: SpeelUIAdapter = {
 
   Button: ({
     text,
+    id,
     onClick,
     type,
     disabled,
@@ -566,6 +567,7 @@ export const fakeAdapter: SpeelUIAdapter = {
     ariaControls,
   }) => (
     <button
+      id={id}
       type={type ?? "button"}
       disabled={disabled}
       aria-label={ariaLabel}

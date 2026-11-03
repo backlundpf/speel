@@ -180,6 +180,8 @@ export interface FileInputProps extends FieldChrome {
 
 export interface ButtonProps {
   text: string;
+  /** The `<button>` element's id — how a surface finds the button to focus. */
+  id?: string;
   onClick?: () => void;
   /** `danger` marks a destructive action (the skin renders it in its error color). */
   appearance?: "primary" | "secondary" | "subtle" | "danger";

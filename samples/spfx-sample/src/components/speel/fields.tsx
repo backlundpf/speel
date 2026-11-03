@@ -274,6 +274,7 @@ export function ShadButton(p: ButtonProps): ReactElement {
   const tipped = p.tooltip !== undefined;
   const button = (
     <Button
+      id={p.id}
       type={p.type ?? "button"}
       variant={BUTTON_VARIANT[p.appearance ?? "secondary"]}
       disabled={!!p.disabled}

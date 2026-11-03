@@ -5,6 +5,7 @@ import { SpeelProvider } from "../src/SpeelProvider.js";
 import { SpeelModal } from "../src/surface/SpeelModal.js";
 import { SpeelPanel } from "../src/surface/SpeelPanel.js";
 import { useSurfaces } from "../src/surface/useSurfaces.js";
+import type { ButtonProps } from "../src/adapter/SpeelUIAdapter.js";
 import { fakeAdapter } from "./fakeAdapter.js";
 import { makeFakeProvider } from "./fakeProvider.js";
 
@@ -263,5 +264,40 @@ describe("modal actions and description (fakeAdapter)", () => {
     expect(
       screen.getByRole("dialog", { description: "Described" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("autoFocus finds its button by id, whatever the skin's Button renders", () => {
+  it("a Button with an extra inner button still focuses the right action", () => {
+    // A skin whose Button renders a second <button> (an info toggle) before its own.
+    const ui = {
+      ...fakeAdapter,
+      Button: (p: ButtonProps) => (
+        <span>
+          <button tabIndex={-1} aria-label={`About ${p.text}`}>
+            i
+          </button>
+          <button id={p.id} onClick={p.onClick}>
+            {p.text}
+          </button>
+        </span>
+      ),
+    };
+    render(
+      <SpeelProvider db={ctx() as never} ui={ui}>
+        <SpeelModal
+          open
+          onOpenChange={() => {}}
+          title="M"
+          actions={[
+            { key: "delete", text: "Delete" },
+            { key: "cancel", text: "Cancel", autoFocus: true },
+          ]}
+        >
+          body
+        </SpeelModal>
+      </SpeelProvider>,
+    );
+    expect(document.activeElement).toBe(screen.getByText("Cancel"));
   });
 });

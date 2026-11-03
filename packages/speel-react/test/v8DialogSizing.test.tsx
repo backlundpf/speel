@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act, screen, fireEvent } from "@testing-library/react";
-import { V8Dialog } from "../src/fluent-v8/primitives.js";
+import { V8Button, V8Dialog } from "../src/fluent-v8/primitives.js";
 import type { DialogProps } from "../src/adapter/SpeelUIAdapter.js";
 
 const tick = async (): Promise<void> => {
@@ -80,5 +80,24 @@ describe("V8Dialog sizing", () => {
     expect(main().height).toBe("92vh");
     fireEvent.click(screen.getByLabelText("Toggle fullscreen"));
     expect(main().height).toBe("auto");
+  });
+});
+
+describe("V8Button id", () => {
+  it("reaches the button element, with or without a tooltip", () => {
+    render(
+      <>
+        <V8Button text="Plain" id="b1" />
+        <V8Button text="Tipped" id="b2" tooltip="Hint" />
+      </>,
+    );
+    expect(screen.getByRole("button", { name: "Plain" })).toHaveAttribute(
+      "id",
+      "b1",
+    );
+    expect(screen.getByRole("button", { name: "Tipped" })).toHaveAttribute(
+      "id",
+      "b2",
+    );
   });
 });

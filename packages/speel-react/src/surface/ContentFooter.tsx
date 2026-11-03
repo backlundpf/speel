@@ -1,20 +1,19 @@
-import type { RefObject } from "react";
 import { SpeelActionBar, type SpeelActions } from "../actions.js";
 
 /** Footer for content-mode surfaces: the caller's actions (no form). */
 export function ContentFooter({
   actions,
-  hostRef,
+  idPrefix,
 }: {
   actions?: SpeelActions;
-  /** A layout-neutral (`display: contents`) wrapper, so the surface can find a button. */
-  hostRef?: RefObject<HTMLSpanElement>;
+  /** Ids the action buttons (see SpeelActionBar), so the surface can find one to focus. */
+  idPrefix?: string;
 }): JSX.Element | null {
   if (actions === undefined) return null;
-  if (!hostRef) return <SpeelActionBar actions={actions} />;
   return (
-    <span ref={hostRef} style={{ display: "contents" }}>
-      <SpeelActionBar actions={actions} />
-    </span>
+    <SpeelActionBar
+      actions={actions}
+      {...(idPrefix !== undefined ? { idPrefix } : {})}
+    />
   );
 }

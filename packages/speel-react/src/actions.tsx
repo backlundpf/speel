@@ -51,22 +51,15 @@ export function isActionArray<Ctx = void>(
   );
 }
 
-/** Start-aligned actions first, then the rest — the order `SpeelActionBar` renders them in. */
-const inRenderOrder = <Ctx,>(
-  actions: readonly SpeelAction<Ctx>[],
-): SpeelAction<Ctx>[] => [
-  ...actions.filter((a) => a.align === "start"),
-  ...actions.filter((a) => a.align !== "start"),
-];
-
-/**
- * Where the `autoFocus` action's button sits among the buttons `SpeelActionBar` renders
- * for `actions` (each action is one skin button), or -1 when none asks for focus.
- */
-export function autoFocusIndex(actions: unknown): number {
-  if (!isActionArray(actions)) return -1;
-  return inRenderOrder(actions).findIndex((a) => a.autoFocus === true);
+/** The key of the first `autoFocus` action, when `actions` is an array that has one. */
+export function autoFocusKey(actions: unknown): string | undefined {
+  if (!isActionArray(actions)) return undefined;
+  return actions.find((a) => a.autoFocus === true)?.key;
 }
+
+/** The id `SpeelActionBar` gives an action's button under `idPrefix`. */
+export const actionButtonId = (idPrefix: string, key: string): string =>
+  `${idPrefix}-${key}`;
 
 export function resolveAppearance<Ctx>(
   a: SpeelAction<Ctx>,
@@ -84,6 +77,8 @@ export function SpeelActionBar<Ctx = void>(props: {
   actions: SpeelActions<Ctx>;
   /** Passed to each action's `onClick`. */
   ctx?: Ctx;
+  /** Gives each action's button the id `actionButtonId(idPrefix, key)`. */
+  idPrefix?: string;
 }): JSX.Element | null {
   const ui = useSpeelUI();
   const { actions } = props;
@@ -96,6 +91,9 @@ export function SpeelActionBar<Ctx = void>(props: {
     <ui.Button
       key={a.key}
       text={a.text}
+      {...(props.idPrefix !== undefined
+        ? { id: actionButtonId(props.idPrefix, a.key) }
+        : {})}
       appearance={resolveAppearance(a)}
       type={a.type ?? "button"}
       disabled={a.disabled ?? false}

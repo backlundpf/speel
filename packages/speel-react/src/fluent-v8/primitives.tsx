@@ -407,6 +407,7 @@ function V8FluentButton(p: ButtonProps & { tooltipId: string }): JSX.Element {
   return (
     <Btn
       text={p.text}
+      {...(p.id !== undefined ? { id: p.id } : {})}
       data-appearance={p.appearance ?? "secondary"}
       {...(styles ? { styles } : {})}
       type={p.type ?? "button"}

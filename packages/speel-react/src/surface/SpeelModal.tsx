@@ -1,6 +1,6 @@
-import { useRef } from "react";
 import type { IEntity } from "@speel/core";
-import { autoFocusIndex } from "../actions.js";
+import { actionButtonId, autoFocusKey } from "../actions.js";
+import { useStableId } from "../fluent-v8/useStableId.js";
 import { useSpeelUI } from "../context.js";
 import { SurfaceForm } from "./SurfaceForm.js";
 import { ContentFooter } from "./ContentFooter.js";
@@ -18,7 +18,7 @@ export function SpeelModal<T extends IEntity>(
   props: SpeelModalProps<T>,
 ): JSX.Element {
   const ui = useSpeelUI();
-  const footerRef = useRef<HTMLSpanElement>(null);
+  const footerId = useStableId();
   if (!ui.Dialog)
     throw new Error(
       "SpeelModal requires a skin with a Dialog primitive (use @speel/react/fluent-v8).",
@@ -43,9 +43,8 @@ export function SpeelModal<T extends IEntity>(
     children,
     actions,
   } = props;
-  // An `autoFocus` action's button takes focus on open (found in the footer: each action
-  // renders one skin button, in SpeelActionBar's order).
-  const focusAt = autoFocusIndex(actions);
+  // An `autoFocus` action's button takes focus on open, found by the id the footer gives it.
+  const focusKey = autoFocusKey(actions);
   return (
     <ui.Dialog
       open={open}
@@ -61,18 +60,16 @@ export function SpeelModal<T extends IEntity>(
       {...(returnFocus !== undefined ? { returnFocus } : {})}
       {...(style !== undefined ? { style } : {})}
       {...(ariaDescribedBy !== undefined ? { ariaDescribedBy } : {})}
-      {...(focusAt >= 0
+      {...(focusKey !== undefined
         ? {
             initialFocus: () =>
-              footerRef.current?.querySelectorAll<HTMLElement>("button")[
-                focusAt
-              ],
+              document.getElementById(actionButtonId(footerId, focusKey)),
           }
         : {})}
       footer={
         <ContentFooter
           {...(actions ? { actions } : {})}
-          {...(focusAt >= 0 ? { hostRef: footerRef } : {})}
+          {...(focusKey !== undefined ? { idPrefix: footerId } : {})}
         />
       }
     >
