@@ -1,5 +1,14 @@
 # @speel/pnpjs
 
+## 0.1.0-beta.6
+
+### Patch Changes
+
+- Updated dependencies [b532be9]
+  - @speel/identity@0.1.0-beta.6
+  - @speel/core@0.1.0-beta.6
+  - @speel/migrations@0.1.0-beta.6
+
 ## 0.1.0-beta.5
 
 ### Patch Changes

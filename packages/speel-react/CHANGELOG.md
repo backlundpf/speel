@@ -1,5 +1,25 @@
 # @speel/react
 
+## 0.1.0-beta.6
+
+### Minor Changes
+
+- 0cb46c1: Surfaces: modals and panels take `style`, CSS lengths for `width` and `maxWidth` (both) and `height`, `maxHeight`, `top` and `left` (modal only) (#101). `width`/`height` replace what `size` sets, caps yield to the screen, and `height: "auto"` fits a modal to its content, growing and shrinking with it (centred, or downward when `top` is set) until the cap, after which the body scrolls. A user drag or resize takes over (auto height resumes when the modal is next opened). With no `style`, every surface looks as before. `useSurfaces().confirm({ title, message, confirmText, cancelText, destructive })` resolves `true` or `false` from a regular content-sized `SpeelModal` with two actions; a destructive one opens on Cancel, any other on the confirm button (#102). `SpeelAction.autoFocus` gives an action's button focus when its modal opens (found by id: `ButtonProps` gains an optional `id`, and `SpeelActionBar` an `idPrefix`), and `SpeelModal` takes `ariaDescribedBy`. `DialogProps` gains `style`, `ariaDescribedBy` and `initialFocus`, and `DrawerProps` gains `style`; a hand-written `SurfaceApi` now needs `confirm`. Skins: `useModalFrame` (plus `modalFrameCss`, `panelMaxWidth`, `cssLengthPx` and the `DIALOG_*` presets) supersedes `useDragResize`, which is deprecated but unchanged; `useResizable` takes `measure`. The shadcn dialog now honours `defaultFullscreen`.
+- efd4dca: Fields: a property's description now reaches its field (#99). It shows as help text under the field in every mode, input or view-mode/read-only display, with `aria-describedby` pointing at it. `FieldHandle` and `useStandaloneField` carry `description`. The fluent-v8 number input (Number and Currency fields) now renders the chrome's label, so a required one shows its asterisk and the label sits above a currency prefix; a label-less (inline) number input is now named too (#100).
+
+  Surfaces: every modal and panel is named by its title, or by the new `ariaLabel` (on `DialogProps` and every surface prop bag, `showForm` included) when it has none; one with neither warns once in development (#97). The fluent-v8 panel's close button is named "Close" (#96). `MenuItem.tooltip` follows `Button.tooltip`'s contract: shown on hover and keyboard focus, the item's accessible description, and present on a disabled item, which stays focusable (#87).
+
+  Tables: `rowActions.available(action, row)` hides an action per row and `rowActions.ariaLabel(action, row)` names each row's button; actions keep fixed slots so the column stays aligned (`RowActionKey` is exported) (#79). A column with `export: false` is left out of CSV, Excel and print while still rendering, sorting, filtering and being searched (#92). `TableProps.virtualize: false` renders every row, and the fluent-v8 modal's body is now a scroll parent, so a table inside a modal draws every row it scrolls to (#81). `cellNavigation: "tab"` lets Tab and Shift+Tab move between editors in cells, and turns virtualization off unless `virtualize` is `true` (#82).
+
+- b532be9: Table views no longer offer actions the user can't save (#105). `UserSettingsStore` gains an optional `canWrite()`; `identity.settings` answers it from the user's add permission on the settings list, read once per identity (and retried after a failed read), and `createEntityUserSettingsStore` takes it as an option. `TableViewStore` gains an optional `canSave()`, which the settings-backed view store answers from `canWrite`; both default to yes when omitted. `useTableViews` exposes `canSaveViews` and `canSetStartingView`, and `canEditActive` now also needs `canSaveViews` for a personal view, so a view the user can't save offers no Save, Rename or Delete and keeps column tweaks for the session. The picker hides Save as new view, Publish and Unpublish when views can't be saved, and offers Start on this view on any saved view, shared ones included, when the setting can be written. A failed check counts as no and never breaks the picker.
+
+### Patch Changes
+
+- a039f31: The unnamed-surface warning (a modal or panel with neither a title nor an `ariaLabel`) now reads `process.env.NODE_ENV` directly, so a bundler's production define silences it in production builds; a bundle with no `process` still counts as development. Doc comment and docs fixes: `RowAction` has its own doc comment again, `pendingDefaultEdits` describes every view that holds edits in the session, and the table-views page notes that Save as new view needs the user to be able to save views.
+- Updated dependencies [b532be9]
+  - @speel/identity@0.1.0-beta.6
+  - @speel/core@0.1.0-beta.6
+
 ## 0.1.0-beta.5
 
 ### Minor Changes
