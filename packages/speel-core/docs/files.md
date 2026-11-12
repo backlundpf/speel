@@ -201,6 +201,11 @@ The document methods refuse a non-`SpeelDocument` entity and an entity with no
   idempotent, so the recovery is to fix the cause and re-run the same call:
   existing folders count as success.
 
+- **A file holding a folder's name counts as an existing folder.** SharePoint answers
+  "name already taken" with the same error for a file as for a folder, so in a document
+  library `ensureFoldersAsync(["q2"])` reports `ok` when a file named `q2` is in the
+  way, and paths under it then fail with `requestFailed`.
+
 - **Checking in a file that is not checked out is a server error.** There is no
   client-side pre-check, because materialization maps an empty value to `undefined`:
   a document that was loaded and is checked in is indistinguishable from one whose

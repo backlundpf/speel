@@ -25,6 +25,7 @@ function fakeBatchSp(
     failing?: Record<string, { status: number; message: string }>;
     executeRejects?: Error;
     caseInsensitive?: boolean;
+    existsError?: unknown;
   } = {},
 ) {
   const key = (p: string) => (opts.caseInsensitive ? p.toLowerCase() : p);
@@ -67,7 +68,12 @@ function fakeBatchSp(
           const fail = opts.failing?.[q.path];
           if (fail) q.reject(fail);
           else if (present.has(key(q.path)))
-            q.reject({ status: 500, message: "The folder already exists." });
+            q.reject(
+              opts.existsError ?? {
+                status: 500,
+                message: "The folder already exists.",
+              },
+            );
           else {
             present.add(key(q.path));
             created.push(q.path);
@@ -126,6 +132,31 @@ describe("ensureFoldersAsync batching", () => {
     expect(f.batches).toHaveLength(2);
     expect(map.get("a/b")).toEqual({ ok: true, value: `${ROOT}/a/b` });
     expect(f.created).toEqual(["a/b"]);
+  });
+
+  it("a localized already-exists is recognized by its error code, not its text", async () => {
+    // Captured live 2026-11-12 with Accept-Language: de-DE — same code, German text.
+    const body = JSON.stringify({
+      "odata.error": {
+        code: "-2130245363, Microsoft.SharePoint.SPException",
+        message: {
+          lang: "de-DE",
+          value:
+            'Eine Datei oder ein Ordner mit dem Namen "https://contoso.sharepoint.com/Lists/Docs/a" ist bereits vorhanden.',
+        },
+      },
+    });
+    const f = fakeBatchSp({
+      existing: ["a"],
+      existsError: {
+        status: 500,
+        message: `Error making HttpClient request in queryable [500] Internal Server Error ::> ${body}`,
+      },
+    });
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "a/b",
+    ]);
+    expect(map.get("a/b")).toEqual({ ok: true, value: `${ROOT}/a/b` });
   });
 
   it("a failed parent's children are never sent", async () => {

@@ -28,17 +28,27 @@ import { httpErrorFacts } from "./httpError.js";
 import { toFormValues, type IFormValue } from "./formValues.js";
 import type { ISharePointHost } from "./ISharePointHost.js";
 
-// SharePoint signals "folder already exists" via an error (typically a 500)
-// whose message contains this phrase; treat it as success so ensureFoldersAsync
-// stays idempotent. Matched per $batch sub-response, on message content, not
-// status (PnPjs wraps it loosely). Any other error is that folder's requestFailed.
-// Verified live 2026-11-12 (samples/spfx-sample/tests/ensureFolders.spec.ts): a
-// batch mixing an existing folder with new ones reports the existing one as ok.
-// Caveats: the match is on English text (SharePoint localizes the message), and a
-// FILE of the same name ("A file or folder with the name … already exists") would
-// match too.
+/**
+ * SharePoint's `odata.error.code` for AddSubFolderUsingPath on a name that is
+ * already taken. Captured live 2026-11-12: HTTP 500, the same code whatever the
+ * language (the message is localized — "…already exists." / "…ist bereits
+ * vorhanden."), and the same code when a FILE holds the name.
+ */
+const NAME_TAKEN_CODE = "-2130245363";
+
+// "Folder already exists" is success, so ensureFoldersAsync stays idempotent.
+// Matched per $batch sub-response on SharePoint's language-neutral error code;
+// only a rejection that carries no parsable code falls back to the English text.
+// Any other error is that folder's requestFailed. Verified live 2026-11-12
+// (samples/spfx-sample/tests/ensureFolders.spec.ts).
+// Caveat: SharePoint answers a name taken by a FILE with the same code and text,
+// so such a path reports ok although no folder exists there.
 function isFolderExistsError(err: unknown): boolean {
   if (typeof err !== "object" || err === null) return false;
+  const { serverCode } = httpErrorFacts(err);
+  if (serverCode !== undefined) {
+    return serverCode.split(",")[0]!.trim() === NAME_TAKEN_CODE;
+  }
   const e = err as { message?: string; data?: { message?: string } };
   const msg = `${e.message ?? ""} ${e.data?.message ?? ""}`.toLowerCase();
   return msg.includes("already exists");

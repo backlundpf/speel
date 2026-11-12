@@ -52,6 +52,30 @@ describe("httpErrorFacts", () => {
     expect(f.message).toBe("Slow down.");
   });
 
+  it("exposes the server's language-neutral error code", () => {
+    const odata = httpErrorFacts(
+      wrapped(
+        500,
+        JSON.stringify({
+          "odata.error": {
+            code: "-2130245363, Microsoft.SharePoint.SPException",
+            message: { lang: "de-DE", value: "ist bereits vorhanden." },
+          },
+        }),
+      ),
+    );
+    expect(odata.serverCode).toBe(
+      "-2130245363, Microsoft.SharePoint.SPException",
+    );
+    const plain = httpErrorFacts(
+      wrapped(429, JSON.stringify({ error: { code: "x", message: "m" } })),
+    );
+    expect(plain.serverCode).toBe("x");
+    expect(
+      httpErrorFacts(new Error("network down")).serverCode,
+    ).toBeUndefined();
+  });
+
   it("keeps the wrapper message when the body is not a recognizable error", () => {
     const e = wrapped(502, "<html>Bad gateway</html>");
     expect(httpErrorFacts(e).message).toBe(e.message);
