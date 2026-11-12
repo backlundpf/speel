@@ -14,10 +14,17 @@ Three problems with the current code:
    per path. N root-level folders still take N sequential round trips.
 3. One failing path throws, and every path after it is abandoned.
 
+This effort also introduces a standard `Result<T>` type. Core and its sibling
+packages have a dozen `*Result` types today, each shaped differently. Folder
+creation is the first user of the standard; migrating the others is a follow-up
+issue, not this branch.
+
 ## Goals
 
+- A standard `Result<T>` and `IError` in `@speel/core`, designed to replace the
+  existing ad-hoc result types over time.
 - `DbSet.ensureFoldersAsync(paths)`: the multi-path form of `ensureFolderAsync`,
-  with a result for every path.
+  with a `Result` for every path.
 - Round trips grow with folder **depth**, not folder **count**. N root-level
   folders cost one `$batch` (one per 100).
 - One bad path never costs the others their result.
@@ -25,6 +32,9 @@ Three problems with the current code:
 
 ## Non-goals
 
+- Migrating the existing `*Result` types (`IBatchOperationResult`,
+  `IdentityBatchResult`, `ApplyResult`, `MigrateResult`, …). That is the
+  follow-up issue, opened at the end of this branch.
 - Rolling back folders already created when a sibling or descendant fails.
   Creation is idempotent, so a re-run is the recovery path.
 - `AbortSignal`, progress callbacks, or concurrency control beyond the batch
@@ -38,35 +48,98 @@ Three problems with the current code:
 - A child path that reports success while its parent failed.
 - Changing what `add(entity, { folder })` guarantees: a save whose folder cannot
   be ensured still fails before any item is written.
+- A `Result` shape so tied to folders that the follow-up migration can't use it.
 
 ## Design
 
-### 1. Public API: `DbSet.ensureFoldersAsync`
+### 1. `Result<T>` and `IError` (new, `packages/speel-core/src/Result.ts`)
 
 ```ts
-type EnsureFolderResult =
-  | { readonly path: string; readonly ok: true; readonly serverRelativeUrl: string }
-  | { readonly path: string; readonly ok: false; readonly error: Error };
+export interface IError {
+  /** Stable, machine-matchable identifier. Branch on this, not on `message`. */
+  readonly code: string;
+  /** Human-readable, safe to show or log. */
+  readonly message: string;
+  /** What the error is about: a path, a field name, a clientToken. */
+  readonly target?: string;
+  /** HTTP status, when the error came from a server response. */
+  readonly status?: number;
+  /** The underlying error, response body, or upstream IError. Diagnostics only. */
+  readonly cause?: unknown;
+}
 
-ensureFoldersAsync(folderPaths: readonly string[]): Promise<readonly EnsureFolderResult[]>;
+export type Result<T> =
+  | { readonly ok: true; readonly value: T; readonly errors?: undefined }
+  | {
+      readonly ok: false;
+      readonly value?: undefined;
+      readonly errors: readonly IError[];
+    };
 ```
 
-- **Shape: settled results, aligned to the input.** This is the same model as
-  `Promise.allSettled`: `results[i]` belongs to `folderPaths[i]`, and `path`
-  echoes that input exactly as the caller passed it, so callers can match on it
-  either way. A discriminated `ok` makes failures impossible to ignore without
-  narrowing. `EnsureFolderResult` is exported from `@speel/core`.
+- **This is the requested shape, `{ ok, value?, errors? }`, written as a
+  discriminated union.**
+  - `ok` is the discriminant. `value` is present when `ok` is true, and
+    `errors` when it is false.
+  - Each branch declares the other branch's field as `?: undefined`. So
+    `r.value` is readable without narrowing (typed `T | undefined`), and after
+    `if (r.ok)` it narrows to `T`.
+- **`errors` is never empty** when `ok` is false. The constructor enforces it.
+- **`IError` follows the OData / Microsoft REST error object** (`code`,
+  `message`, `target`). That is the error SharePoint itself returns, so wire
+  errors map onto it without reshaping. `status` and `cause` are added for
+  transport facts and diagnostics.
+- **`IError` is data, not an exception.** It survives `structuredClone`, crosses
+  `postMessage`, and serializes to JSON (except an `Error` sitting in `cause`).
+- **Helpers live on a same-named value,** the usual TypeScript type-plus-value
+  pairing:
+
+  ```ts
+  export const Result = {
+    ok<T>(value: T): Result<T>,
+    fail<T = never>(error: IError, ...more: IError[]): Result<T>,
+    unwrap<T>(r: Result<T>): T, // throws OperationFailedException when !ok
+  };
+  ```
+
+- **`OperationFailedException`** is a new class in `errors.ts`. It extends
+  `Error` and carries `readonly errors: readonly IError[]`. Its message is the
+  errors' messages joined. It is how a `Result` becomes a throw at an API that
+  throws, such as `ensureFolderAsync`.
+- `Result`, `IError` and `OperationFailedException` are exported from
+  `@speel/core`, and the core README's conventions section documents the
+  standard.
+
+### 2. Folder error codes
+
+The folder operations emit these `IError.code` values. They are string literals,
+documented in TSDoc on the method.
+
+| code            | when                                                                | `target`            | extras                                                      |
+| --------------- | ------------------------------------------------------------------- | ------------------- | ----------------------------------------------------------- |
+| `invalidPath`   | normalization rejects the path (`..`), or it resolves to the root   | the input, as given | —                                                           |
+| `requestFailed` | the server rejected creating this folder (or one of its levels)     | normalized path     | `status`, `cause` = raw error                               |
+| `parentFailed`  | an ancestor failed, so this path was never attempted                | normalized path     | `cause` = the ancestor's `IError` (whose `target` names it) |
+| `noResult`      | the provider returned no result for the path (a contract violation) | normalized path     | —                                                           |
+
+`requestFailed` takes its `message` from the server's error message. Its
+`status` is absent when there was no HTTP response for that path, for example
+when the whole batch POST failed. `parentFailed`'s message reads
+`could not create parent folder '<ancestor>': <ancestor message>`.
+
+### 3. Public API: `DbSet.ensureFoldersAsync`
+
+```ts
+ensureFoldersAsync(folderPaths: readonly string[]): Promise<readonly Result<string>[]>;
+```
+
+- **Settled results, aligned to the input.** This is the same model as
+  `Promise.allSettled`: `results[i]` belongs to `folderPaths[i]`. `value` is the
+  folder's server-relative URL.
 - **Same rules as `ensureFolderAsync`.** Paths are list-relative and go through
   `normalizeFolderPath`. An existing folder is success. The call applies
   immediately, not at save time.
-- **Per-path errors** (an entry with `ok: false`, never a throw):
-  - A path that normalization rejects (for example a `..` segment): the
-    `InvalidOperationException` it raised.
-  - A path that resolves to the list root (`""`, `"/"`):
-    `InvalidOperationException`, the same check `ensureFolderAsync` makes today.
-  - A path the provider failed to create, or a path whose ancestor failed.
-  - A path the provider returned no result for (a contract violation):
-    `InvalidOperationException` naming it.
+- **Per-path failures** use the codes in §2 and never throw.
 - **Whole-call throws** (preconditions, not per-path outcomes):
   - The context is disposed.
   - The provider has no file system (`requireFileSystem`).
@@ -75,58 +148,60 @@ ensureFoldersAsync(folderPaths: readonly string[]): Promise<readonly EnsureFolde
 - **Empty input** returns `[]`. The disposed and capability checks still run
   first, so misuse shows up immediately; the provider is not called.
 - **Duplicates.** Inputs that normalize to the same path go to the provider
-  once. Every input position gets that one outcome, with its own `path` echo.
-- **`ensureFolderAsync(path)` becomes the single-path case.** It calls
-  `ensureFoldersAsync([path])`, throws `result.error` when `!ok`, and otherwise
-  returns `serverRelativeUrl`. Callers see the same error type as today; message
-  text may now name the multi-path method.
+  once. Every input position gets that one result.
+- **`ensureFolderAsync(path)` becomes the single-path case:**
+  - It keeps its own up-front validation, so root and `..` still throw
+    `InvalidOperationException` exactly as today.
+  - It then returns `Result.unwrap((await this.ensureFoldersAsync([path]))[0])`.
+    A server failure therefore throws `OperationFailedException` instead of the
+    provider's raw error, such as a PnPjs `HttpRequestError`. That is a
+    deliberate behavior change.
 
-### 2. Provider contract: `IFileSystem.ensureFoldersAsync`
+### 4. Provider contract: `IFileSystem.ensureFoldersAsync`
 
 ```ts
-type FolderOutcome =
-  | { readonly ok: true; readonly serverRelativeUrl: string }
-  | { readonly ok: false; readonly error: Error };
-
 ensureFoldersAsync(
   list: IListHandle,
   listRelativePaths: readonly string[],
-): Promise<ReadonlyMap<string, FolderOutcome>>;
+): Promise<ReadonlyMap<string, Result<string>>>;
 ```
 
 The contract doc states:
 
-- Input paths are already normalized by core, but may still contain duplicates.
-  The result has one entry per **distinct** input path, keyed by that path.
-- Missing levels are created shallowest first. An existing folder is success.
-- A path's failure goes into that path's entry and must not stop unrelated
-  paths. If an ancestor fails, every path under it fails too, with an error that
-  names the failed ancestor.
-- The implementation **may batch** (one request per depth, chunked) and may
+- **One result per distinct path.** Input paths are already normalized by core
+  but may contain duplicates. The map is keyed by path, which is the same keying
+  the contract uses today.
+- **Missing levels are created shallowest first.** An existing folder is
+  success.
+- **Failures stay with their path.** A path's failure goes into its own `Result`
+  and must not stop unrelated paths. If an ancestor fails, every path under it
+  is `parentFailed`, with the ancestor's error as `cause`.
+- **The implementation may batch** (one request per depth, chunked) and may
   create sibling folders in any order within a depth.
-- It throws only when it cannot attempt any path, for example when the list
+- **It throws only when it cannot attempt any path,** for example when the list
   cannot be resolved.
+- **Providers build their own errors.** The provider builds the `IError`s, using
+  the codes in §2. Core adds `invalidPath` and `noResult`.
 
-`FolderOutcome` is exported from `@speel/core` alongside the other provider
-contract types. This is a breaking change to a provider interface. Under 0.x it
-ships as a `minor` changeset (the six packages version as one group).
+This is a breaking change to a provider interface. Under 0.x it ships as a
+`minor` changeset (the six packages version as one group).
 
-### 3. Save path (`add(entity, { folder })`)
+### 5. Save path (`add(entity, { folder })`)
 
 `SaveExecutor` already dedupes target folders per list and calls the contract
-once per list. It now reads the outcome map. If any folder failed, it throws a
+once per list. It now reads each `Result`. If any folder failed, it throws a
 `DbUpdateException` **before any item op runs**:
 
 - The exception lists every entry whose target folder failed, not just the
   first.
-- Its message names each failed folder and that folder's error message.
-- The first failure's error is kept as the cause.
+- Its `errors` carry those folders' `IError`s.
+- Its message names each failed folder and its error message.
 
 This replaces today's behavior, where the provider's raw error escaped
 unwrapped. Folders created before the failure stay, as they do today; creation
 is idempotent.
 
-### 4. pnpjs provider: batch by depth
+### 6. pnpjs provider: batch by depth
 
 `SharePointFileSystem.ensureFoldersAsync`:
 
@@ -150,22 +225,22 @@ is idempotent.
    - Await `execute()`, then settle each promise:
      - Success, or a rejection that `isFolderExistsError` matches: the node
        succeeded.
-     - Any other rejection: the node failed with that error.
+     - Any other rejection: the node failed with a `requestFailed` `IError`.
+       Pull `status` and the server message out of the PnPjs error the same way
+       `SharePointProvider.toFailure` does. Lift that extraction into a shared
+       helper instead of duplicating it.
    - If `execute()` itself rejects (the batch POST failed), every node in the
-     chunk fails with that error.
+     chunk fails with `requestFailed`, built from that error.
 
    Chunks within a depth run one after another, which is gentler on
-   throttling. Nodes whose parent failed are never sent: they inherit the
-   failure.
+   throttling. Nodes whose parent failed are never sent.
 
 4. **Map back to paths.**
-   - Every node on the path succeeded: `ok` with `${rootUrl}/${path}`.
-   - Otherwise the path fails with its shallowest failed node's error. If that
-     node is a proper ancestor, wrap the error in one whose message reads
-     `could not create parent folder '<ancestor>': <original message>`, with the
-     original attached as `cause`.
-
-     ES2020 lib has no `ErrorOptions`, so set `cause` as a property.
+   - Every node on the path succeeded: `Result.ok(`${rootUrl}/${path}`)`.
+   - The path's own node failed: that node's `requestFailed`, with `target`
+     set to the path.
+   - A proper ancestor failed: `parentFailed`, with the shallowest failed
+     node's error as `cause`.
 
 The parent is addressed by server-relative path instead of by chaining from
 `list.rootFolder`. `AddSubFolderUsingPath` on a folder inside a list creates a
@@ -176,11 +251,11 @@ that.
 root-level folders cost one request. 25 folders under one existing parent cost
 two: the parent's "already exists", then the 25 children.
 
-### 5. Test fakes
+### 7. Test fakes
 
 - **`FakeStorageProvider`** implements the new contract. It gains a
-  failure-injection hook for folder creation (a set of list-relative prefixes
-  that fail with a given error), so tests can drive the parent-fails path.
+  failure-injection hook for folder creation (list-relative paths that fail
+  with a given `status` and message), so tests can drive the parent-fails path.
   `failOn(clientToken, …)` is the existing pattern; follow its style.
 - **The `speel-react` fake provider** (`test/fakeProvider.ts`) moves to the new
   return shape.
@@ -190,22 +265,38 @@ two: the parent's "already exists", then the 25 children.
 
 ## Tests
 
+**`Result` (`Result.test.ts`):**
+
+- `ok` and `fail` produce the right shapes.
+- `fail` requires at least one error (a type-level check plus a runtime check).
+- `unwrap` returns the value, or throws `OperationFailedException` carrying the
+  errors.
+- Narrowing compiles: `value` is `T` after `if (r.ok)`.
+
 **Core (`DbSet.folderOps.test.ts` and new cases), against
 `FakeStorageProvider`:**
 
 - New and existing paths mixed: every result is `ok`, with correct URLs, in
   input order.
-- A nested path whose parent fails: that path and its siblings under the same
-  parent fail, the error names the parent, and unrelated paths succeed.
+- A nested path whose parent fails:
+  - The parent is `requestFailed`.
+  - Its children are `parentFailed`, with `cause.target` naming the parent.
+  - Unrelated paths are `ok`.
 - Duplicates, including ones that only match after normalization (`a/b` and
-  `/a/b/`): one provider call per distinct path, and each position echoes its
-  own input.
+  `/a/b/`): one provider call per distinct path, and both positions get the
+  same result.
 - Empty input returns `[]` and the provider is not called.
-- An invalid path (`..`, root) is a per-path error; the other paths still run.
-- `ensureFolderAsync` still throws for root, for `..`, and when the provider
-  fails, and still returns the URL on success.
+- `..` and root are `invalidPath`, with the raw input as `target`. The other
+  paths still run.
+- A provider that omits a path yields `noResult`.
+- `ensureFolderAsync`:
+  - It still throws `InvalidOperationException` for root and for `..`.
+  - A provider failure throws `OperationFailedException`.
+  - Success still returns the URL.
 - Save path: `add({ folder })` with one failing folder throws a
-  `DbUpdateException` listing the affected entries, and no item op ran.
+  `DbUpdateException`:
+  - It lists the affected entries, with their `IError`s.
+  - No item op ran.
 
 **pnpjs (`SharePointProvider.folder.test.ts`), with a faked SPFI:**
 
@@ -214,8 +305,10 @@ two: the parent's "already exists", then the 25 children.
 - 101 nodes at one depth are split into two batches.
 - An "already exists" rejection counts as success, and its children are still
   created.
-- A failed parent means the child is never sent and inherits a wrapped error.
-- A rejected `execute()` fails every node in that chunk.
+- A failed parent means the child is never sent, and the child is
+  `parentFailed`.
+- A rejected `execute()` makes every node in that chunk `requestFailed`.
+- `requestFailed` carries the PnPjs error's `status` and the server message.
 
 **Live tenant (one Playwright spec in `samples/spfx-sample/tests`, following
 `folderPlacement.spec.ts`; PW_E2E only):**
@@ -233,9 +326,9 @@ Assertions:
 - Every valid path is `ok`, with the correct URL. This confirms that
   `isFolderExistsError` matches the real "already exists" response inside a
   `$batch`, or that the verb is idempotent.
-- The invalid path and its child fail, and the failure did not stop the rest of
-  the batch. This confirms SharePoint keeps processing a `$batch` after a failed
-  sub-request.
+- The invalid path is `requestFailed` with a `status`, and its child is
+  `parentFailed`. The failure did not stop the rest of the batch, which
+  confirms SharePoint keeps processing a `$batch` after a failed sub-request.
 - Each created folder is a list folder: a `FSObjType=1` item exists at its
   `FileRef`.
 - Cleanup recycles the test root with `deleteFolderAsync`.
@@ -245,17 +338,37 @@ and update its comment to say it was verified, with the date.
 
 ## Docs
 
-The branch's single document step updates `packages/speel-core/docs/files.md`:
+The branch's single document step updates:
 
-- Capabilities gains `ensureFoldersAsync` and its per-path results.
-- Boundaries & gotchas covers partial success with no rollback, and the cost
-  model (round trips scale with depth).
+- **`packages/speel-core/docs/files.md`:**
+  - Capabilities gains `ensureFoldersAsync` and its per-path `Result`s.
+  - Boundaries & gotchas covers partial success with no rollback, the cost
+    model (round trips scale with depth), and the error codes.
+- **`packages/speel-core/README.md`:** the conventions section gains a short
+  "Results" entry covering `Result<T>`, `IError`, `Result.unwrap`, and the rule
+  to branch on `code`, not `message`.
 
-The canonical example changes only if it currently shows a loop of
+The canonical example in `files.md` changes only if it currently shows a loop of
 `ensureFolderAsync` calls.
+
+## Follow-up (last task on this branch)
+
+Open a GitHub issue to migrate the existing result types onto `Result<T>` /
+`IError`. It should list each type with its package and file:
+
+- core: `IBatchOperationResult`, `IReadOperationResult`, `IFileUploadResult`,
+  `IRenameResult`;
+- identity: `IdentityBatchResult`, `IdentitySaveResult`, `ApplyResult`;
+- migrations: `MigrateResult`, `SchemaOpResult`, `ListResult`;
+- react: `MigrationResult`, `SurfaceResult`.
+
+It should also note that some of these are plain value bags, not
+success-or-failure results. Those stay as the `T` inside a `Result<T>` rather
+than being replaced, and the issue should say which is which.
 
 ## Left to the builder
 
-- Internal helper names and module placement for the shared batch limit.
+- Internal helper names and module placement for the shared batch limit and the
+  PnPjs error extraction.
 - Exact wording of the error messages, within the rules above.
-- Whether the fake's failure hook keys on a path prefix or a predicate.
+- Whether the fake's failure hook keys on a path or a predicate.
