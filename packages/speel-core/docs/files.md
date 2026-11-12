@@ -104,10 +104,11 @@ back onto `FileLeafRef`/`FileRef` after the save (see the `SpeelDocument` shape 
 
 ### Direct file and folder operations
 
-Six `DbSet` methods act on what is already in SharePoint:
+Seven `DbSet` methods act on what is already in SharePoint:
 
 ```ts
 await ctx.artifacts.ensureFolderAsync("responses/r-1"); // create; idempotent
+await ctx.artifacts.ensureFoldersAsync(["responses/r-1", "responses/r-2"]); // many
 await ctx.artifacts.deleteFolderAsync("responses/r-1"); // recycle, contents too
 await ctx.artifacts.renameFolderAsync("responses/r-1", "r-1-approved");
 await ctx.artifacts.renameFileAsync(doc, "q2-final.pdf"); // document libraries
@@ -127,6 +128,28 @@ plain lists too, not just libraries, so all three folder methods do.
 success rather than a collision, leaving its contents alone — so it is safe
 ahead of a batch of uploads. `add(entity, { folder })` remains the way to create
 a folder as part of a save; this is for folders that must exist on their own.
+
+`ensureFoldersAsync` is the bulk form, with the same rules. It returns one
+[`Result`](../README.md#conventions) per path, **in input order**, so one bad path
+never costs the others theirs. Branch on `ok`, read the URL from `value`, and on a
+failure match `errors[0].code`:
+
+```ts
+const results = await ctx.artifacts.ensureFoldersAsync(paths);
+results.forEach((r, i) => {
+  if (!r.ok) console.warn(paths[i], r.errors[0].code, r.errors[0].message);
+});
+```
+
+The codes are `invalidPath` (`..` or the list root; `target` is your input),
+`requestFailed` (SharePoint refused the folder; `status` says how), `parentFailed`
+(an ancestor failed, so this path was not attempted; `cause` is that ancestor's
+error) and `noResult` (the provider returned nothing for it). With
+`@speel/pnpjs`, every folder at one depth goes out in a single `$batch`, chunked
+at 100, so round trips grow with how **deep** the paths are, not how many there
+are: 25 sibling folders cost one request. `ensureFolderAsync` is the single-path
+case: it throws `OperationFailedException` (its `errors` are that result's
+errors) when SharePoint refuses the folder.
 
 `deleteFolderAsync` recycles the folder the way `remove()` recycles an item, so
 it stays recoverable — but its contents go with it (see the gotcha below).
@@ -171,6 +194,11 @@ The document methods refuse a non-`SpeelDocument` entity and an entity with no
   below the path goes with it — recoverable together from the recycle bin, but gone
   from the list. There is no confirmation step and no partial mode: check the folder
   yourself first if "only if empty" is what you meant.
+
+- **A partly failed `ensureFoldersAsync` is not rolled back.** Folders created
+  before a sibling or descendant failed stay where they are. Creation is
+  idempotent, so the recovery is to fix the cause and re-run the same call:
+  existing folders count as success.
 
 - **Checking in a file that is not checked out is a server error.** There is no
   client-side pre-check, because materialization maps an empty value to `undefined`:
