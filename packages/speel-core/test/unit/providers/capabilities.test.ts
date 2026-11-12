@@ -89,6 +89,13 @@ describe("provider capabilities", () => {
     await expect(ctx.docs.ensureFolderAsync("A")).rejects.toThrow(
       /ensureFolderAsync.*IFileSystem/,
     );
+    await expect(ctx.docs.ensureFoldersAsync(["A"])).rejects.toThrow(
+      /ensureFoldersAsync.*IFileSystem/,
+    );
+    // The capability is checked before the empty-input shortcut.
+    await expect(ctx.docs.ensureFoldersAsync([])).rejects.toThrow(
+      /ensureFoldersAsync.*IFileSystem/,
+    );
     await expect(ctx.docs.checkinFileAsync(doc, "c")).rejects.toThrow(
       /IFileSystem/,
     );
