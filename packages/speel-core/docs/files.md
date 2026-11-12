@@ -132,12 +132,13 @@ a folder as part of a save; this is for folders that must exist on their own.
 `ensureFoldersAsync` is the bulk form, with the same rules. It returns one
 [`Result`](../README.md#conventions) per path, **in input order**, so one bad path
 never costs the others theirs. Branch on `ok`, read the URL from `value`, and on a
-failure match `errors[0].code`:
+failure match each error's `code`:
 
 ```ts
 const results = await ctx.artifacts.ensureFoldersAsync(paths);
 results.forEach((r, i) => {
-  if (!r.ok) console.warn(paths[i], r.errors[0].code, r.errors[0].message);
+  if (!r.ok)
+    for (const e of r.errors) console.warn(paths[i], e.code, e.message);
 });
 ```
 
