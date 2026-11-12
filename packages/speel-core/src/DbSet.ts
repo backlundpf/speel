@@ -537,7 +537,10 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
    *
    * - `invalidPath` — `..` segments, or a path that resolves to the list root.
    *   `target` is the input as given.
-   * - `requestFailed` — the server refused this folder; carries `status`.
+   * - `requestFailed` — the server refused this folder; carries `status` when
+   *   the server answered for this folder.
+   * - `notAFolder` — the name is taken by something that is not a folder, such
+   *   as a file in a document library.
    * - `parentFailed` — an ancestor failed, so this path was not attempted;
    *   `cause` is the ancestor's error.
    * - `noResult` — the provider returned nothing for the path.

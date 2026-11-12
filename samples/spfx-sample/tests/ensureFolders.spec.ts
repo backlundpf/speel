@@ -107,3 +107,79 @@ test("ensureFoldersAsync: mixed new, existing and invalid paths in one call", as
   });
   expect(out.fsObjTypes).toEqual([1, 1, 1, 1, 1]);
 });
+
+/**
+ * E2E: a name taken by a FILE is notAFolder, not ok. SharePoint answers
+ * AddSubFolderUsingPath there exactly as it does for an existing folder (same
+ * code, same text), so the provider confirms each collision with a Folder.Exists
+ * read. Runs on the ProjectArtifacts document library. Live tenant only (PW_E2E).
+ */
+test("ensureFoldersAsync: a name taken by a file is notAFolder", async ({
+  authPage,
+}) => {
+  test.setTimeout(180_000);
+  const webAbs = loadEnv().baseURL;
+
+  const dashboard = new ProjectDashboardPage(authPage);
+  await dashboard.open("admin");
+
+  const out = await authPage.evaluate(async (webAbs: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pd = (window as any).pd;
+    const set = pd.ctx.artifacts;
+    const j = { Accept: "application/json" };
+    const digest: string = (
+      await (
+        await fetch(`${webAbs}/_api/contextinfo`, {
+          method: "POST",
+          headers: j,
+          credentials: "include",
+        })
+      ).json()
+    ).FormDigestValue;
+    const post = (url: string, body?: BodyInit) =>
+      fetch(url, {
+        method: "POST",
+        headers: { ...j, "X-RequestDigest": digest },
+        credentials: "include",
+        body,
+      });
+    const lib: string = (
+      await (
+        await fetch(
+          `${webAbs}/_api/web/lists/getByTitle('ProjectArtifacts')/RootFolder?$select=ServerRelativeUrl`,
+          { headers: j, credentials: "include" },
+        )
+      ).json()
+    ).ServerRelativeUrl;
+
+    const name = `speel-e2e-file-${Date.now()}`;
+    const fresh = `${name}-folder`;
+    await post(
+      `${webAbs}/_api/web/getFolderByServerRelativePath(decodedurl='${lib}')/Files/AddUsingPath(DecodedUrl='${name}',Overwrite=false)`,
+      "occupies the name",
+    );
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const results: any[] = await set.ensureFoldersAsync([
+        name,
+        `${name}/child`,
+        fresh,
+      ]);
+      return results.map((r) =>
+        r.ok ? { ok: true } : { ok: false, code: r.errors[0].code as string },
+      );
+    } finally {
+      await post(
+        `${webAbs}/_api/web/getFileByServerRelativePath(decodedurl='${lib}/${name}')/recycle`,
+      );
+      await set.deleteFolderAsync(fresh).catch(() => {});
+    }
+  }, webAbs);
+
+  expect(out).toEqual([
+    { ok: false, code: "notAFolder" },
+    { ok: false, code: "parentFailed" },
+    { ok: true },
+  ]);
+});

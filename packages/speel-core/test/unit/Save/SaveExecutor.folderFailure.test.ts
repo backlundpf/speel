@@ -5,7 +5,7 @@ import { DbSet } from "../../../src/DbSet.js";
 import { SaveExecutor } from "../../../src/Save/SaveExecutor.js";
 import { SpeelEntity } from "../../../src/SpeelEntity.js";
 import { DbUpdateException } from "../../../src/errors.js";
-import type { IError } from "../../../src/Result.js";
+import { Result, type IError } from "../../../src/Result.js";
 import { FakeStorageProvider } from "../fakes/FakeStorageProvider.js";
 import type { IBatchOperation } from "../../../src/providers/ISharePointProvider.js";
 import { TestPrincipal as Principal } from "../fakes/testPrincipals.js";
@@ -80,5 +80,26 @@ describe("add({ folder }) when a folder cannot be ensured", () => {
     expect(ex.message).toContain("Access denied.");
     // No item op ran — the good entity was not inserted either.
     expect(sentOps).toEqual([]);
+  });
+
+  it("carries every error a failed folder reports, not just the first", async () => {
+    const e1: IError = { code: "requestFailed", message: "first", target: "f" };
+    const e2: IError = {
+      code: "requestFailed",
+      message: "second",
+      target: "f",
+    };
+    provider.ensureFoldersAsync = async () =>
+      new Map([["f", Result.fail<string>(e1, e2)]]);
+    set.add(task("t"), { folder: "f" });
+
+    const err = (await save().then(
+      () => null,
+      (e: unknown) => e,
+    )) as DbUpdateException;
+    expect(err).toBeInstanceOf(DbUpdateException);
+    expect(err.innerErrors).toEqual([e1, e2]);
+    expect(err.message).toContain("first");
+    expect(err.message).toContain("second");
   });
 });

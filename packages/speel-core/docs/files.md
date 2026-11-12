@@ -143,12 +143,14 @@ results.forEach((r, i) => {
 ```
 
 The codes are `invalidPath` (`..` or the list root; `target` is your input),
-`requestFailed` (SharePoint refused the folder; `status` says how), `parentFailed`
-(an ancestor failed, so this path was not attempted; `cause` is that ancestor's
+`requestFailed` (SharePoint refused the folder; `status` says how), `notAFolder`
+(the name is taken by something else, such as a file), `parentFailed` (an
+ancestor failed, so this path was not attempted; `cause` is that ancestor's
 error) and `noResult` (the provider returned nothing for it). With
 `@speel/pnpjs`, every folder at one depth goes out in a single `$batch`, chunked
 at 100, so round trips grow with how **deep** the paths are, not how many there
-are: 25 sibling folders cost one request. `ensureFolderAsync` is the single-path
+are: 25 sibling folders cost one request. A depth where some names were already
+taken costs one more, batched read to tell existing folders from files. `ensureFolderAsync` is the single-path
 case: it throws `OperationFailedException` (its `errors` are that result's
 errors) when SharePoint refuses the folder.
 
@@ -200,11 +202,6 @@ The document methods refuse a non-`SpeelDocument` entity and an entity with no
   before a sibling or descendant failed stay where they are. Creation is
   idempotent, so the recovery is to fix the cause and re-run the same call:
   existing folders count as success.
-
-- **A file holding a folder's name counts as an existing folder.** SharePoint answers
-  "name already taken" with the same error for a file as for a folder, so in a document
-  library `ensureFoldersAsync(["q2"])` reports `ok` when a file named `q2` is in the
-  way, and paths under it then fail with `requestFailed`.
 
 - **Checking in a file that is not checked out is a server error.** There is no
   client-side pre-check, because materialization maps an empty value to `undefined`:

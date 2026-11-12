@@ -182,7 +182,9 @@ export class SaveExecutor {
             continue;
           }
           failedEntries.push(e);
-          failedErrors.push(r.errors[0]!);
+          // Every error the folder reported, so none is lost to a provider that
+          // explains one failure several ways.
+          failedErrors.push(...r.errors);
           failedFolders.set(path, r.errors.map((x) => x.message).join("; "));
         }
       }

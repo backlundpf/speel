@@ -119,6 +119,7 @@ documented in TSDoc on the method.
 | --------------- | ------------------------------------------------------------------- | ------------------- | ----------------------------------------------------------- |
 | `invalidPath`   | normalization rejects the path (`..`), or it resolves to the root   | the input, as given | —                                                           |
 | `requestFailed` | the server rejected creating this folder (or one of its levels)     | normalized path     | `status`, `cause` = raw error                               |
+| `notAFolder`    | the name is taken by something that is not a folder (a file)        | normalized path     | —                                                           |
 | `parentFailed`  | an ancestor failed, so this path was never attempted                | normalized path     | `cause` = the ancestor's `IError` (whose `target` names it) |
 | `noResult`      | the provider returned no result for the path (a contract violation) | normalized path     | —                                                           |
 
@@ -126,6 +127,20 @@ documented in TSDoc on the method.
 `status` is absent when there was no HTTP response for that path, for example
 when the whole batch POST failed. `parentFailed`'s message reads
 `could not create parent folder '<ancestor>': <ancestor message>`.
+
+**Revision (2026-11-12, after the live probe).** SharePoint answers
+AddSubFolderUsingPath on a taken name with HTTP 500 and `odata.error.code`
+`-2130245363`. The code is the same in every language (the message is
+localized), and the same when a FILE holds the name. Two changes follow:
+
+- "Already exists" is matched on that code, not on English text.
+- Each collision is confirmed with one batched `Folder.Exists` read before it
+  counts as success. `Exists` is `false` where a file sits, which yields
+  `notAFolder`.
+
+The read covers only nodes that collided, so a fresh run costs nothing extra and
+a re-run costs one read batch per depth. This narrows the "no pre-reading"
+non-goal: there is still no read _before_ creating.
 
 ### 3. Public API: `DbSet.ensureFoldersAsync`
 

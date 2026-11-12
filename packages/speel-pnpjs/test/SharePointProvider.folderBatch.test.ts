@@ -7,32 +7,40 @@ const ROOT = "/sites/dev/Docs";
 const list = { kind: "title" as const, value: "Docs" };
 
 interface Queued {
-  path: string;
-  resolve: () => void;
-  reject: (e: unknown) => void;
+  run: () => void; // settles the request's promise, at execute() time
 }
 
 /**
- * A batching SPFI fake. `addSubFolderUsingPath` enrols SYNCHRONOUSLY in the
- * current batch and its promise settles only when that batch's `execute()` runs
- * — so an implementation that awaits between `batched()` and enrolment, or that
- * awaits a promise before `execute()`, fails these tests. A rejected batch
- * leaves its queued promises pending forever, as PnPjs 4.20 does.
+ * A batching SPFI fake. `addSubFolderUsingPath` and the `Exists` read enrol
+ * SYNCHRONOUSLY in the current batch, and their promises settle only when that
+ * batch's `execute()` runs — so an implementation that awaits between
+ * `batched()` and enrolment, or awaits a promise before `execute()`, fails these
+ * tests. A rejected batch leaves its queued promises pending forever, as PnPjs
+ * 4.20 does.
+ *
+ * `batches` records the create (POST) batches; a batch holding only `Exists`
+ * reads is recorded in `readBatches` instead. `files` are paths a FILE holds:
+ * creating a folder there answers "name taken", and its folder `Exists` is false.
  */
 function fakeBatchSp(
   opts: {
     existing?: string[];
+    files?: string[];
     failing?: Record<string, { status: number; message: string }>;
-    executeRejects?: Error;
+    executeRejects?: unknown;
+    readsRejectWith?: unknown;
     caseInsensitive?: boolean;
     existsError?: unknown;
   } = {},
 ) {
   const key = (p: string) => (opts.caseInsensitive ? p.toLowerCase() : p);
   const present = new Set((opts.existing ?? []).map(key));
+  const files = new Set((opts.files ?? []).map(key));
   const created: string[] = [];
   const batches: { parentUrl: string; leaf: string }[][] = [];
+  const readBatches: string[][] = [];
   const maxRequestsSeen: number[] = [];
+  const rel = (url: string) => (url === ROOT ? "" : url.slice(ROOT.length + 1));
 
   const rootList = () => ({
     rootFolder: {
@@ -45,46 +53,64 @@ function fakeBatchSp(
     batched(props?: { maxRequests?: number }) {
       maxRequestsSeen.push(props?.maxRequests ?? -1);
       const calls: { parentUrl: string; leaf: string }[] = [];
+      const reads: string[] = [];
       const queue: Queued[] = [];
-      batches.push(calls);
       const scoped = {
         web: {
-          getFolderByServerRelativePath: (parentUrl: string) => ({
+          getFolderByServerRelativePath: (url: string) => ({
             addSubFolderUsingPath: (leaf: string) => {
-              calls.push({ parentUrl, leaf });
-              const rel =
-                parentUrl === ROOT ? "" : parentUrl.slice(ROOT.length + 1);
-              const path = rel ? `${rel}/${leaf}` : leaf;
+              calls.push({ parentUrl: url, leaf });
+              const path = rel(url) ? `${rel(url)}/${leaf}` : leaf;
               return new Promise<void>((resolve, reject) =>
-                queue.push({ path, resolve, reject }),
+                queue.push({
+                  run: () => {
+                    const fail = opts.failing?.[path];
+                    if (fail) reject(fail);
+                    else if (present.has(key(path)) || files.has(key(path)))
+                      reject(
+                        opts.existsError ?? {
+                          status: 500,
+                          message: "The folder already exists.",
+                        },
+                      );
+                    else {
+                      present.add(key(path));
+                      created.push(path);
+                      resolve();
+                    }
+                  },
+                }),
+              );
+            },
+            select: (field: string) => () => {
+              expect(field).toBe("Exists");
+              const path = rel(url);
+              reads.push(path);
+              return new Promise<{ Exists: boolean }>((resolve, reject) =>
+                queue.push({
+                  run: () =>
+                    opts.readsRejectWith !== undefined
+                      ? reject(opts.readsRejectWith)
+                      : resolve({
+                          Exists:
+                            present.has(key(path)) && !files.has(key(path)),
+                        }),
+                }),
               );
             },
           }),
         },
       };
       const execute = async () => {
-        if (opts.executeRejects) throw opts.executeRejects;
-        for (const q of queue) {
-          const fail = opts.failing?.[q.path];
-          if (fail) q.reject(fail);
-          else if (present.has(key(q.path)))
-            q.reject(
-              opts.existsError ?? {
-                status: 500,
-                message: "The folder already exists.",
-              },
-            );
-          else {
-            present.add(key(q.path));
-            created.push(q.path);
-            q.resolve();
-          }
-        }
+        if (calls.length > 0) batches.push(calls);
+        else readBatches.push(reads);
+        if (opts.executeRejects !== undefined) throw opts.executeRejects;
+        for (const q of queue) q.run();
       };
       return [scoped, execute];
     },
   };
-  return { sp, created, batches, maxRequestsSeen };
+  return { sp, created, batches, readBatches, maxRequestsSeen };
 }
 
 const leaves = (b: { leaf: string }[][]) => b.map((x) => x.map((c) => c.leaf));
@@ -157,6 +183,72 @@ describe("ensureFoldersAsync batching", () => {
       "a/b",
     ]);
     expect(map.get("a/b")).toEqual({ ok: true, value: `${ROOT}/a/b` });
+  });
+
+  it("a fresh run makes no Exists reads", async () => {
+    const f = fakeBatchSp();
+    await new SharePointProvider(f.sp).ensureFoldersAsync(list, ["a/b", "c"]);
+    expect(f.readBatches).toEqual([]);
+  });
+
+  it("a name taken by a folder is confirmed with one Exists read per depth", async () => {
+    const f = fakeBatchSp({ existing: ["a", "b"] });
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "a/x",
+      "b",
+    ]);
+    expect(f.readBatches).toEqual([["a", "b"]]);
+    expect(map.get("a/x")).toEqual({ ok: true, value: `${ROOT}/a/x` });
+    expect(map.get("b")).toEqual({ ok: true, value: `${ROOT}/b` });
+  });
+
+  it("a name taken by a file is notAFolder, and its children are never sent", async () => {
+    const f = fakeBatchSp({ files: ["a"] });
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "a",
+      "a/b",
+      "z",
+    ]);
+    expect(map.get("a")!.errors![0]).toMatchObject({
+      code: "notAFolder",
+      target: "a",
+    });
+    const child = map.get("a/b")!.errors![0]!;
+    expect(child).toMatchObject({ code: "parentFailed", target: "a/b" });
+    expect((child.cause as IError).code).toBe("notAFolder");
+    expect(map.get("z")!.ok).toBe(true);
+    expect(leaves(f.batches)).toEqual([["a", "z"]]); // a/b never sent
+  });
+
+  it("a failed Exists read makes that path requestFailed", async () => {
+    const f = fakeBatchSp({
+      existing: ["a"],
+      readsRejectWith: { status: 503, message: "Service unavailable." },
+    });
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "a",
+    ]);
+    expect(map.get("a")!.errors![0]).toMatchObject({
+      code: "requestFailed",
+      status: 503,
+      target: "a",
+    });
+  });
+
+  it("a failed batch request leaves status off each folder's error, keeping it in cause", async () => {
+    const f = fakeBatchSp({
+      executeRejects: { status: 429, message: "Too many requests." },
+    });
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "a",
+      "b",
+    ]);
+    for (const p of ["a", "b"]) {
+      const e = map.get(p)!.errors![0]!;
+      expect(e).toMatchObject({ code: "requestFailed", target: p });
+      expect(e.status).toBeUndefined();
+      expect(e.cause).toMatchObject({ status: 429 });
+    }
   });
 
   it("a failed parent's children are never sent", async () => {

@@ -23,6 +23,7 @@ import type {
   IRenameResult,
 } from "@speel/core";
 import { Result } from "@speel/core";
+import type { SPFI } from "@pnp/sp";
 import { BATCH_REQUEST_LIMIT } from "./batchLimits.js";
 import { httpErrorFacts } from "./httpError.js";
 import { toFormValues, type IFormValue } from "./formValues.js";
@@ -41,8 +42,9 @@ const NAME_TAKEN_CODE = "-2130245363";
 // only a rejection that carries no parsable code falls back to the English text.
 // Any other error is that folder's requestFailed. Verified live 2026-11-12
 // (samples/spfx-sample/tests/ensureFolders.spec.ts).
-// Caveat: SharePoint answers a name taken by a FILE with the same code and text,
-// so such a path reports ok although no folder exists there.
+// SharePoint answers a name taken by a FILE with the same code and text, so this
+// only says "name taken"; ensureFoldersAsync confirms each collision with a
+// Folder.Exists read before calling it success.
 function isFolderExistsError(err: unknown): boolean {
   if (typeof err !== "object" || err === null) return false;
   const { serverCode } = httpErrorFacts(err);
@@ -65,17 +67,37 @@ function leafOf(prefix: string): string {
   return prefix.slice(prefix.lastIndexOf("/") + 1);
 }
 
-/** A `requestFailed` error for `target`, from a rejected PnPjs request. */
-function requestFailed(target: string, err: unknown): IError {
+/**
+ * A `requestFailed` error for `target`, from a rejected PnPjs request. `status`
+ * is the HTTP status of THIS target's response; pass `withStatus: false` when the
+ * error belongs to a whole batch rather than to a response for the target.
+ */
+function requestFailed(
+  target: string,
+  err: unknown,
+  { withStatus = true }: { withStatus?: boolean } = {},
+): IError {
   const { status, message } = httpErrorFacts(err);
   return {
     code: "requestFailed" satisfies FolderErrorCode,
     message,
-    ...(status !== undefined ? { status } : {}),
+    ...(withStatus && status !== undefined ? { status } : {}),
     target,
     cause: err,
   };
 }
+
+/** A `notAFolder` error: `target`'s name is taken by something that is not a folder. */
+function notAFolder(target: string): IError {
+  return {
+    code: "notAFolder" satisfies FolderErrorCode,
+    message: `'${target}' is taken by an item that is not a folder, such as a file.`,
+    target,
+  };
+}
+
+/** What creating one folder came to, before collisions are confirmed. */
+type CreateOutcome = "created" | "nameTaken" | IError;
 
 /** The parent-folder URL of a server-relative file/folder URL. */
 function parentUrlOf(url: string): string {
@@ -138,40 +160,41 @@ export class SharePointFileSystem implements IFileSystem {
           const parent = parentOf(p);
           return parent === "" || outcome.get(parent) === null;
         });
-      for (let i = 0; i < ready.length; i += BATCH_REQUEST_LIMIT) {
-        const chunk = ready.slice(i, i + BATCH_REQUEST_LIMIT);
-        const [sp2, execute] = this.host.sp.batched({
-          maxRequests: BATCH_REQUEST_LIMIT,
-        });
-        // Enrol every request synchronously — PnPjs binds a request to the batch
-        // when it is invoked, so nothing may be awaited before the last call.
-        // Each promise carries its own rejection handler: none can go unhandled,
-        // even when abandoned after a batch failure.
-        const settled = chunk.map((p) => {
-          const parent = parentOf(p);
-          return sp2.web
-            .getFolderByServerRelativePath(
-              parent === "" ? rootUrl : `${rootUrl}/${parent}`,
-            )
-            .addSubFolderUsingPath(leafOf(p))
-            .then(
-              () => null,
-              (err: unknown) =>
-                isFolderExistsError(err) ? null : requestFailed(p, err),
-            );
-        });
-        // If the batch POST itself fails, PnPjs 4.20 never settles the queued
-        // promises — awaiting them would hang. Every node in the chunk fails.
-        const batchErr = await execute().then(
-          () => null,
-          (err: unknown) => err ?? new Error("The batch request failed."),
+      const created = await this.batchedRequests(ready, (sp2, p) => {
+        const parent = parentOf(p);
+        return sp2.web
+          .getFolderByServerRelativePath(
+            parent === "" ? rootUrl : `${rootUrl}/${parent}`,
+          )
+          .addSubFolderUsingPath(leafOf(p))
+          .then(
+            (): CreateOutcome => "created",
+            (err: unknown): CreateOutcome =>
+              isFolderExistsError(err) ? "nameTaken" : requestFailed(p, err),
+          );
+      });
+
+      // "Name taken" also answers a FILE holding the name (same code, same text),
+      // so each collision is confirmed with one batched read of Folder.Exists —
+      // only colliding nodes, so a fresh run pays nothing. Exists is false where
+      // a file sits (verified live 2026-11-12).
+      const taken = ready.filter((p) => created.get(p) === "nameTaken");
+      const confirmed = await this.batchedRequests(taken, (sp2, p) =>
+        sp2.web
+          .getFolderByServerRelativePath(`${rootUrl}/${p}`)
+          .select("Exists")()
+          .then(
+            (f: { Exists?: boolean }) => (f.Exists ? null : notAFolder(p)),
+            (err: unknown) => requestFailed(p, err),
+          ),
+      );
+
+      for (const p of ready) {
+        const c = created.get(p)!;
+        outcome.set(
+          p,
+          c === "created" ? null : c === "nameTaken" ? confirmed.get(p)! : c,
         );
-        if (batchErr !== null) {
-          for (const p of chunk) outcome.set(p, requestFailed(p, batchErr));
-        } else {
-          const results = await Promise.all(settled);
-          results.forEach((e, k) => outcome.set(chunk[k]!, e));
-        }
       }
     }
 
@@ -195,6 +218,43 @@ export class SharePointFileSystem implements IFileSystem {
               cause: own,
             }),
       );
+    }
+    return out;
+  }
+
+  /**
+   * Send one request per item, in $batch chunks of BATCH_REQUEST_LIMIT, chunks one
+   * after another; returns each item's outcome. `enrol` MUST invoke its request
+   * synchronously and attach its own rejection handler — PnPjs binds a request to
+   * the batch when it is invoked, and a promise abandoned after a batch failure
+   * must not go unhandled. When a chunk's batch POST itself fails, PnPjs 4.20 never
+   * settles that chunk's requests (awaiting them would hang), so every item in the
+   * chunk fails with `requestFailed` built from the batch error — without a
+   * `status`, since no response exists for that one item; the batch's own status
+   * stays in `cause`.
+   */
+  private async batchedRequests<T>(
+    items: readonly string[],
+    enrol: (sp2: SPFI, item: string) => Promise<T>,
+  ): Promise<Map<string, T | IError>> {
+    const out = new Map<string, T | IError>();
+    for (let i = 0; i < items.length; i += BATCH_REQUEST_LIMIT) {
+      const chunk = items.slice(i, i + BATCH_REQUEST_LIMIT);
+      const [sp2, execute] = this.host.sp.batched({
+        maxRequests: BATCH_REQUEST_LIMIT,
+      });
+      const settled = chunk.map((item) => enrol(sp2, item));
+      const batchErr = await execute().then(
+        () => null,
+        (err: unknown) => err ?? new Error("The batch request failed."),
+      );
+      if (batchErr !== null) {
+        for (const item of chunk) {
+          out.set(item, requestFailed(item, batchErr, { withStatus: false }));
+        }
+      } else {
+        (await Promise.all(settled)).forEach((r, k) => out.set(chunk[k]!, r));
+      }
     }
     return out;
   }

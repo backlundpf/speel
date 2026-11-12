@@ -279,27 +279,31 @@ export interface IStorageProvider {
 }
 
 /**
- * A store whose items live in folders and may be files. Optional: core narrows
- * with `hasFileSystem` and refuses folder/file operations, `add({ folder })` and
- * `add({ file })` with an InvalidOperationException naming this capability when a
- * provider lacks it. A provider without one ignores `includeContainers` and fails
- * an insert whose `folderServerRelativeUrl` is not null.
- */
-/**
  * The `IError.code` values folder creation reports.
  *
  * - `invalidPath` — the path is not a usable folder path (`..`, or it resolves
  *   to the list root). Raised by core; `target` is the input as given.
  * - `requestFailed` — the server rejected creating this folder or one of its
- *   levels. Carries `status` when there was an HTTP response for it.
+ *   levels. Carries `status` when there was an HTTP response for that folder;
+ *   when a whole batch request failed there is none, and the batch's error is
+ *   the `cause`.
+ * - `notAFolder` — the name is already taken by something that is not a folder,
+ *   such as a file in a document library.
  * - `parentFailed` — an ancestor failed, so this path was never attempted;
  *   `cause` is the ancestor's IError, whose `target` names it.
  * - `noResult` — the provider returned no result for the path (a contract
  *   violation). Raised by core.
  */
 export type FolderErrorCode =
-  "invalidPath" | "requestFailed" | "parentFailed" | "noResult";
+  "invalidPath" | "requestFailed" | "notAFolder" | "parentFailed" | "noResult";
 
+/**
+ * A store whose items live in folders and may be files. Optional: core narrows
+ * with `hasFileSystem` and refuses folder/file operations, `add({ folder })` and
+ * `add({ file })` with an InvalidOperationException naming this capability when a
+ * provider lacks it. A provider without one ignores `includeContainers` and fails
+ * an insert whose `folderServerRelativeUrl` is not null.
+ */
 export interface IFileSystem {
   /**
    * Ensure each list-relative folder path exists, creating missing levels
@@ -307,11 +311,11 @@ export interface IFileSystem {
    *
    * - One `Result` per **distinct** input path, keyed by that path. Core passes
    *   normalized paths, but duplicates are tolerated.
-   * - A folder that already exists is success.
+   * - A folder that already exists is success; a name taken by something that
+   *   is not a folder (a file) is `notAFolder`, not success.
    * - A path's failure goes into its own result and never stops unrelated
    *   paths. When an ancestor fails, every path under it is `parentFailed`,
-   *   with the ancestor's `requestFailed` error as `cause`. Codes: see
-   *   {@link FolderErrorCode}.
+   *   with the ancestor's error as `cause`. Codes: see {@link FolderErrorCode}.
    * - An implementation may batch (one request per depth, chunked), and may
    *   create siblings at one depth in any order.
    * - Throws only when it cannot attempt any path, e.g. the list cannot be
