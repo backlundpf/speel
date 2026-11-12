@@ -1,5 +1,18 @@
 # @speel/pnpjs
 
+## 0.1.0-beta.7
+
+### Minor Changes
+
+- fba9a90: Folders: `DbSet.ensureFoldersAsync(paths)` creates many folders and returns one result per path, in input order, so one bad path never costs the others theirs (#118). With `@speel/pnpjs`, folders at the same depth go out together in one `$batch` (chunked at 100), so round trips scale with folder depth, not folder count. A failure is reported per path: `invalidPath`, `requestFailed` (with the folder's HTTP `status`; when a whole batch request fails there is no per-folder status and the batch error is the `cause`), `notAFolder` (the name is taken by a file or other non-folder item — SharePoint reports that the same way as an existing folder, so each collision is confirmed with one batched `Exists` read), `parentFailed` (an ancestor failed; `cause` is its error) or `noResult`. Folders created before a failure stay; re-running the call is the recovery. An existing folder is now recognized by SharePoint's language-neutral error code rather than English message text, so re-runs also work for non-English users; error messages carry SharePoint's own text instead of the PnPjs request wrapper. New standard outcome type: `Result<T>` (`{ ok, value?, errors? }`, with `ok` deciding which is present), `IError` (`code`, `message`, `target`, `status`, `cause`), the `Result.ok` / `Result.fail` / `Result.unwrap` helpers, and `OperationFailedException` for turning a failed result into a throw. Breaking for custom providers: `IFileSystem.ensureFoldersAsync` now returns `ReadonlyMap<string, Result<string>>` and reports a path's failure in its result instead of throwing (`FolderErrorCode` names the codes). `ensureFolderAsync` now throws `OperationFailedException` when the server refuses the folder, instead of the provider's raw error, and also when a provider returns no result for the path (code `noResult`), where it threw `InvalidOperationException` before. `add({ folder })` reports every folder that could not be ensured in one `DbUpdateException` whose `innerErrors` are every `IError` those folders reported.
+
+### Patch Changes
+
+- Updated dependencies [fba9a90]
+  - @speel/core@0.1.0-beta.7
+  - @speel/identity@0.1.0-beta.7
+  - @speel/migrations@0.1.0-beta.7
+
 ## 0.1.0-beta.6
 
 ### Patch Changes

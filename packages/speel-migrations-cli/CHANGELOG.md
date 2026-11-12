@@ -1,5 +1,13 @@
 # @speel/migrations-cli
 
+## 0.1.0-beta.7
+
+### Patch Changes
+
+- Updated dependencies [fba9a90]
+  - @speel/core@0.1.0-beta.7
+  - @speel/migrations@0.1.0-beta.7
+
 ## 0.1.0-beta.6
 
 ### Patch Changes
