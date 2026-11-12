@@ -32,9 +32,11 @@ import type { ISharePointHost } from "./ISharePointHost.js";
 // whose message contains this phrase; treat it as success so ensureFoldersAsync
 // stays idempotent. Matched per $batch sub-response, on message content, not
 // status (PnPjs wraps it loosely). Any other error is that folder's requestFailed.
-// NOTE: best-effort — this string match has not yet been confirmed against a live
-// tenant. If AddSubFolderUsingPath turns out to be idempotent (succeeds on an
-// existing folder), this branch never fires and behavior is unchanged.
+// Verified live 2026-11-12 (samples/spfx-sample/tests/ensureFolders.spec.ts): a
+// batch mixing an existing folder with new ones reports the existing one as ok.
+// Caveats: the match is on English text (SharePoint localizes the message), and a
+// FILE of the same name ("A file or folder with the name … already exists") would
+// match too.
 function isFolderExistsError(err: unknown): boolean {
   if (typeof err !== "object" || err === null) return false;
   const e = err as { message?: string; data?: { message?: string } };

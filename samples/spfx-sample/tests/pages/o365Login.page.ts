@@ -12,6 +12,9 @@ import { loadEnv, type O365UserConfig } from "../helpers/env";
 export class O365LoginPage {
   private readonly defaultTimeout = 30_000;
 
+  /** Where the login was headed; resumed after a post-sign-in interstitial. */
+  private destination: string | undefined;
+
   constructor(private readonly page: Page) {}
 
   async gotoLogin(targetUrl?: string): Promise<void> {
@@ -21,6 +24,7 @@ export class O365LoginPage {
       throw new Error("Login destination is not configured.");
     }
 
+    this.destination = destination;
     await this.page.goto(destination, {
       waitUntil: "domcontentloaded",
       timeout: 60_000,
@@ -215,6 +219,22 @@ export class O365LoginPage {
           )
           .catch(() => {});
 
+        return;
+      }
+
+      // No skip button: a registration campaign (e.g. the passkey prompt,
+      // `register?requirement=RegistrationCampaign`). It only loads AFTER sign-in
+      // has completed, so the session is authenticated — go straight on to the
+      // page the login was headed for instead of answering the campaign.
+      const destination = this.destination ?? loadEnv().baseURL;
+      if (destination) {
+        console.log(
+          `[O365Login] Registration campaign (${page.url()}); resuming ${destination}`,
+        );
+        await page.goto(destination, {
+          waitUntil: "domcontentloaded",
+          timeout: 60_000,
+        });
         return;
       }
 

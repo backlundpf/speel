@@ -99,6 +99,8 @@ test("ensureFoldersAsync: mixed new, existing and invalid paths in one call", as
     errors: [{ code: "requestFailed" }],
   });
   expect(typeof out.results[5]!.errors![0]!.status).toBe("number");
+  // SharePoint's own text, not PnPjs's "Error making HttpClient request" wrapper.
+  expect(out.results[5]!.errors![0]!.message).not.toMatch(/HttpClient/);
   expect(out.results[6]).toMatchObject({
     ok: false,
     errors: [{ code: "parentFailed" }],
