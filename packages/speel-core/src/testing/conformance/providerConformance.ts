@@ -212,9 +212,12 @@ export function providerConformanceCases(
 
   async function folderUrl(): Promise<string> {
     const urls = await h.provider.ensureFoldersAsync(h.list, [h.folderPath]);
-    const url = urls.get(h.folderPath);
-    assertTrue(!!url, `ensureFoldersAsync did not resolve '${h.folderPath}'`);
-    return url;
+    const r = urls.get(h.folderPath);
+    assertTrue(
+      !!r?.ok,
+      `ensureFoldersAsync did not resolve '${h.folderPath}': ${JSON.stringify(r?.errors)}`,
+    );
+    return r.value;
   }
 
   async function twoLookupIds(): Promise<number[]> {

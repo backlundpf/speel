@@ -17,6 +17,7 @@ import type {
   IWriteField,
 } from "../providers/ISharePointProvider.js";
 import { QueryTranslationException } from "../errors.js";
+import { Result, type IError } from "../Result.js";
 import { dispatchReadOperation } from "../Query/ReadBatch.js";
 import { resolvePath } from "../Query/Materialize.js";
 import { listKey } from "../Cache/listKey.js";
@@ -342,6 +343,10 @@ export class FakeStorageProvider
   private readonly filesByUrl = new Map<string, Map<string, number>>();
   private readonly nextIds = new Map<string, number>();
   private readonly failures = new Map<string, IFailure>();
+  private readonly folderFailures = new Map<
+    string,
+    { status: number; message: string }
+  >();
 
   // Change log for getListItemChangesSinceToken. A global monotonic seq is
   // stamped on every add/update and on each delete; the change token is just
@@ -803,6 +808,19 @@ export class FakeStorageProvider
     this.failures.set(clientToken, failure);
   }
 
+  /**
+   * Make creating the folder at `listRelativePath` fail (on any list). That path
+   * reports `requestFailed`; every path under it reports `parentFailed` with the
+   * path's error as `cause`. Nothing at or under it is created; siblings are
+   * unaffected.
+   */
+  failFolderOn(
+    listRelativePath: string,
+    failure: { status: number; message: string },
+  ): void {
+    this.folderFailures.set(listRelativePath, failure);
+  }
+
   private store(list: IListHandle): Map<number, Record<string, unknown>> {
     const k = listKey(list);
     let m = this.stores.get(k);
@@ -1034,7 +1052,7 @@ export class FakeStorageProvider
   async ensureFoldersAsync(
     list: IListHandle,
     listRelativePaths: readonly string[],
-  ): Promise<Map<string, string>> {
+  ): Promise<ReadonlyMap<string, Result<string>>> {
     const k = listKey(list);
     let set = this.folderPaths.get(k);
     if (!set) {
@@ -1042,13 +1060,36 @@ export class FakeStorageProvider
       this.folderPaths.set(k, set);
     }
     const rootUrl = `/sites/dev/${list.value}`;
-    const out = new Map<string, string>();
-    for (const path of listRelativePaths) {
+    const out = new Map<string, Result<string>>();
+    paths: for (const path of new Set(listRelativePaths)) {
       let acc = "";
       for (const seg of path.split("/")) {
         if (seg === "") continue; // mirror the real provider's defensive skip
         const parentUrl = acc ? `${rootUrl}/${acc}` : rootUrl;
         acc = acc ? `${acc}/${seg}` : seg;
+        const injected = this.folderFailures.get(acc);
+        if (injected) {
+          const own: IError = {
+            code: "requestFailed",
+            message: injected.message,
+            status: injected.status,
+            target: acc,
+          };
+          out.set(
+            path,
+            Result.fail(
+              acc === path
+                ? own
+                : {
+                    code: "parentFailed",
+                    message: `could not create parent folder '${acc}': ${injected.message}`,
+                    target: path,
+                    cause: own,
+                  },
+            ),
+          );
+          continue paths;
+        }
         if (!set.has(acc)) {
           set.add(acc);
           // Materialize the folder as a row, like SharePoint does (FSObjType=1),
@@ -1064,7 +1105,7 @@ export class FakeStorageProvider
           this.bump(list, id);
         }
       }
-      out.set(path, `${rootUrl}/${path}`);
+      out.set(path, Result.ok(`${rootUrl}/${path}`));
     }
     return out;
   }

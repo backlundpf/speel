@@ -42,6 +42,7 @@ export type {
 export type {
   IStorageProvider,
   IFileSystem,
+  FolderErrorCode,
   IChangeFeed,
   ISharePointProvider,
   IBatchOperation,

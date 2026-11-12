@@ -73,10 +73,13 @@ describe("SharePointProvider folder placement", () => {
     const map = await provider.ensureFoldersAsync(list, ["a/b/c", "a/b"]);
     // Each level created once via addSubFolderUsingPath; shared ancestors descended, not re-created.
     expect(created).toEqual(["a", "a/b", "a/b/c"]);
-    expect(map.get("a/b/c")).toBe("/sites/dev/Docs/a/b/c");
+    expect(map.get("a/b/c")).toEqual({
+      ok: true,
+      value: "/sites/dev/Docs/a/b/c",
+    });
   });
 
-  it("ensureFoldersAsync rethrows errors that are not folder-already-exists", async () => {
+  it("ensureFoldersAsync: a non-exists error is that path's requestFailed result", async () => {
     const rootList = () => ({
       rootFolder: {
         select: (_f: string) => async () => ({
@@ -94,9 +97,18 @@ describe("SharePointProvider folder placement", () => {
       },
     };
     const provider = new SharePointProvider(sp2);
-    await expect(
-      provider.ensureFoldersAsync(list, ["a"]),
-    ).rejects.toMatchObject({ message: "Access denied." });
+    const map = await provider.ensureFoldersAsync(list, ["a"]);
+    expect(map.get("a")).toMatchObject({
+      ok: false,
+      errors: [
+        {
+          code: "requestFailed",
+          status: 403,
+          target: "a",
+          message: "Access denied.",
+        },
+      ],
+    });
   });
 
   it("ensureFoldersAsync throws if the list root folder URL cannot be resolved", async () => {

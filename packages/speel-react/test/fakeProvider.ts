@@ -1,4 +1,5 @@
 import type { FilterNode, IFileSystem, IStorageProvider } from "@speel/core";
+import { Result } from "@speel/core";
 
 export interface FakeData {
   [listTitle: string]: Record<string, unknown>[];
@@ -233,7 +234,10 @@ export function makeFakeProvider(
     ensureFoldersAsync: async (
       list: { value: string },
       paths: readonly string[],
-    ) => new Map(paths.map((p) => [p, `/sites/dev/${list.value}/${p}`])),
+    ) =>
+      new Map(
+        paths.map((p) => [p, Result.ok(`/sites/dev/${list.value}/${p}`)]),
+      ),
     uploadFileAsync: async (
       list: { value: string },
       folderServerRelativeUrl: string | null,

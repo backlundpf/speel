@@ -58,7 +58,7 @@ describe("DbSet.renameFileAsync", () => {
   ): Promise<number> {
     const url = (await provider.ensureFoldersAsync(reports, [folder])).get(
       folder,
-    )!;
+    )!.value!;
     const res = await provider.uploadFileAsync(reports, url, {
       fileName: name,
       content: "bytes",

@@ -15,6 +15,7 @@ import {
   ModelConfigurationException,
   InvalidOperationException,
 } from "./errors.js";
+import { Result } from "./Result.js";
 import { Query, IncludableQuery } from "./Query/Query.js";
 import { QueryExecutor } from "./Query/QueryExecutor.js";
 import type { FilterBuilder } from "./Query/FilterBuilder.js";
@@ -553,13 +554,14 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
     }
     const fs = requireFileSystem(this.provider, "ensureFolderAsync()");
     const urls = await fs.ensureFoldersAsync(this.entityType.list, [path]);
-    const url = urls.get(path);
-    if (url === undefined) {
-      throw new InvalidOperationException(
-        `ensureFolderAsync('${folderPath}'): the provider created the folder but returned no URL for it.`,
-      );
-    }
-    return url;
+    return Result.unwrap(
+      urls.get(path) ??
+        Result.fail({
+          code: "noResult",
+          message: `ensureFolderAsync('${folderPath}'): the provider returned no result for it.`,
+          target: path,
+        }),
+    );
   }
 
   /**

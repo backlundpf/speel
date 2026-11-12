@@ -21,6 +21,7 @@ import type {
   IListHandle,
   IRenameResult,
 } from "@speel/core";
+import { Result } from "@speel/core";
 import { toFormValues, type IFormValue } from "./formValues.js";
 import type { ISharePointHost } from "./ISharePointHost.js";
 
@@ -64,8 +65,9 @@ export class SharePointFileSystem implements IFileSystem {
   async ensureFoldersAsync(
     list: IListHandle,
     listRelativePaths: readonly string[],
-  ): Promise<Map<string, string>> {
-    if (listRelativePaths.length === 0) return new Map();
+  ): Promise<ReadonlyMap<string, Result<string>>> {
+    const out = new Map<string, Result<string>>();
+    if (listRelativePaths.length === 0) return out;
     const rootUrl = await this.host.resolveListRootUrl(list);
 
     // Create each path as proper LIST folders, segment by segment, from the list's
@@ -75,19 +77,31 @@ export class SharePointFileSystem implements IFileSystem {
     // yields a bare file-system folder the list can't render and won't accept items in.)
     for (const path of new Set(listRelativePaths)) {
       let folder: IFolder = this.host.list(list).rootFolder;
-      for (const seg of path.split("/")) {
-        if (seg === "") continue; // defensive: skip stray '' / '//' segments
-        try {
-          folder = await folder.addSubFolderUsingPath(seg);
-        } catch (err: unknown) {
-          if (!isFolderExistsError(err)) throw err;
-          folder = folder.folders.getByUrl(seg); // already exists — descend into it
+      try {
+        for (const seg of path.split("/")) {
+          if (seg === "") continue; // defensive: skip stray '' / '//' segments
+          try {
+            folder = await folder.addSubFolderUsingPath(seg);
+          } catch (err: unknown) {
+            if (!isFolderExistsError(err)) throw err;
+            folder = folder.folders.getByUrl(seg); // already exists — descend into it
+          }
         }
+        out.set(path, Result.ok(`${rootUrl}/${path}`));
+      } catch (err: unknown) {
+        const e = err as { message?: string; status?: number } | null;
+        out.set(
+          path,
+          Result.fail({
+            code: "requestFailed",
+            message: e?.message ?? String(err),
+            ...(typeof e?.status === "number" ? { status: e.status } : {}),
+            target: path,
+            cause: err,
+          }),
+        );
       }
     }
-
-    const out = new Map<string, string>();
-    for (const path of listRelativePaths) out.set(path, `${rootUrl}/${path}`);
     return out;
   }
 

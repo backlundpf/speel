@@ -2,6 +2,7 @@
 import type { IListHandle } from "../types.js";
 import type { FilterNode } from "../Query/FilterNode.js";
 import type { Property } from "../Metadata/Property.js";
+import type { Result } from "../Result.js";
 
 export type { IListHandle, FilterNode };
 
@@ -284,16 +285,42 @@ export interface IStorageProvider {
  * provider lacks it. A provider without one ignores `includeContainers` and fails
  * an insert whose `folderServerRelativeUrl` is not null.
  */
+/**
+ * The `IError.code` values folder creation reports.
+ *
+ * - `invalidPath` — the path is not a usable folder path (`..`, or it resolves
+ *   to the list root). Raised by core; `target` is the input as given.
+ * - `requestFailed` — the server rejected creating this folder or one of its
+ *   levels. Carries `status` when there was an HTTP response for it.
+ * - `parentFailed` — an ancestor failed, so this path was never attempted;
+ *   `cause` is the ancestor's IError, whose `target` names it.
+ * - `noResult` — the provider returned no result for the path (a contract
+ *   violation). Raised by core.
+ */
+export type FolderErrorCode =
+  "invalidPath" | "requestFailed" | "parentFailed" | "noResult";
+
 export interface IFileSystem {
   /**
-   * Ensure each list-relative folder path exists (creating missing levels
-   * recursively, shallow-first), and resolve it to a server-relative URL.
-   * Returns a map keyed by the input list-relative path.
+   * Ensure each list-relative folder path exists, creating missing levels
+   * shallowest first, and resolve each to its server-relative URL.
+   *
+   * - One `Result` per **distinct** input path, keyed by that path. Core passes
+   *   normalized paths, but duplicates are tolerated.
+   * - A folder that already exists is success.
+   * - A path's failure goes into its own result and never stops unrelated
+   *   paths. When an ancestor fails, every path under it is `parentFailed`,
+   *   with the ancestor's `requestFailed` error as `cause`. Codes: see
+   *   {@link FolderErrorCode}.
+   * - An implementation may batch (one request per depth, chunked), and may
+   *   create siblings at one depth in any order.
+   * - Throws only when it cannot attempt any path, e.g. the list cannot be
+   *   resolved.
    */
   ensureFoldersAsync(
     list: IListHandle,
     listRelativePaths: readonly string[],
-  ): Promise<Map<string, string>>;
+  ): Promise<ReadonlyMap<string, Result<string>>>;
 
   /**
    * Upload file content into a folder (or the library root when

@@ -24,13 +24,58 @@ async function insertInFolder(
   return res.serverData!.id;
 }
 
+describe("FakeStorageProvider ensureFoldersAsync results", () => {
+  it("returns ok with the server-relative URL per distinct path", async () => {
+    const p = new FakeStorageProvider();
+    const map = await p.ensureFoldersAsync(list, ["a/b", "c"]);
+    expect(map.get("a/b")).toEqual({ ok: true, value: "/sites/dev/Docs/a/b" });
+    expect(map.get("c")).toEqual({ ok: true, value: "/sites/dev/Docs/c" });
+  });
+
+  it("an existing folder is ok", async () => {
+    const p = new FakeStorageProvider();
+    await p.ensureFoldersAsync(list, ["a"]);
+    const map = await p.ensureFoldersAsync(list, ["a"]);
+    expect(map.get("a")).toEqual({ ok: true, value: "/sites/dev/Docs/a" });
+  });
+
+  it("failFolderOn fails the path and its descendants, not siblings", async () => {
+    const p = new FakeStorageProvider();
+    p.failFolderOn("a/b", { status: 403, message: "Access denied." });
+    const map = await p.ensureFoldersAsync(list, ["a/b", "a/b/c", "a/x"]);
+    expect(map.get("a/b")).toMatchObject({
+      ok: false,
+      errors: [
+        {
+          code: "requestFailed",
+          status: 403,
+          target: "a/b",
+          message: "Access denied.",
+        },
+      ],
+    });
+    const child = map.get("a/b/c")!.errors![0]!;
+    expect(child).toMatchObject({ code: "parentFailed", target: "a/b/c" });
+    expect(child.message).toBe(
+      "could not create parent folder 'a/b': Access denied.",
+    );
+    expect(child.cause).toMatchObject({ target: "a/b" });
+    expect(map.get("a/x")!.ok).toBe(true);
+    const folders = p.getFolders(list);
+    expect(folders).toContain("a");
+    expect(folders).toContain("a/x");
+    expect(folders).not.toContain("a/b");
+    expect(folders).not.toContain("a/b/c");
+  });
+});
+
 describe("FakeStorageProvider folder support", () => {
   it("ensureFoldersAsync creates ancestor levels, dedups, and resolves URLs", async () => {
     const p = new FakeStorageProvider();
     const map = await p.ensureFoldersAsync(list, ["a/b/c", "a/b"]);
     expect(p.getFolders(list).sort()).toEqual(["a", "a/b", "a/b/c"]);
-    expect(map.get("a/b/c")).toMatch(/\/a\/b\/c$/);
-    expect(map.get("a/b")).toMatch(/\/a\/b$/);
+    expect(map.get("a/b/c")?.value).toMatch(/\/a\/b\/c$/);
+    expect(map.get("a/b")?.value).toMatch(/\/a\/b$/);
   });
 
   it("ensureFoldersAsync is idempotent across calls", async () => {
@@ -159,7 +204,7 @@ describe("FakeStorageProvider folder support", () => {
 
   it("deleteFolderAsync recycles rather than destroys, and takes folderless items in the folder", async () => {
     const p = new FakeStorageProvider();
-    const url = (await p.ensureFoldersAsync(list, ["a"])).get("a")!;
+    const url = (await p.ensureFoldersAsync(list, ["a"])).get("a")!.value!;
     const itemId = await insertInFolder(p, url, "Hi");
 
     await p.deleteFolderAsync(list, "a");

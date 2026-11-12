@@ -59,7 +59,7 @@ describe("FakeStorageProvider container scoping", () => {
     const urls = await p.ensureFoldersAsync(list, ["a/b"]);
     p.seedRow(list, { Title: "root item" });
     await p.executeBatchAsync([
-      insertInFolder(urls.get("a/b")!, "nested", "n"),
+      insertInFolder(urls.get("a/b")!.value!, "nested", "n"),
     ]);
     const inAB = await p.getItemsPagedAsync(list, ["Title"], 100, undefined, {
       filter: scope("a/b"),
@@ -78,8 +78,8 @@ describe("FakeStorageProvider container scoping", () => {
       "reports-archive",
     ]);
     await p.executeBatchAsync([
-      insertInFolder(urls.get("reports/2026")!, "deep", "a"),
-      insertInFolder(urls.get("reports-archive")!, "trap", "b"),
+      insertInFolder(urls.get("reports/2026")!.value!, "deep", "a"),
+      insertInFolder(urls.get("reports-archive")!.value!, "trap", "b"),
     ]);
     const r = await p.getItemsPagedAsync(list, ["Title"], 100, undefined, {
       filter: scope("reports", true),
@@ -90,7 +90,7 @@ describe("FakeStorageProvider container scoping", () => {
   it("write-then-read-back: an uploaded file is found by inFolder of its path", async () => {
     const p = new FakeStorageProvider();
     const urls = await p.ensureFoldersAsync(list, ["inbox"]);
-    await p.uploadFileAsync(list, urls.get("inbox")!, {
+    await p.uploadFileAsync(list, urls.get("inbox")!.value!, {
       fileName: "q2.pdf",
       content: "x",
       overwrite: false,

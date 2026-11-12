@@ -52,7 +52,9 @@ describe("DbSet.checkinFileAsync", () => {
 
   /** Upload a file into the fake library, checked out to `userId` unless null. */
   async function seedFile(userId: number | null = 7): Promise<number> {
-    const url = (await provider.ensureFoldersAsync(reports, ["a"])).get("a")!;
+    const url = (await provider.ensureFoldersAsync(reports, ["a"])).get(
+      "a",
+    )!.value!;
     const res = await provider.uploadFileAsync(reports, url, {
       fileName: "q2.pdf",
       content: "bytes",

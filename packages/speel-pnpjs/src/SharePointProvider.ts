@@ -43,6 +43,7 @@ import type {
   IReadOperation,
   IReadOperationResult,
   IRenameResult,
+  Result,
   ISourceHandle,
   IWriteField,
   Property,
@@ -1120,7 +1121,7 @@ export class SharePointProvider
   ensureFoldersAsync(
     list: IListHandle,
     listRelativePaths: readonly string[],
-  ): Promise<Map<string, string>> {
+  ): Promise<ReadonlyMap<string, Result<string>>> {
     return this.files.ensureFoldersAsync(list, listRelativePaths);
   }
 
