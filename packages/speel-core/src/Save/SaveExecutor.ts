@@ -18,6 +18,7 @@ import { requireFileSystem } from "../providers/capabilities.js";
 import { fileFactsPatch } from "./fileUpload.js";
 import { listKey } from "../Cache/listKey.js";
 import { DbUpdateException, SaveAbortedException } from "../errors.js";
+import { Result, type IError } from "../Result.js";
 import { clearReadOnlyMembers } from "../Entities/readOnlyMembers.js";
 
 export interface ISaveChangesOptions {
@@ -154,6 +155,11 @@ export class SaveExecutor {
         }
         g.entries.push(e);
       }
+      // Every folder failure is collected, then the save fails once — before any
+      // item op is built or sent, so nothing is written into a missing folder.
+      const failedEntries: EntityEntry[] = [];
+      const failedErrors: IError[] = [];
+      const failedFolders = new Map<string, string>(); // path → message
       for (const { list, entries } of byList.values()) {
         const paths = [...new Set(entries.map((e) => e.targetFolder!))];
         // add({ folder }) already refused a store without folders; this is the
@@ -163,16 +169,34 @@ export class SaveExecutor {
           "add({ folder })",
         ).ensureFoldersAsync(list, paths);
         for (const e of entries) {
-          const url = resolved.get(e.targetFolder!);
-          if (url === undefined) {
-            throw new DbUpdateException(
-              `ensureFoldersAsync did not resolve folder '${e.targetFolder}' for ${e.entityType.ctor.name}.`,
-              [e],
-              [],
-            );
+          const path = e.targetFolder!;
+          const r: Result<string> =
+            resolved.get(path) ??
+            Result.fail({
+              code: "noResult",
+              message: `ensureFoldersAsync returned no result for folder '${path}'.`,
+              target: path,
+            });
+          if (r.ok) {
+            folderUrlByEntry.set(e, r.value);
+            continue;
           }
-          folderUrlByEntry.set(e, url);
+          failedEntries.push(e);
+          // Every error the folder reported, so none is lost to a provider that
+          // explains one failure several ways.
+          failedErrors.push(...r.errors);
+          failedFolders.set(path, r.errors.map((x) => x.message).join("; "));
         }
+      }
+      if (failedEntries.length > 0) {
+        const detail = [...failedFolders]
+          .map(([path, msg]) => `'${path}': ${msg}`)
+          .join("; ");
+        throw new DbUpdateException(
+          `Could not ensure folder(s) for add({ folder }): ${detail}`,
+          failedEntries,
+          failedErrors,
+        );
       }
     }
 

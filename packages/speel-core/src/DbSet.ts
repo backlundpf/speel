@@ -15,6 +15,7 @@ import {
   ModelConfigurationException,
   InvalidOperationException,
 } from "./errors.js";
+import { Result } from "./Result.js";
 import { Query, IncludableQuery } from "./Query/Query.js";
 import { QueryExecutor } from "./Query/QueryExecutor.js";
 import type { FilterBuilder } from "./Query/FilterBuilder.js";
@@ -524,6 +525,82 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
   }
 
   /**
+   * Create many folders on this list, including any missing parent levels — the
+   * multi-path form of {@link ensureFolderAsync}, with the same rules: paths are
+   * list-relative and normalized the same way, an existing folder is success,
+   * and it applies immediately rather than at save time.
+   *
+   * Returns one `Result` per input, **aligned to the input** (`results[i]`
+   * belongs to `folderPaths[i]`); an ok result's value is the folder's
+   * server-relative URL. A failure never costs the other paths their result.
+   * Failure codes ({@link FolderErrorCode}):
+   *
+   * - `invalidPath` — `..` segments, or a path that resolves to the list root.
+   *   `target` is the input as given.
+   * - `requestFailed` — the server refused this folder; carries `status` when
+   *   the server answered for this folder.
+   * - `notAFolder` — the name is taken by something that is not a folder, such
+   *   as a file in a document library.
+   * - `parentFailed` — an ancestor failed, so this path was not attempted;
+   *   `cause` is the ancestor's error.
+   * - `noResult` — the provider returned nothing for the path.
+   *
+   * Inputs that normalize to the same path are created once and share a result.
+   * Folders created before a failure stay — there is no rollback; creation is
+   * idempotent, so re-running the same call is the recovery.
+   *
+   * Throws (instead of returning results) only when nothing can be attempted:
+   * a disposed context, a provider without a file system, or a provider that
+   * cannot reach the list at all.
+   */
+  async ensureFoldersAsync(
+    folderPaths: readonly string[],
+  ): Promise<readonly Result<string>[]> {
+    this.assertNotDisposed?.();
+    const fs = requireFileSystem(this.provider, "ensureFoldersAsync()");
+
+    const normalized: (string | Result<string>)[] = folderPaths.map((raw) => {
+      let path: string;
+      try {
+        path = normalizeFolderPath(raw);
+      } catch (err: unknown) {
+        return Result.fail({
+          code: "invalidPath",
+          message: (err as Error).message,
+          target: raw,
+          cause: err,
+        });
+      }
+      return path === ""
+        ? Result.fail({
+            code: "invalidPath",
+            message: `'${raw}' resolves to the list root, which always exists.`,
+            target: raw,
+          })
+        : path;
+    });
+
+    const distinct = [
+      ...new Set(normalized.filter((n): n is string => typeof n === "string")),
+    ];
+    const resolved =
+      distinct.length > 0
+        ? await fs.ensureFoldersAsync(this.entityType.list, distinct)
+        : new Map<string, Result<string>>();
+
+    return normalized.map((n) =>
+      typeof n !== "string"
+        ? n
+        : (resolved.get(n) ??
+          Result.fail({
+            code: "noResult",
+            message: `The provider returned no result for folder '${n}'.`,
+            target: n,
+          })),
+    );
+  }
+
+  /**
    * Create a folder on this list, including any missing parent levels.
    * `folderPath` is list-relative, the same shape `add(entity, { folder })`
    * takes — and the same normalization, so a path is accepted with or without
@@ -542,6 +619,10 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
    * list's own root folder while creating the path, so taking it here costs nothing
    * and spares callers composing one from a web URL and a list title — which is a
    * guess, since a list's URL comes from its internal name at creation.
+   *
+   * The single-path case of {@link ensureFoldersAsync}: a path it cannot use
+   * throws `InvalidOperationException`; a failure on the server throws
+   * `OperationFailedException`, whose `errors` say why.
    */
   async ensureFolderAsync(folderPath: string): Promise<string> {
     this.assertNotDisposed?.();
@@ -551,15 +632,9 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
         `ensureFolderAsync() requires a folder path: '${folderPath}' resolves to the list root, which always exists.`,
       );
     }
-    const fs = requireFileSystem(this.provider, "ensureFolderAsync()");
-    const urls = await fs.ensureFoldersAsync(this.entityType.list, [path]);
-    const url = urls.get(path);
-    if (url === undefined) {
-      throw new InvalidOperationException(
-        `ensureFolderAsync('${folderPath}'): the provider created the folder but returned no URL for it.`,
-      );
-    }
-    return url;
+    requireFileSystem(this.provider, "ensureFolderAsync()");
+    const [result] = await this.ensureFoldersAsync([path]);
+    return Result.unwrap(result!);
   }
 
   /**

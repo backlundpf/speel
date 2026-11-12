@@ -111,7 +111,7 @@ describe("FakeStorageProvider insert", () => {
 
   it("places a folder insert and reports the folder as FileDirRef", async () => {
     const urls = await p.ensureFoldersAsync(list, ["SpeelE2E/X"]);
-    const folder = urls.get("SpeelE2E/X")!;
+    const folder = urls.get("SpeelE2E/X")!.value!;
     const res = await insert([{ property: TITLE, value: "t" }], folder);
     const id = (res as { serverData: { id: number } }).serverData.id;
     const row = await p.getItemByIdAsync(list, id, ["FileDirRef"]);

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ModelBuilder } from "../../src/ModelBuilder/ModelBuilder.js";
 import { ChangeTracker } from "../../src/ChangeTracker/ChangeTracker.js";
 import { DbSet } from "../../src/DbSet.js";
@@ -7,6 +7,12 @@ import { SpeelEntity } from "../../src/SpeelEntity.js";
 import { FakeStorageProvider } from "./fakes/FakeStorageProvider.js";
 import type { IListHandle } from "../../src/types.js";
 import { TestPrincipal as Principal } from "./fakes/testPrincipals.js";
+import type { IError } from "../../src/Result.js";
+import { Result } from "../../src/Result.js";
+import {
+  InvalidOperationException,
+  OperationFailedException,
+} from "../../src/errors.js";
 
 class Report extends SpeelDocument {
   Title: string | null = null;
@@ -217,5 +223,139 @@ describe("DbSet.deleteFolderAsync", () => {
     await expect(reportSet.deleteFolderAsync("nope")).rejects.toThrow(
       /not found/,
     );
+  });
+});
+
+describe("DbSet.ensureFoldersAsync", () => {
+  let provider: FakeStorageProvider;
+  let reportSet: DbSet<Report>;
+
+  beforeEach(() => {
+    provider = new FakeStorageProvider();
+    const model = buildModel();
+    const tracker = new ChangeTracker(model, provider);
+    reportSet = new DbSet<Report>(Report, model, provider, tracker);
+  });
+
+  it("results are aligned to the input, new and existing mixed", async () => {
+    await reportSet.ensureFolderAsync("responses");
+    const results = await reportSet.ensureFoldersAsync([
+      "responses/r-1",
+      "responses",
+      "evidence",
+    ]);
+    expect(results).toEqual([
+      { ok: true, value: "/sites/dev/Reports/responses/r-1" },
+      { ok: true, value: "/sites/dev/Reports/responses" },
+      { ok: true, value: "/sites/dev/Reports/evidence" },
+    ]);
+  });
+
+  it("a failed parent fails its children and spares unrelated paths", async () => {
+    provider.failFolderOn("responses", {
+      status: 403,
+      message: "Access denied.",
+    });
+    const results = await reportSet.ensureFoldersAsync([
+      "responses/r-1",
+      "responses/r-2",
+      "evidence",
+    ]);
+    for (const r of results.slice(0, 2)) {
+      expect(r.ok).toBe(false);
+      expect(r.errors![0]!.code).toBe("parentFailed");
+      expect((r.errors![0]!.cause as IError).target).toBe("responses");
+    }
+    expect(results[2]!.ok).toBe(true);
+  });
+
+  it("duplicates, including after normalization, hit the provider once per distinct path", async () => {
+    const spy = vi.spyOn(provider, "ensureFoldersAsync");
+    const results = await reportSet.ensureFoldersAsync([
+      "a/b",
+      "/a/b/",
+      "a\\b",
+    ]);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0]![1]).toEqual(["a/b"]);
+    for (const r of results) {
+      expect(r).toEqual({ ok: true, value: "/sites/dev/Reports/a/b" });
+    }
+  });
+
+  it("invalid paths are per-path invalidPath failures, the rest still run", async () => {
+    const spy = vi.spyOn(provider, "ensureFoldersAsync");
+    const results = await reportSet.ensureFoldersAsync(["../x", "", "ok"]);
+    expect(results[0]!.errors![0]).toMatchObject({
+      code: "invalidPath",
+      target: "../x",
+    });
+    expect(results[1]!.errors![0]).toMatchObject({
+      code: "invalidPath",
+      target: "",
+    });
+    expect(results[2]!.ok).toBe(true);
+    expect(spy.mock.calls[0]![1]).toEqual(["ok"]);
+  });
+
+  it("all-invalid input does not call the provider", async () => {
+    const spy = vi.spyOn(provider, "ensureFoldersAsync");
+    const results = await reportSet.ensureFoldersAsync(["", "/"]);
+    expect(results.map((r) => r.errors![0]!.code)).toEqual([
+      "invalidPath",
+      "invalidPath",
+    ]);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("empty input returns [] without calling the provider", async () => {
+    const spy = vi.spyOn(provider, "ensureFoldersAsync");
+    expect(await reportSet.ensureFoldersAsync([])).toEqual([]);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("a path the provider omits is noResult", async () => {
+    vi.spyOn(provider, "ensureFoldersAsync").mockResolvedValue(new Map());
+    const [r] = await reportSet.ensureFoldersAsync(["a"]);
+    expect(r!.errors![0]).toMatchObject({ code: "noResult", target: "a" });
+  });
+
+  it("rejects when the provider cannot attempt any path", async () => {
+    vi.spyOn(provider, "ensureFoldersAsync").mockRejectedValue(
+      new Error("list not found"),
+    );
+    await expect(reportSet.ensureFoldersAsync(["a"])).rejects.toThrow(
+      "list not found",
+    );
+  });
+
+  it("ensureFolderAsync throws OperationFailedException on a provider failure", async () => {
+    provider.failFolderOn("x", { status: 403, message: "Access denied." });
+    const err = await reportSet.ensureFolderAsync("x").then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(OperationFailedException);
+    expect((err as OperationFailedException).errors[0]!.code).toBe(
+      "requestFailed",
+    );
+  });
+
+  it("ensureFolderAsync still throws InvalidOperationException for root and '..'", async () => {
+    await expect(reportSet.ensureFolderAsync("")).rejects.toBeInstanceOf(
+      InvalidOperationException,
+    );
+    await expect(reportSet.ensureFolderAsync("a/../b")).rejects.toBeInstanceOf(
+      InvalidOperationException,
+    );
+  });
+
+  it("a provider-returned Result passes through unchanged", async () => {
+    vi.spyOn(provider, "ensureFoldersAsync").mockResolvedValue(
+      new Map([["a", Result.ok("/custom/a")]]),
+    );
+    expect(await reportSet.ensureFoldersAsync(["a"])).toEqual([
+      { ok: true, value: "/custom/a" },
+    ]);
   });
 });

@@ -72,7 +72,7 @@ describe("FileLeafRef: writable on a document, read-only on a list item", () => 
   async function seedDoc(name: string): Promise<Report> {
     const url = (await provider.ensureFoldersAsync(reports, ["reports"])).get(
       "reports",
-    )!;
+    )!.value!;
     const res = await provider.uploadFileAsync(reports, url, {
       fileName: name,
       content: "bytes",

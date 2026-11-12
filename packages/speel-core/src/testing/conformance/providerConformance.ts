@@ -212,9 +212,12 @@ export function providerConformanceCases(
 
   async function folderUrl(): Promise<string> {
     const urls = await h.provider.ensureFoldersAsync(h.list, [h.folderPath]);
-    const url = urls.get(h.folderPath);
-    assertTrue(!!url, `ensureFoldersAsync did not resolve '${h.folderPath}'`);
-    return url;
+    const r = urls.get(h.folderPath);
+    assertTrue(
+      !!r?.ok,
+      `ensureFoldersAsync did not resolve '${h.folderPath}': ${JSON.stringify(r?.errors)}`,
+    );
+    return r.value;
   }
 
   async function twoLookupIds(): Promise<number[]> {
@@ -541,6 +544,32 @@ export function providerConformanceCases(
           assertEqual(row[col], title, "uploaded item Title");
         } finally {
           await remove(h.library, r.id);
+        }
+      },
+    },
+    {
+      name: "ensureFoldersAsync: new and existing paths in one call are both ok",
+      async run() {
+        await folderUrl(); // the existing one
+        const fresh = `${h.folderPath}/${token()}-${Date.now()}`;
+        try {
+          const results = await h.provider.ensureFoldersAsync(h.list, [
+            h.folderPath,
+            fresh,
+          ]);
+          for (const p of [h.folderPath, fresh]) {
+            const r = results.get(p);
+            assertTrue(
+              !!r?.ok,
+              `ensureFoldersAsync('${p}') failed: ${JSON.stringify(r?.errors)}`,
+            );
+            assertTrue(
+              r.value.endsWith(`/${p}`),
+              `ensureFoldersAsync('${p}') resolved to '${r.value}'`,
+            );
+          }
+        } finally {
+          await h.provider.deleteFolderAsync(h.list, fresh).catch(() => {});
         }
       },
     },

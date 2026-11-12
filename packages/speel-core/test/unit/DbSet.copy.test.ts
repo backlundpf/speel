@@ -48,7 +48,7 @@ describe("DbSet.copyFileToAsync", () => {
 
   async function seedReport(name = "q2.pdf"): Promise<Report> {
     const urls = await provider.ensureFoldersAsync(reports, ["archive"]);
-    await provider.uploadFileAsync(reports, urls.get("archive")!, {
+    await provider.uploadFileAsync(reports, urls.get("archive")!.value!, {
       fileName: name,
       content: new Blob(["x"]),
       overwrite: false,

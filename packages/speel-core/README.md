@@ -82,6 +82,13 @@ change tracking, `saveChangesAsync()`, navigation properties (`hasOne` / `hasMan
   …) or the fluent builder in `onModelCreating`; they interoperate, and a subclass inherits its
   base class's declarations either way.
 
+**Results, not throws, for per-item outcomes.** An operation that reports one outcome per
+item (`ensureFoldersAsync`, for now) returns `Result<T>`: `{ ok: true, value }` or
+`{ ok: false, errors }`, where each `IError` carries a stable `code`, a `message`, and
+optionally `target`, `status` and `cause`. Branch on `ok`, match on `code` (never on
+`message`), and use `Result.unwrap(r)` to turn a failure into an `OperationFailedException`
+when a throw suits the caller better.
+
 **Import traps agents get wrong:**
 
 1. `import '@speel/pnpjs'` must appear before calling `initSpeelDbContext` — the import registers

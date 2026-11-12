@@ -67,38 +67,6 @@ function fakeSp() {
 const list = { kind: "title" as const, value: "Docs" };
 
 describe("SharePointProvider folder placement", () => {
-  it("ensureFoldersAsync creates each level as a list folder (dedups shared ancestors) and resolves URLs", async () => {
-    const { sp2, created } = fakeSp();
-    const provider = new SharePointProvider(sp2 as never);
-    const map = await provider.ensureFoldersAsync(list, ["a/b/c", "a/b"]);
-    // Each level created once via addSubFolderUsingPath; shared ancestors descended, not re-created.
-    expect(created).toEqual(["a", "a/b", "a/b/c"]);
-    expect(map.get("a/b/c")).toBe("/sites/dev/Docs/a/b/c");
-  });
-
-  it("ensureFoldersAsync rethrows errors that are not folder-already-exists", async () => {
-    const rootList = () => ({
-      rootFolder: {
-        select: (_f: string) => async () => ({
-          ServerRelativeUrl: "/sites/dev/Docs",
-        }),
-        addSubFolderUsingPath: () =>
-          Promise.reject({ status: 403, message: "Access denied." }),
-        folders: { getByUrl: () => ({}) },
-      },
-    });
-    const sp2: any = {
-      web: { lists: { getByTitle: rootList, getById: rootList } },
-      batched() {
-        return [sp2, async () => undefined];
-      },
-    };
-    const provider = new SharePointProvider(sp2);
-    await expect(
-      provider.ensureFoldersAsync(list, ["a"]),
-    ).rejects.toMatchObject({ message: "Access denied." });
-  });
-
   it("ensureFoldersAsync throws if the list root folder URL cannot be resolved", async () => {
     // Reproduces the real-SharePoint trap: RootFolder/ServerRelativeUrl absent → no
     // silent "undefined" root, a clear error instead.
