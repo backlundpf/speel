@@ -1,5 +1,6 @@
 // src/errors.ts
 import type { FilterNode } from "./Query/FilterNode.js";
+import type { IError } from "./Result.js";
 
 export class ModelConfigurationException extends Error {
   constructor(message: string) {
@@ -70,5 +71,19 @@ export class NavigationConfigurationException extends ModelConfigurationExceptio
   constructor(message: string) {
     super(message);
     this.name = "NavigationConfigurationException";
+  }
+}
+
+/**
+ * A `Result` failure turned into a throw, for APIs that throw rather than
+ * return results (see `Result.unwrap`). `errors` are the result's errors, as data.
+ */
+export class OperationFailedException extends Error {
+  public readonly errors: readonly IError[];
+
+  constructor(errors: readonly IError[]) {
+    super(errors.map((e) => e.message).join("; "));
+    this.name = "OperationFailedException";
+    this.errors = errors;
   }
 }

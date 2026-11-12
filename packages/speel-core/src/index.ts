@@ -159,7 +159,12 @@ export {
   DataException,
   InvalidOperationException,
   QueryTranslationException,
+  OperationFailedException,
 } from "./errors.js";
+
+// Standard outcome type
+export { Result } from "./Result.js";
+export type { IError } from "./Result.js";
 
 // Navigation slice
 export { SpeelEntity } from "./SpeelEntity.js";
