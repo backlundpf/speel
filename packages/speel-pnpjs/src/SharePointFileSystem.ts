@@ -6,7 +6,6 @@
 // cache and claims resolution. The selector imports register the invokable
 // behaviours (`.rootFolder`, `.files`, `getFolderByServerRelativePath`, ...)
 // the method bodies compile against.
-import type { IFolder } from "@pnp/sp/folders/index.js";
 import "@pnp/sp/webs/index.js";
 import "@pnp/sp/lists/index.js";
 import "@pnp/sp/items/index.js";
@@ -15,6 +14,8 @@ import "@pnp/sp/files/index.js";
 // Value import (not just the selector side effect): checkin takes the enum.
 import { CheckinType } from "@pnp/sp/files/index.js";
 import type {
+  FolderErrorCode,
+  IError,
   IFileSystem,
   IFileUploadRequest,
   IFileUploadResult,
@@ -22,21 +23,46 @@ import type {
   IRenameResult,
 } from "@speel/core";
 import { Result } from "@speel/core";
+import { BATCH_REQUEST_LIMIT } from "./batchLimits.js";
+import { httpErrorFacts } from "./httpError.js";
 import { toFormValues, type IFormValue } from "./formValues.js";
 import type { ISharePointHost } from "./ISharePointHost.js";
 
 // SharePoint signals "folder already exists" via an error (typically a 500)
 // whose message contains this phrase; treat it as success so ensureFoldersAsync
-// stays idempotent. Matched on message content, not status (PnPjs wraps it loosely).
+// stays idempotent. Matched per $batch sub-response, on message content, not
+// status (PnPjs wraps it loosely). Any other error is that folder's requestFailed.
 // NOTE: best-effort — this string match has not yet been confirmed against a live
-// tenant. If addUsingPath(url, false) turns out to be idempotent (returns the
-// existing folder instead of throwing), this branch never fires and behavior is
-// unchanged. Unrelated errors are rethrown by the caller.
+// tenant. If AddSubFolderUsingPath turns out to be idempotent (succeeds on an
+// existing folder), this branch never fires and behavior is unchanged.
 function isFolderExistsError(err: unknown): boolean {
   if (typeof err !== "object" || err === null) return false;
   const e = err as { message?: string; data?: { message?: string } };
   const msg = `${e.message ?? ""} ${e.data?.message ?? ""}`.toLowerCase();
   return msg.includes("already exists");
+}
+
+/** The list-relative parent of a list-relative folder path; "" at the list root. */
+function parentOf(prefix: string): string {
+  const i = prefix.lastIndexOf("/");
+  return i < 0 ? "" : prefix.slice(0, i);
+}
+
+/** The last segment of a list-relative folder path. */
+function leafOf(prefix: string): string {
+  return prefix.slice(prefix.lastIndexOf("/") + 1);
+}
+
+/** A `requestFailed` error for `target`, from a rejected PnPjs request. */
+function requestFailed(target: string, err: unknown): IError {
+  const { status, message } = httpErrorFacts(err);
+  return {
+    code: "requestFailed" satisfies FolderErrorCode,
+    message,
+    ...(status !== undefined ? { status } : {}),
+    target,
+    cause: err,
+  };
 }
 
 /** The parent-folder URL of a server-relative file/folder URL. */
@@ -70,37 +96,93 @@ export class SharePointFileSystem implements IFileSystem {
     if (listRelativePaths.length === 0) return out;
     const rootUrl = await this.host.resolveListRootUrl(list);
 
-    // Create each path as proper LIST folders, segment by segment, from the list's
-    // rootFolder via addSubFolderUsingPath. This is essential: a list folder created
-    // this way is backed by a list item, so the list view renders it and
-    // addValidateUpdateItemUsingPath can place items inside it. (web.folders.addUsingPath
-    // yields a bare file-system folder the list can't render and won't accept items in.)
+    // Every distinct path expands into its prefixes ("a", "a/b", "a/b/c"); a prefix
+    // shared between paths is one node, created once. Stray '' / '//' segments are
+    // skipped, defensively — core hands over normalized paths.
+    const prefixesByPath = new Map<string, string[]>();
+    const depthOf = new Map<string, number>();
     for (const path of new Set(listRelativePaths)) {
-      let folder: IFolder = this.host.list(list).rootFolder;
-      try {
-        for (const seg of path.split("/")) {
-          if (seg === "") continue; // defensive: skip stray '' / '//' segments
-          try {
-            folder = await folder.addSubFolderUsingPath(seg);
-          } catch (err: unknown) {
-            if (!isFolderExistsError(err)) throw err;
-            folder = folder.folders.getByUrl(seg); // already exists — descend into it
-          }
-        }
-        out.set(path, Result.ok(`${rootUrl}/${path}`));
-      } catch (err: unknown) {
-        const e = err as { message?: string; status?: number } | null;
-        out.set(
-          path,
-          Result.fail({
-            code: "requestFailed",
-            message: e?.message ?? String(err),
-            ...(typeof e?.status === "number" ? { status: e.status } : {}),
-            target: path,
-            cause: err,
-          }),
+      const segs = path.split("/").filter((s) => s !== "");
+      const prefixes = segs.map((_, i) => segs.slice(0, i + 1).join("/"));
+      prefixesByPath.set(path, prefixes);
+      prefixes.forEach((p, i) => depthOf.set(p, i + 1));
+    }
+    const maxDepth = Math.max(0, ...depthOf.values());
+
+    // One depth at a time, shallowest first; each depth's ready nodes go out in
+    // $batch chunks. Folders are created with AddSubFolderUsingPath on their PARENT
+    // folder, which makes proper LIST folders (backed by a list item, so the list
+    // view renders them and addValidateUpdateItemUsingPath can place items inside).
+    // (web.folders.addUsingPath yields a bare file-system folder the list can't
+    // render and won't accept items in.) null outcome = created or already there.
+    const outcome = new Map<string, IError | null>();
+    for (let depth = 1; depth <= maxDepth; depth++) {
+      // A node is sent only once its parent exists; under a failed (or never
+      // attempted) parent it is skipped, and its paths fail as parentFailed below.
+      const ready = [...depthOf]
+        .filter(([, d]) => d === depth)
+        .map(([p]) => p)
+        .filter((p) => {
+          const parent = parentOf(p);
+          return parent === "" || outcome.get(parent) === null;
+        });
+      for (let i = 0; i < ready.length; i += BATCH_REQUEST_LIMIT) {
+        const chunk = ready.slice(i, i + BATCH_REQUEST_LIMIT);
+        const [sp2, execute] = this.host.sp.batched({
+          maxRequests: BATCH_REQUEST_LIMIT,
+        });
+        // Enrol every request synchronously — PnPjs binds a request to the batch
+        // when it is invoked, so nothing may be awaited before the last call.
+        // Each promise carries its own rejection handler: none can go unhandled,
+        // even when abandoned after a batch failure.
+        const settled = chunk.map((p) => {
+          const parent = parentOf(p);
+          return sp2.web
+            .getFolderByServerRelativePath(
+              parent === "" ? rootUrl : `${rootUrl}/${parent}`,
+            )
+            .addSubFolderUsingPath(leafOf(p))
+            .then(
+              () => null,
+              (err: unknown) =>
+                isFolderExistsError(err) ? null : requestFailed(p, err),
+            );
+        });
+        // If the batch POST itself fails, PnPjs 4.20 never settles the queued
+        // promises — awaiting them would hang. Every node in the chunk fails.
+        const batchErr = await execute().then(
+          () => null,
+          (err: unknown) => err ?? new Error("The batch request failed."),
         );
+        if (batchErr !== null) {
+          for (const p of chunk) outcome.set(p, requestFailed(p, batchErr));
+        } else {
+          const results = await Promise.all(settled);
+          results.forEach((e, k) => outcome.set(chunk[k]!, e));
+        }
       }
+    }
+
+    // A path is decided by its shallowest failed prefix: its own node fails it as
+    // requestFailed; a failed ancestor fails it as parentFailed.
+    for (const [path, prefixes] of prefixesByPath) {
+      const failedAt = prefixes.find((p) => outcome.get(p) != null);
+      if (failedAt === undefined) {
+        out.set(path, Result.ok(`${rootUrl}/${path}`));
+        continue;
+      }
+      const own = outcome.get(failedAt)!;
+      out.set(
+        path,
+        failedAt === prefixes[prefixes.length - 1]
+          ? Result.fail({ ...own, target: path })
+          : Result.fail({
+              code: "parentFailed",
+              message: `could not create parent folder '${failedAt}': ${own.message}`,
+              target: path,
+              cause: own,
+            }),
+      );
     }
     return out;
   }

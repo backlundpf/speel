@@ -1,0 +1,227 @@
+// test/SharePointProvider.folderBatch.test.ts
+import { describe, it, expect } from "vitest";
+import type { IError } from "@speel/core";
+import { SharePointProvider } from "../src/SharePointProvider.js";
+
+const ROOT = "/sites/dev/Docs";
+const list = { kind: "title" as const, value: "Docs" };
+
+interface Queued {
+  path: string;
+  resolve: () => void;
+  reject: (e: unknown) => void;
+}
+
+/**
+ * A batching SPFI fake. `addSubFolderUsingPath` enrols SYNCHRONOUSLY in the
+ * current batch and its promise settles only when that batch's `execute()` runs
+ * — so an implementation that awaits between `batched()` and enrolment, or that
+ * awaits a promise before `execute()`, fails these tests. A rejected batch
+ * leaves its queued promises pending forever, as PnPjs 4.20 does.
+ */
+function fakeBatchSp(
+  opts: {
+    existing?: string[];
+    failing?: Record<string, { status: number; message: string }>;
+    executeRejects?: Error;
+    caseInsensitive?: boolean;
+  } = {},
+) {
+  const key = (p: string) => (opts.caseInsensitive ? p.toLowerCase() : p);
+  const present = new Set((opts.existing ?? []).map(key));
+  const created: string[] = [];
+  const batches: { parentUrl: string; leaf: string }[][] = [];
+  const maxRequestsSeen: number[] = [];
+
+  const rootList = () => ({
+    rootFolder: {
+      select: (_f: string) => async () => ({ ServerRelativeUrl: ROOT }),
+    },
+  });
+
+  const sp: any = {
+    web: { lists: { getByTitle: rootList, getById: rootList } },
+    batched(props?: { maxRequests?: number }) {
+      maxRequestsSeen.push(props?.maxRequests ?? -1);
+      const calls: { parentUrl: string; leaf: string }[] = [];
+      const queue: Queued[] = [];
+      batches.push(calls);
+      const scoped = {
+        web: {
+          getFolderByServerRelativePath: (parentUrl: string) => ({
+            addSubFolderUsingPath: (leaf: string) => {
+              calls.push({ parentUrl, leaf });
+              const rel =
+                parentUrl === ROOT ? "" : parentUrl.slice(ROOT.length + 1);
+              const path = rel ? `${rel}/${leaf}` : leaf;
+              return new Promise<void>((resolve, reject) =>
+                queue.push({ path, resolve, reject }),
+              );
+            },
+          }),
+        },
+      };
+      const execute = async () => {
+        if (opts.executeRejects) throw opts.executeRejects;
+        for (const q of queue) {
+          const fail = opts.failing?.[q.path];
+          if (fail) q.reject(fail);
+          else if (present.has(key(q.path)))
+            q.reject({ status: 500, message: "The folder already exists." });
+          else {
+            present.add(key(q.path));
+            created.push(q.path);
+            q.resolve();
+          }
+        }
+      };
+      return [scoped, execute];
+    },
+  };
+  return { sp, created, batches, maxRequestsSeen };
+}
+
+const leaves = (b: { leaf: string }[][]) => b.map((x) => x.map((c) => c.leaf));
+
+describe("ensureFoldersAsync batching", () => {
+  it("N root-level paths cost one batch", async () => {
+    const f = fakeBatchSp();
+    const paths = Array.from({ length: 25 }, (_, i) => `r-${i}`);
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(
+      list,
+      paths,
+    );
+    expect(f.batches).toHaveLength(1);
+    expect(f.batches[0]).toHaveLength(25);
+    expect(f.batches[0]!.every((c) => c.parentUrl === ROOT)).toBe(true);
+    expect(f.maxRequestsSeen).toEqual([100]);
+    expect([...map.values()].every((r) => r.ok)).toBe(true);
+  });
+
+  it("one batch per depth, shallowest first", async () => {
+    const f = fakeBatchSp();
+    await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "a/b/c",
+      "d/e",
+    ]);
+    expect(leaves(f.batches)).toEqual([["a", "d"], ["b", "e"], ["c"]]);
+    expect(f.batches[1]!.map((c) => c.parentUrl)).toEqual([
+      `${ROOT}/a`,
+      `${ROOT}/d`,
+    ]);
+  });
+
+  it("a depth wider than 100 splits into sequential batches", async () => {
+    const f = fakeBatchSp();
+    const paths = Array.from({ length: 101 }, (_, i) => `r-${i}`);
+    await new SharePointProvider(f.sp).ensureFoldersAsync(list, paths);
+    expect(f.batches.map((b) => b.length)).toEqual([100, 1]);
+  });
+
+  it("already-exists is success and children are still created", async () => {
+    const f = fakeBatchSp({ existing: ["a"] });
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "a/b",
+    ]);
+    expect(f.batches).toHaveLength(2);
+    expect(map.get("a/b")).toEqual({ ok: true, value: `${ROOT}/a/b` });
+    expect(f.created).toEqual(["a/b"]);
+  });
+
+  it("a failed parent's children are never sent", async () => {
+    const f = fakeBatchSp({
+      failing: { a: { status: 403, message: "Access denied." } },
+    });
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "a/b",
+      "a/c",
+      "z",
+    ]);
+    expect(leaves(f.batches)).toEqual([["a", "z"]]);
+    for (const p of ["a/b", "a/c"]) {
+      const e = map.get(p)!.errors![0]!;
+      expect(e).toMatchObject({ code: "parentFailed", target: p });
+      expect(e.cause as IError).toMatchObject({
+        code: "requestFailed",
+        target: "a",
+      });
+    }
+    expect(map.get("z")!.ok).toBe(true);
+  });
+
+  it("requestFailed carries the status and server message", async () => {
+    const f = fakeBatchSp({
+      failing: { a: { status: 403, message: "Access denied." } },
+    });
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "a",
+    ]);
+    expect(map.get("a")!.errors![0]).toMatchObject({
+      code: "requestFailed",
+      status: 403,
+      message: "Access denied.",
+      target: "a",
+    });
+  });
+
+  it("a rejected execute fails every node in that chunk", async () => {
+    const f = fakeBatchSp({ executeRejects: new Error("network down") });
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "a",
+      "b",
+    ]);
+    for (const p of ["a", "b"]) {
+      const e = map.get(p)!.errors![0]!;
+      expect(e).toMatchObject({
+        code: "requestFailed",
+        message: "network down",
+      });
+      expect(e.status).toBeUndefined();
+    }
+  });
+
+  it("a path that is another path's prefix is created once", async () => {
+    const f = fakeBatchSp();
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "a",
+      "a/b",
+    ]);
+    expect(f.created).toEqual(["a", "a/b"]);
+    expect(map.get("a")!.ok && map.get("a/b")!.ok).toBe(true);
+  });
+
+  it("case-only duplicates both succeed", async () => {
+    const f = fakeBatchSp({ caseInsensitive: true });
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "Responses/a",
+      "responses/b",
+    ]);
+    expect(map.get("Responses/a")).toEqual({
+      ok: true,
+      value: `${ROOT}/Responses/a`,
+    });
+    expect(map.get("responses/b")).toEqual({
+      ok: true,
+      value: `${ROOT}/responses/b`,
+    });
+    expect(f.created.filter((p) => !p.includes("/"))).toHaveLength(1);
+    expect(f.created).toContain("Responses/a");
+    expect(f.created).toContain("responses/b");
+  });
+
+  it("passes raw names to the PnPjs path APIs", async () => {
+    const f = fakeBatchSp();
+    await new SharePointProvider(f.sp).ensureFoldersAsync(list, [
+      "it's #1/a b%",
+    ]);
+    expect(leaves(f.batches)).toEqual([["it's #1"], ["a b%"]]);
+    expect(f.batches[1]![0]!.parentUrl).toBe(`${ROOT}/it's #1`);
+  });
+
+  it("empty input makes no request", async () => {
+    const f = fakeBatchSp();
+    const map = await new SharePointProvider(f.sp).ensureFoldersAsync(list, []);
+    expect(map.size).toBe(0);
+    expect(f.batches).toHaveLength(0);
+  });
+});

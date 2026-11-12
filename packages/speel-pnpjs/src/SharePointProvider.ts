@@ -49,6 +49,8 @@ import type {
   Property,
 } from "@speel/core";
 import { containsContainerScope } from "@speel/core";
+import { BATCH_REQUEST_LIMIT } from "./batchLimits.js";
+import { httpErrorFacts } from "./httpError.js";
 import {
   toJsonPayload,
   toFormValues,
@@ -94,14 +96,6 @@ interface IPrincipalCollection {
   (): Promise<Record<string, unknown>[]>;
   [Symbol.asyncIterator]?(): ItemPageIter;
 }
-
-/**
- * SharePoint caps an OData $batch at 100 sub-requests; a wider level splits
- * across batches. This has to be passed to `sp.batched()` as well as used to
- * chunk our own queue — PnPjs defaults `maxRequests` to 20 and issues one
- * sequential POST per chunk, so omitting it turns a 100-op batch into 5 requests.
- */
-const BATCH_REQUEST_LIMIT = 100;
 
 /** One queued sub-request of a read batch, plus whether it saw the whole result set. */
 interface IQueuedRead {
@@ -1203,14 +1197,7 @@ export class SharePointProvider
   }
 
   private toFailure(clientToken: string, err: unknown): IBatchOperationResult {
-    let status = 0;
-    let body: unknown = err;
-    if (typeof err === "object" && err) {
-      const e = err as { status?: number; message?: string; data?: unknown };
-      if (typeof e.status === "number") status = e.status;
-      if (e.message) body = e.message;
-      if (e.data !== undefined) body = e.data;
-    }
-    return { kind: "failure", clientToken, status, body };
+    const { status, body } = httpErrorFacts(err);
+    return { kind: "failure", clientToken, status: status ?? 0, body };
   }
 }
