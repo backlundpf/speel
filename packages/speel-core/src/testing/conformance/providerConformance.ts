@@ -547,6 +547,32 @@ export function providerConformanceCases(
         }
       },
     },
+    {
+      name: "ensureFoldersAsync: new and existing paths in one call are both ok",
+      async run() {
+        await folderUrl(); // the existing one
+        const fresh = `${h.folderPath}/${token()}-${Date.now()}`;
+        try {
+          const results = await h.provider.ensureFoldersAsync(h.list, [
+            h.folderPath,
+            fresh,
+          ]);
+          for (const p of [h.folderPath, fresh]) {
+            const r = results.get(p);
+            assertTrue(
+              !!r?.ok,
+              `ensureFoldersAsync('${p}') failed: ${JSON.stringify(r?.errors)}`,
+            );
+            assertTrue(
+              r.value.endsWith(`/${p}`),
+              `ensureFoldersAsync('${p}') resolved to '${r.value}'`,
+            );
+          }
+        } finally {
+          await h.provider.deleteFolderAsync(h.list, fresh).catch(() => {});
+        }
+      },
+    },
     // The three typed cases: they write, so they sit with the writes, and they name
     // only principals the cases above have already warmed — no cold premise moves.
     {

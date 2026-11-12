@@ -5,7 +5,7 @@ import { ProjectDashboardPage } from "./pages/projectDashboard.page";
  *  `@speel/core/testing` (the dist is ESM with extension-less relative imports,
  *  loadable by bundlers but not by bare Node), so the run is checked against
  *  the page's own `names()` plus this count. */
-const CONFORMANCE_CASE_COUNT = 27;
+const CONFORMANCE_CASE_COUNT = 28;
 
 /**
  * E2E: the ISharePointProvider conformance suite, run in the page against a fresh
