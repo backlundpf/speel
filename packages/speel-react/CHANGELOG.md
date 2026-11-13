@@ -1,5 +1,13 @@
 # @speel/react
 
+## 0.1.0-beta.7
+
+### Patch Changes
+
+- Updated dependencies [fba9a90]
+  - @speel/core@0.1.0-beta.7
+  - @speel/identity@0.1.0-beta.7
+
 ## 0.1.0-beta.6
 
 ### Minor Changes
