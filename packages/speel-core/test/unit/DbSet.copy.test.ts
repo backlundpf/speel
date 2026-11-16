@@ -89,6 +89,44 @@ describe("DbSet.copyFileToAsync", () => {
     ).rejects.toThrow(/already exists/);
   });
 
+  it("refuses a new name that is empty or a path, sending nothing", async () => {
+    const report = await seedReport();
+    await provider.ensureFoldersAsync(deliveries, ["FY26-1"]);
+
+    await expect(
+      reportSet.copyFileToAsync(report, deliverySet, "FY26-1", "sub/copy.pdf"),
+    ).rejects.toThrow(/takes a name, not a path/);
+    await expect(
+      reportSet.copyFileToAsync(report, deliverySet, "FY26-1", "  "),
+    ).rejects.toThrow(/non-empty name/);
+    expect(await deliverySet.toArrayAsync()).toHaveLength(0);
+  });
+
+  it("copies into a nested folder of the destination library", async () => {
+    const report = await seedReport();
+    await provider.ensureFoldersAsync(deliveries, ["FY26/Q2"]);
+    const result = await reportSet.copyFileToAsync(
+      report,
+      deliverySet,
+      "FY26/Q2",
+      "copy.pdf",
+    );
+    expect(result.serverRelativeUrl).toBe(
+      "/sites/dev/Deliveries/FY26/Q2/copy.pdf",
+    );
+  });
+
+  it("copies into the destination library's root for an empty folder path", async () => {
+    const report = await seedReport();
+    const result = await reportSet.copyFileToAsync(
+      report,
+      deliverySet,
+      "",
+      " copy.pdf ",
+    );
+    expect(result.serverRelativeUrl).toBe("/sites/dev/Deliveries/copy.pdf");
+  });
+
   it("fails when the destination folder does not exist", async () => {
     const report = await seedReport();
     await expect(
