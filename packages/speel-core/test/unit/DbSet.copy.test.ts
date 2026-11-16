@@ -102,6 +102,20 @@ describe("DbSet.copyFileToAsync", () => {
     expect(await deliverySet.toArrayAsync()).toHaveLength(0);
   });
 
+  it("copies into a nested folder of the destination library", async () => {
+    const report = await seedReport();
+    await provider.ensureFoldersAsync(deliveries, ["FY26/Q2"]);
+    const result = await reportSet.copyFileToAsync(
+      report,
+      deliverySet,
+      "FY26/Q2",
+      "copy.pdf",
+    );
+    expect(result.serverRelativeUrl).toBe(
+      "/sites/dev/Deliveries/FY26/Q2/copy.pdf",
+    );
+  });
+
   it("copies into the destination library's root for an empty folder path", async () => {
     const report = await seedReport();
     const result = await reportSet.copyFileToAsync(
