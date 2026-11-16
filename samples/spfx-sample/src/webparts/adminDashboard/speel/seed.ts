@@ -1,4 +1,3 @@
-import type { WebPartContext } from "@microsoft/sp-webpart-base";
 import type { SpeelIdentity } from "@speel/identity";
 import type { ProjectDashboardContext } from "../../../speel/ProjectDashboardContext";
 import { Project } from "../../../entities/Project";
@@ -6,9 +5,9 @@ import { Programs } from "../../../entities/Programs";
 import { Tags } from "../../../entities/Tags";
 import { Customer } from "../../../entities/Customer";
 
-// People-field slots (Owner / Reviewers). `seed(logins)` fills slot i with
-// logins[i]; a slot with no login is the signed-in user, so the demo data seeds
-// on any tenant.
+// People-field slots (Owner / Reviewers), filled from the people in the site's
+// Members group in order (repeating when it has fewer than five), or the
+// signed-in user when it has none, so the demo data seeds on any site.
 const USERS = ["user1", "user2", "user3", "user4", "user5"] as const;
 type UserSlot = (typeof USERS)[number];
 
@@ -135,47 +134,33 @@ async function ensureLookups<T extends { Id?: number; Title?: string | null }>(
 /**
  * Seed the Project Dashboard's live lists with demo Programs, Tags, Customers, and Projects.
  * Idempotent by Title (re-running won't duplicate). Requires the lists to exist —
- * run migrations first. Exposed on `window.pd.seed(logins?)`: up to five
- * logins ("alias" or "alias@domain") for the people fields; any slot left out
- * is the signed-in user.
+ * run migrations first. Exposed on `window.pd.seed()`. People fields are
+ * filled from the site's Members group.
  */
 export function buildSeed(
   ctx: ProjectDashboardContext,
   identity: SpeelIdentity,
-  spfxContext: WebPartContext,
-): (logins?: readonly string[]) => Promise<void> {
-  return async function seed(logins: readonly string[] = []): Promise<void> {
+): () => Promise<void> {
+  return async function seed(): Promise<void> {
     console.group("[speel] seed (demo Programs / Tags / Customers / Projects)");
     try {
-      // 1. Resolve the people fields' users to site-user ids.
-      const user = spfxContext.pageContext.user;
-      const domain = (user.email || user.loginName || "").split("@")[1];
-      if (!domain)
-        throw new Error(
-          "Could not determine the tenant domain from pageContext.user.",
-        );
-      const me = user.email || user.loginName;
-      const userId: Partial<Record<UserSlot, number>> = {};
-      for (const [i, slot] of USERS.entries()) {
-        const given = logins[i];
-        const login = !given
-          ? me
-          : given.includes("@")
-            ? given
-            : `${given}@${domain}`;
-        try {
-          const u = await identity.users.ensure(login);
-          if (u.Id != null) userId[slot] = u.Id;
-        } catch (e) {
-          console.warn(
-            `  could not resolve ${login}:`,
-            e instanceof Error ? e.message : e,
-          );
-        }
+      // 1. People for the people fields: the Members group's users (not
+      // nested groups), or the signed-in user when it has none.
+      const { members } = await identity.groups.associated();
+      const people = (members ? await identity.groups.members(members) : [])
+        .filter((u) => u.PrincipalType === 1 && u.Id != null)
+        .map((u) => ({ id: u.Id!, name: u.Title ?? u.LoginName }));
+      if (people.length === 0) {
+        const me = await identity.users.me();
+        if (me.Id != null) people.push({ id: me.Id, name: me.Title ?? "me" });
       }
+      const userId: Partial<Record<UserSlot, number>> = {};
+      if (people.length > 0)
+        for (const [i, slot] of USERS.entries())
+          userId[slot] = people[i % people.length]!.id;
       console.log(
-        "  resolved users:",
-        Object.keys(userId).join(", ") || "(none)",
+        `  people (${members?.Title ?? "no Members group"}):`,
+        people.map((p) => p.name).join(", ") || "(none)",
       );
 
       // 2. Programs + Tags (idempotent by Title).
@@ -233,9 +218,9 @@ export function buildSeed(
         p.DueDate = new Date(Date.now() + s.daysOut * 86_400_000);
         p.StartDate = new Date(Date.now() - 14 * 86_400_000);
         if (userId[s.owner] != null) p.OwnerId = userId[s.owner]!;
-        const reviewers = s.reviewers
-          .map((r) => userId[r])
-          .filter((id): id is number => id != null);
+        const reviewers = [
+          ...new Set(s.reviewers.map((r) => userId[r])),
+        ].filter((id): id is number => id != null);
         if (reviewers.length) p.ReviewersId = reviewers;
         if (programId[s.program] != null) p.ProgramId = programId[s.program]!;
         const tagIds = s.tags

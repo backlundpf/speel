@@ -569,7 +569,7 @@ declare global {
       Programs: typeof Programs;
       Tags: typeof Tags;
       migrations?: IMigrations;
-      seed?: (logins?: readonly string[]) => Promise<void>;
+      seed?: () => Promise<void>;
       conformance?: import("./conformance").IConformance;
     };
   }

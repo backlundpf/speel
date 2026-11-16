@@ -52,7 +52,7 @@ export default class AdminDashboardWebPart extends BaseClientSideWebPart<
       this._migrator = migrator;
       if (typeof window !== "undefined" && window.pd) {
         window.pd.migrations = buildMigrations(migrator);
-        window.pd.seed = buildSeed(ctx, identity, this.context);
+        window.pd.seed = buildSeed(ctx, identity);
         window.pd.conformance = buildConformance(
           ctx,
           this.context.pageContext.web.absoluteUrl,
@@ -61,7 +61,7 @@ export default class AdminDashboardWebPart extends BaseClientSideWebPart<
           "  window.pd.migrations  — status() | up() | to(id)  (schema provisioning)",
         );
         console.log(
-          "  window.pd.seed([logins]) — create demo Programs / Tags / Projects (people default to you)",
+          "  window.pd.seed()      — create demo Programs / Tags / Projects (people from the Members group)",
         );
         console.log(
           "  window.pd.conformance.run() — provider conformance suite, live",
