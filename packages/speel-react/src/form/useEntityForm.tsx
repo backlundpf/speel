@@ -201,20 +201,33 @@ export function useEntityForm<T extends IEntity>(
             addOptions: composeAddOptions(),
           });
         } else {
+          const ctor = entity.constructor as EntityCtor<T>;
+          const set = ctx.set(ctor);
           const id = (entity as { Id?: number }).Id;
-          if (
-            mode === "create" &&
-            (id === undefined || id === null || id === 0)
-          ) {
+          const unsaved = id === undefined || id === null || id === 0;
+          if (mode === "create" && unsaved) {
             // add() validates options before tracking (a bad folder/file throws
             // without tracking) and is idempotent for an already-tracked Added
             // instance: each retry RE-STAGES the current options, so a file or
             // folder changed after an aborted/failed attempt is what uploads.
-            ctx
-              .set(entity.constructor as EntityCtor<T>)
-              .add(entity, composeAddOptions());
+            set.add(entity, composeAddOptions());
+            applyValuesToEntity(et, entity, values);
+          } else if (unsaved) {
+            // An id-less entity in a non-create form: the caller tracks it.
+            applyValuesToEntity(et, entity, values);
+          } else {
+            const tracked = ctx.changeTracker.findEntry(ctor, id);
+            // A loaded row nothing tracks (asNoTracking, a hand-built or
+            // deserialized instance) would save nothing. The draft has not
+            // touched it yet, so attaching now snapshots the loaded values and
+            // the save sends only the user's edits, not every column.
+            if (tracked === undefined) set.attach(entity);
+            applyValuesToEntity(et, entity, values);
+            // A different instance for a tracked row (a clone): copy the edits
+            // onto the tracked one, or the save would diff it against itself.
+            if (tracked !== undefined && tracked.entity !== entity)
+              set.update(entity);
           }
-          applyValuesToEntity(et, entity, values);
           await ctx.saveChangesAsync({ signal: controller.signal });
         }
         options?.onSaved?.(entity);
