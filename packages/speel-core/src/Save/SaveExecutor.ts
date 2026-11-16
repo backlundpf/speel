@@ -20,6 +20,8 @@ import { listKey } from "../Cache/listKey.js";
 import { DbUpdateException, SaveAbortedException } from "../errors.js";
 import { Result, type IError } from "../Result.js";
 import { clearReadOnlyMembers } from "../Entities/readOnlyMembers.js";
+import { Snapshot } from "../ChangeTracker/Snapshot.js";
+import type { EntityType } from "../Metadata/EntityType.js";
 
 export interface ISaveChangesOptions {
   batched?: boolean;
@@ -37,6 +39,42 @@ export interface ISaveChangesOptions {
 interface IPendingOp {
   entry: EntityEntry;
   operation: IBatchOperation;
+  /** The entity as it was when the write was built. */
+  sent: Snapshot;
+}
+
+/**
+ * What the store holds for every writable (non-key, non-read-only) property
+ * once a write lands: the value as it was when the write was built. A property
+ * the payload did not carry was not dirty then, so that value is its original;
+ * an insert's unset property is null on the store.
+ */
+function sentValues(sent: Snapshot, et: EntityType): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const p of et.properties)
+    if (!p.key && !p.readOnly)
+      out[p.propertyName] = sent.values[p.propertyName] ?? null;
+  return out;
+}
+
+/**
+ * Mark a written entry Unchanged against what the write sent, not against the
+ * entity as it is now: an edit made while the write was in flight stays dirty
+ * for the next save. The key, read-only members and navigations are taken as
+ * they are now; `patch` (server file facts) goes on top.
+ */
+function adoptSent(
+  entry: EntityEntry,
+  sent: Snapshot,
+  patch?: Readonly<Record<string, unknown>>,
+): void {
+  let originals = Snapshot.take(
+    entry.entity as object,
+    entry.entityType,
+  ).setValues(sentValues(sent, entry.entityType));
+  if (patch) originals = originals.setValues(patch);
+  entry.setSnapshot(originals);
+  entry.state = EntityState.Unchanged;
 }
 
 const DEFAULT_MAX_BATCH = 100;
@@ -240,7 +278,11 @@ export class SaveExecutor {
             clientToken,
           };
         }
-        return { entry, operation: op };
+        return {
+          entry,
+          operation: op,
+          sent: Snapshot.take(entry.entity as object, et),
+        };
       });
 
     const chunkSize = batched ? maxBatchSize : 1;
@@ -284,6 +326,7 @@ export class SaveExecutor {
       throwIfAborted(signal);
       const et = entry.entityType;
       const staged = entry.targetFile!;
+      const sent = Snapshot.take(entry.entity as object, et);
       try {
         const result = await fileSystem!.uploadFileAsync(
           et.list,
@@ -303,7 +346,7 @@ export class SaveExecutor {
             signal: staged.signal ?? signal,
           },
         );
-        this.reconcileFileAdd(entry, result);
+        this.reconcileFileAdd(entry, result, sent);
         totalProcessed++;
       } catch (err: unknown) {
         // An abort is a cancellation, not a save failure.
@@ -349,8 +392,7 @@ export class SaveExecutor {
       (entry.entity as { Id?: number }).Id = id;
       this.tracker.promoteKey(entry, id);
       clearReadOnlyMembers(entry.entityType, entry.entity as object);
-      entry.refreshSnapshot();
-      entry.state = EntityState.Unchanged;
+      adoptSent(entry, p.sent);
     } else if (p.operation.kind === "update") {
       // A FileLeafRef write renamed the file, so its URL moved within the same
       // folder: refresh FileRef before the snapshot adopts the entity.
@@ -361,34 +403,40 @@ export class SaveExecutor {
       const url = ref
         ? (entry.entity as unknown as Record<string, unknown>)[ref.propertyName]
         : undefined;
+      let patch: Record<string, unknown> | undefined;
       if (typeof leaf === "string" && typeof url === "string") {
+        patch = fileFactsPatch(
+          entry.entityType,
+          leaf,
+          `${url.slice(0, url.lastIndexOf("/"))}/${leaf}`,
+        );
         Object.assign(
           entry.entity as unknown as Record<string, unknown>,
-          fileFactsPatch(
-            entry.entityType,
-            leaf,
-            `${url.slice(0, url.lastIndexOf("/"))}/${leaf}`,
-          ),
+          patch,
         );
       }
-      entry.refreshSnapshot();
-      entry.state = EntityState.Unchanged;
+      adoptSent(entry, p.sent, patch);
     } else if (p.operation.kind === "delete") {
       this.tracker.untrack(entry);
     }
   }
 
-  private reconcileFileAdd(entry: EntityEntry, r: IFileUploadResult): void {
+  private reconcileFileAdd(
+    entry: EntityEntry,
+    r: IFileUploadResult,
+    sent: Snapshot,
+  ): void {
     (entry.entity as { Id?: number }).Id = r.id;
     this.tracker.promoteKey(entry, r.id);
     clearReadOnlyMembers(entry.entityType, entry.entity as object);
-    // Reflect server file facts onto model-mapped properties so the snapshot
-    // refresh covers them.
-    Object.assign(
-      entry.entity as unknown as Record<string, unknown>,
-      fileFactsPatch(entry.entityType, r.fileName, r.serverRelativeUrl),
+    // Reflect server file facts onto model-mapped properties, and into the
+    // originals so they are not mistaken for edits.
+    const patch = fileFactsPatch(
+      entry.entityType,
+      r.fileName,
+      r.serverRelativeUrl,
     );
-    entry.refreshSnapshot();
-    entry.state = EntityState.Unchanged;
+    Object.assign(entry.entity as unknown as Record<string, unknown>, patch);
+    adoptSent(entry, sent, patch);
   }
 }

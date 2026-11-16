@@ -484,6 +484,8 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
         `copyFileToAsync() requires document-library entities on both sides: ${this.ctor.name} and ${dest.ctor.name} must extend SpeelDocument.`,
       );
     }
+    const leaf = normalizeLeafName(newLeafName, "copyFileToAsync");
+    const folder = normalizeFolderPath(destFolderPath);
     const id = persistedId(entity);
     if (id === undefined) {
       throw new InvalidOperationException(
@@ -496,8 +498,8 @@ export class DbSet<T extends IEntity> implements IQuery<T> {
       this.entityType.list,
       id,
       dest.entityType.list,
-      normalizeFolderPath(destFolderPath),
-      newLeafName,
+      folder,
+      leaf,
     );
   }
 
