@@ -6,14 +6,11 @@ import { Programs } from "../../../entities/Programs";
 import { Tags } from "../../../entities/Tags";
 import { Customer } from "../../../entities/Customer";
 
-// Valid tenant user names for the people fields (Owner / Reviewers).
-const USERS = [
-  "backlundpf",
-  "fleshmanlw",
-  "fletchergd",
-  "parchmentrg",
-  "dotysc",
-] as const;
+// People-field slots (Owner / Reviewers). `seed(logins)` fills slot i with
+// logins[i]; a slot with no login is the signed-in user, so the demo data seeds
+// on any tenant.
+const USERS = ["user1", "user2", "user3", "user4", "user5"] as const;
+type UserSlot = (typeof USERS)[number];
 
 const PROGRAMS = ["Platform", "Mobile", "Data"];
 const TAGS = ["frontend", "backend", "infrastructure", "design"];
@@ -33,8 +30,8 @@ interface ProjectSeed {
   Status: Project["Status"];
   Priority: Project["Priority"];
   Budget: number;
-  owner: string;
-  reviewers: string[];
+  owner: UserSlot;
+  reviewers: UserSlot[];
   program: string;
   tags: string[];
   daysOut: number;
@@ -46,8 +43,8 @@ const PROJECTS: ProjectSeed[] = [
     Status: "Active",
     Priority: "High",
     Budget: 75000,
-    owner: "backlundpf",
-    reviewers: ["fleshmanlw", "fletchergd"],
+    owner: "user1",
+    reviewers: ["user2", "user3"],
     program: "Platform",
     tags: ["frontend", "backend"],
     daysOut: 45,
@@ -57,8 +54,8 @@ const PROJECTS: ProjectSeed[] = [
     Status: "Planning",
     Priority: "Critical",
     Budget: 120000,
-    owner: "fleshmanlw",
-    reviewers: ["backlundpf"],
+    owner: "user2",
+    reviewers: ["user1"],
     program: "Mobile",
     tags: ["frontend"],
     daysOut: 90,
@@ -68,8 +65,8 @@ const PROJECTS: ProjectSeed[] = [
     Status: "Active",
     Priority: "Medium",
     Budget: 40000,
-    owner: "fletchergd",
-    reviewers: ["dotysc", "parchmentrg"],
+    owner: "user3",
+    reviewers: ["user5", "user4"],
     program: "Data",
     tags: ["infrastructure", "backend"],
     daysOut: 120,
@@ -79,8 +76,8 @@ const PROJECTS: ProjectSeed[] = [
     Status: "On Hold",
     Priority: "Low",
     Budget: 15000,
-    owner: "parchmentrg",
-    reviewers: ["fleshmanlw"],
+    owner: "user4",
+    reviewers: ["user2"],
     program: "Platform",
     tags: ["design", "frontend"],
     daysOut: 60,
@@ -90,8 +87,8 @@ const PROJECTS: ProjectSeed[] = [
     Status: "Complete",
     Priority: "High",
     Budget: 55000,
-    owner: "dotysc",
-    reviewers: ["backlundpf", "fletchergd"],
+    owner: "user5",
+    reviewers: ["user1", "user3"],
     program: "Platform",
     tags: ["backend", "infrastructure"],
     daysOut: -10,
@@ -101,8 +98,8 @@ const PROJECTS: ProjectSeed[] = [
     Status: "Planning",
     Priority: "Medium",
     Budget: 30000,
-    owner: "backlundpf",
-    reviewers: ["dotysc"],
+    owner: "user1",
+    reviewers: ["user5"],
     program: "Mobile",
     tags: ["frontend", "backend"],
     daysOut: 75,
@@ -138,14 +135,16 @@ async function ensureLookups<T extends { Id?: number; Title?: string | null }>(
 /**
  * Seed the Project Dashboard's live lists with demo Programs, Tags, Customers, and Projects.
  * Idempotent by Title (re-running won't duplicate). Requires the lists to exist —
- * run migrations first. Exposed on `window.pd.seed()`.
+ * run migrations first. Exposed on `window.pd.seed(logins?)`: up to five
+ * logins ("alias" or "alias@domain") for the people fields; any slot left out
+ * is the signed-in user.
  */
 export function buildSeed(
   ctx: ProjectDashboardContext,
   identity: SpeelIdentity,
   spfxContext: WebPartContext,
-): () => Promise<void> {
-  return async function seed(): Promise<void> {
+): (logins?: readonly string[]) => Promise<void> {
+  return async function seed(logins: readonly string[] = []): Promise<void> {
     console.group("[speel] seed (demo Programs / Tags / Customers / Projects)");
     try {
       // 1. Resolve the people fields' users to site-user ids.
@@ -155,14 +154,21 @@ export function buildSeed(
         throw new Error(
           "Could not determine the tenant domain from pageContext.user.",
         );
-      const userId: Record<string, number> = {};
-      for (const login of USERS) {
+      const me = user.email || user.loginName;
+      const userId: Partial<Record<UserSlot, number>> = {};
+      for (const [i, slot] of USERS.entries()) {
+        const given = logins[i];
+        const login = !given
+          ? me
+          : given.includes("@")
+            ? given
+            : `${given}@${domain}`;
         try {
-          const u = await identity.users.ensure(`${login}@${domain}`);
-          if (u.Id != null) userId[login] = u.Id;
+          const u = await identity.users.ensure(login);
+          if (u.Id != null) userId[slot] = u.Id;
         } catch (e) {
           console.warn(
-            `  could not resolve ${login}@${domain}:`,
+            `  could not resolve ${login}:`,
             e instanceof Error ? e.message : e,
           );
         }

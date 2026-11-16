@@ -61,7 +61,7 @@ export default class AdminDashboardWebPart extends BaseClientSideWebPart<
           "  window.pd.migrations  — status() | up() | to(id)  (schema provisioning)",
         );
         console.log(
-          "  window.pd.seed()      — create demo Programs / Tags / Projects",
+          "  window.pd.seed([logins]) — create demo Programs / Tags / Projects (people default to you)",
         );
         console.log(
           "  window.pd.conformance.run() — provider conformance suite, live",
